@@ -1,23 +1,33 @@
 import * as bg from './wasm_vtracer_bg.js';
 import {
   VTracerOptions,
+  EngineVersionOption,
   DEFAULT_VTRACER_OPTIONS,
 } from './types';
 import { optimizeSvg } from './optimizer';
+import { initVTracer2, isVTracer2Ready, convertImageV2 } from './vtracer2';
 
-let wasmInitialized = false;
-let initPromise: Promise<void> | null = null;
+let wasm1Initialized = false;
+let initPromise1: Promise<void> | null = null;
 
-export async function initVTracer(wasmBinaryOrUrl?: ArrayBuffer | Uint8Array | string): Promise<void> {
-  if (wasmInitialized && bg.isReady()) {
+export async function initVTracer(
+  wasmBinaryOrUrl?: ArrayBuffer | Uint8Array | string,
+  engine: EngineVersionOption = 'vtracer-2.0.10'
+): Promise<void> {
+  if (engine === 'vtracer-2.0.10') {
+    return initVTracer2(wasmBinaryOrUrl || '/wasm/vtracer2.wasm');
+  }
+
+  // Classic engine (vtracer-0.2.0)
+  if (wasm1Initialized && bg.isReady()) {
     return;
   }
 
-  if (initPromise) {
-    return initPromise;
+  if (initPromise1) {
+    return initPromise1;
   }
 
-  initPromise = (async () => {
+  initPromise1 = (async () => {
     try {
       let wasmBytes: ArrayBuffer | Uint8Array;
 
@@ -39,18 +49,21 @@ export async function initVTracer(wasmBinaryOrUrl?: ArrayBuffer | Uint8Array | s
       const instance = (result as { instance?: WebAssembly.Instance }).instance || (result as WebAssembly.Instance);
       bg.__wbg_set_wasm(instance.exports);
       bg.init();
-      wasmInitialized = true;
+      wasm1Initialized = true;
     } catch (err) {
-      initPromise = null;
+      initPromise1 = null;
       throw err;
     }
   })();
 
-  return initPromise;
+  return initPromise1;
 }
 
-export function isVTracerReady(): boolean {
-  return wasmInitialized && bg.isReady();
+export function isVTracerReady(engine: EngineVersionOption = 'vtracer-2.0.10'): boolean {
+  if (engine === 'vtracer-2.0.10') {
+    return isVTracer2Ready();
+  }
+  return wasm1Initialized && bg.isReady();
 }
 
 export function countSvgNodes(svg: string): number {
@@ -67,20 +80,13 @@ export function countSvgNodes(svg: string): number {
   );
 }
 
-export function convertImage(
+function convertImageV1(
   pixels: Uint8ClampedArray | Uint8Array,
   width: number,
   height: number,
-  options: Partial<VTracerOptions> = {}
+  opts: VTracerOptions
 ): string {
-  if (!isVTracerReady()) {
-    throw new Error('VTracer WASM is not initialized. Please call initVTracer() first.');
-  }
-
-  const opts: VTracerOptions = { ...DEFAULT_VTRACER_OPTIONS, ...options };
-
   const rawBytes = pixels instanceof Uint8Array ? pixels : new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
-
   const config = new bg.TracerConfig();
 
   // Color mode
@@ -140,57 +146,79 @@ export function convertImage(
   }
 
   try {
-    let resultSvg = bg.convertImageToSvg(rawBytes, width, height, config);
-    // Ensure viewBox is always present for responsive non-clipped scaling
-    if (resultSvg && !resultSvg.includes('viewBox')) {
-      resultSvg = resultSvg.replace('<svg ', `<svg viewBox="0 0 ${width} ${height}" `);
-    }
-
-    // Fix: In binary / silhouette / line-art tracing, VTracer sets fill="none" on paths which
-    // causes them to render completely invisible. Replace with solid black fill.
-    if (opts.colorMode === 'binary' || opts.preset === 'line-art') {
-      resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
-    } else if (!resultSvg.includes('fill="#') && resultSvg.includes('fill="none"')) {
-      resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
-    }
-
-    // Transparent background processing:
-    // When transparent background is requested, strip the outer bounding path
-    // that covers the canvas edges (typically the first path in cutout mode).
-    if (opts.backgroundMode === 'transparent' && resultSvg) {
-      const firstPathMatch = resultSvg.match(/<path[^>]+>/i);
-      if (firstPathMatch) {
-        const firstPath = firstPathMatch[0];
-        // If it starts at (0,0) or reaches width/height corners
-        if (
-          firstPath.includes('M 0 0') ||
-          firstPath.includes('M0 0') ||
-          firstPath.includes(`L ${width} 0`) ||
-          firstPath.includes(`L${width} 0`) ||
-          firstPath.includes(`L ${width} ${height}`) ||
-          firstPath.includes(`L${width} ${height}`)
-        ) {
-          resultSvg = resultSvg.replace(firstPath, '');
-        }
-      }
-    }
-
-    // SVG Optimization: clean decimals, merge paths with matching fills, remove empty tags
-    if (opts.optimizeSvg !== false && resultSvg) {
-      resultSvg = optimizeSvg(resultSvg, {
-        decimalPlaces: 2,
-        mergePaths: true,
-        cleanWhitespace: true,
-        removeEmptyTags: true,
-      });
-    }
-
-    return resultSvg;
+    return bg.convertImageToSvg(rawBytes, width, height, config);
   } finally {
     if (typeof config.free === 'function') {
       config.free();
     }
   }
+}
+
+export function convertImage(
+  pixels: Uint8ClampedArray | Uint8Array,
+  width: number,
+  height: number,
+  options: Partial<VTracerOptions> = {}
+): string {
+  const opts: VTracerOptions = { ...DEFAULT_VTRACER_OPTIONS, ...options };
+  const engine = opts.engineVersion || 'vtracer-2.0.10';
+
+  if (!isVTracerReady(engine)) {
+    throw new Error(`VTracer WASM (${engine}) is not initialized. Please call initVTracer(url, '${engine}') first.`);
+  }
+
+  let resultSvg: string;
+  if (engine === 'vtracer-0.2.0') {
+    resultSvg = convertImageV1(pixels, width, height, opts);
+  } else {
+    resultSvg = convertImageV2(pixels, width, height, opts);
+  }
+
+  // Ensure viewBox is always present for responsive non-clipped scaling
+  if (resultSvg && !resultSvg.includes('viewBox')) {
+    resultSvg = resultSvg.replace('<svg ', `<svg viewBox="0 0 ${width} ${height}" `);
+  }
+
+  // Fix: In binary / silhouette / line-art tracing, VTracer sets fill="none" on paths which
+  // causes them to render completely invisible. Replace with solid black fill.
+  if (opts.colorMode === 'binary' || opts.preset === 'line-art') {
+    resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
+  } else if (!resultSvg.includes('fill="#') && resultSvg.includes('fill="none"')) {
+    resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
+  }
+
+  // Transparent background processing:
+  // When transparent background is requested, strip the outer bounding path
+  // that covers the canvas edges (typically the first path in cutout mode).
+  if (opts.backgroundMode === 'transparent' && resultSvg) {
+    const firstPathMatch = resultSvg.match(/<path[^>]+>/i);
+    if (firstPathMatch) {
+      const firstPath = firstPathMatch[0];
+      // If it starts at (0,0) or reaches width/height corners
+      if (
+        firstPath.includes('M 0 0') ||
+        firstPath.includes('M0 0') ||
+        firstPath.includes(`L ${width} 0`) ||
+        firstPath.includes(`L${width} 0`) ||
+        firstPath.includes(`L ${width} ${height}`) ||
+        firstPath.includes(`L${width} ${height}`)
+      ) {
+        resultSvg = resultSvg.replace(firstPath, '');
+      }
+    }
+  }
+
+  // SVG Optimization: clean decimals, merge paths with matching fills, remove empty tags
+  if (opts.optimizeSvg !== false && resultSvg) {
+    resultSvg = optimizeSvg(resultSvg, {
+      decimalPlaces: 2,
+      mergePaths: true,
+      cleanWhitespace: true,
+      removeEmptyTags: true,
+    });
+  }
+
+  return resultSvg;
 }
 
 /**

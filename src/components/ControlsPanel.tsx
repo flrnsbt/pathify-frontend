@@ -95,24 +95,25 @@ export function ControlsPanel({
             Tracer Engine Version
           </span>
           <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-            Best / Default
+            v2.0.10 Default
           </span>
         </div>
         <select
-          value={options.engineVersion || 'v0.6.5-optimized'}
+          value={options.engineVersion || 'vtracer-2.0.10'}
           onChange={(e) =>
             setOption(
               'engineVersion',
-              e.target.value as 'v0.6.5-optimized' | 'v0.6.5-standard' | 'v0.6.0-legacy'
+              e.target.value as 'vtracer-2.0.10' | 'vtracer-0.2.0'
             )
           }
           className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-indigo-500 focus:outline-none cursor-pointer"
         >
-          <option value="v0.6.5-optimized">
-            v0.6.5 Optimized (Recommended: Ultra-Fast &amp; High Precision)
+          <option value="vtracer-2.0.10">
+            VTracer 2.0.10 (Default: Next-Gen Vector Engine)
           </option>
-          <option value="v0.6.5-standard">v0.6.5 Standard (Reference Clustering)</option>
-          <option value="v0.6.0-legacy">v0.6.0 Legacy Engine</option>
+          <option value="vtracer-0.2.0">
+            VTracer 0.2.0 (Classic Legacy Engine)
+          </option>
         </select>
       </div>
 

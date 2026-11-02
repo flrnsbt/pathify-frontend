@@ -35,6 +35,194 @@ interface VisualizerProps {
 type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster' | 'code';
 type BgMode = 'checker' | 'dark' | 'light';
 
+/**
+ * HTML5 Canvas Vector Renderer
+ * Directly paints vector SVG / raster onto a hardware-accelerated 2D canvas context.
+ */
+function VectorCanvas({
+  svg,
+  fallbackUrl,
+  width,
+  height,
+  className = '',
+  style = {},
+}: {
+  svg: string | null;
+  fallbackUrl?: string | null;
+  width: number;
+  height: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || (!svg && !fallbackUrl)) return;
+
+    let active = true;
+    let objectUrl: string | null = null;
+    const img = new Image();
+
+    img.onload = () => {
+      if (!active || !canvas) return;
+      const ctx = canvas.getContext('2d', { alpha: true });
+      if (!ctx) return;
+
+      const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+      const w = width || img.naturalWidth || 400;
+      const h = height || img.naturalHeight || 400;
+
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+
+    if (svg) {
+      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      objectUrl = URL.createObjectURL(blob);
+      img.src = objectUrl;
+    } else if (fallbackUrl) {
+      img.src = fallbackUrl;
+    }
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [svg, fallbackUrl, width, height]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`select-none pointer-events-none ${className}`}
+      style={style}
+    />
+  );
+}
+
+/**
+ * HTML5 Canvas Split Comparison Renderer
+ * Uses 2D canvas clipping to composite raster & vector results with zero lag.
+ */
+function SplitSliderCanvas({
+  rasterUrl,
+  svg,
+  fallbackUrl,
+  width,
+  height,
+  splitPos,
+  className = '',
+  style = {},
+}: {
+  rasterUrl: string;
+  svg: string | null;
+  fallbackUrl?: string | null;
+  width: number;
+  height: number;
+  splitPos: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rasterImgRef = useRef<HTMLImageElement | null>(null);
+  const vectorImgRef = useRef<HTMLImageElement | null>(null);
+
+  const draw = React.useCallback(() => {
+    const canvas = canvasRef.current;
+    const raster = rasterImgRef.current;
+    const vector = vectorImgRef.current;
+    if (!canvas || !raster) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+    const w = width || raster.naturalWidth || 400;
+    const h = height || raster.naturalHeight || 400;
+
+    const targetW = Math.round(w * dpr);
+    const targetH = Math.round(h * dpr);
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    ctx.clearRect(0, 0, targetW, targetH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 1. Draw raster original base
+    ctx.drawImage(raster, 0, 0, targetW, targetH);
+
+    // 2. Draw vector in clipped region
+    if (vector) {
+      const splitX = Math.round((targetW * splitPos) / 100);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(splitX, 0, targetW - splitX, targetH);
+      ctx.clip();
+      ctx.drawImage(vector, 0, 0, targetW, targetH);
+      ctx.restore();
+    }
+  }, [width, height, splitPos]);
+
+  useEffect(() => {
+    let active = true;
+    const rImg = new Image();
+    rImg.onload = () => {
+      if (!active) return;
+      rasterImgRef.current = rImg;
+      draw();
+    };
+    rImg.src = rasterUrl;
+    return () => {
+      active = false;
+    };
+  }, [rasterUrl, draw]);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    const vImg = new Image();
+    vImg.onload = () => {
+      if (!active) return;
+      vectorImgRef.current = vImg;
+      draw();
+    };
+
+    if (svg) {
+      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      objectUrl = URL.createObjectURL(blob);
+      vImg.src = objectUrl;
+    } else if (fallbackUrl) {
+      vImg.src = fallbackUrl;
+    }
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [svg, fallbackUrl, draw]);
+
+  useEffect(() => {
+    draw();
+  }, [draw, splitPos]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`select-none pointer-events-none ${className}`}
+      style={style}
+    />
+  );
+}
+
 function formatXml(xml: string): string {
   if (!xml) return '';
   let formatted = '';
@@ -284,13 +472,7 @@ export function Visualizer({
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (!isUnlocked) {
-                onRequestCopyCode();
-                return;
-              }
-              setViewMode('code');
-            }}
+            onClick={handleToggleCode}
             title="Inspect SVG XML Code"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'code' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
@@ -406,31 +588,21 @@ export function Visualizer({
                 </>
               )}
             </button>
-
-            {isUnlocked && (
-              <button
-                type="button"
-                onClick={handleToggleCode}
-                title="Toggle Raw SVG Code View"
-                className={`p-1.5 transition rounded-lg border ${
-                  viewMode === 'code'
-                    ? 'border-indigo-500 bg-indigo-600 text-white'
-                    : 'border-neutral-800 bg-neutral-800/50 text-neutral-400 hover:text-white'
-                }`}
-              >
-                <FileCode className="h-4 w-4 text-emerald-400" />
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Quality Preview Notice */}
+      {/* HTML5 Canvas Visualizer Notice */}
       {renderedVectorImage && (
-        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400 shrink-0">
-          <Info className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-          <span>
-            <strong className="text-neutral-300">Preview Notice:</strong> This viewer displays an anti-theft raster preview. The actual vector SVG has infinite mathematical resolution and zero pixelation — download the SVG to inspect the true vector result.
+        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400 shrink-0">
+          <div className="flex items-center gap-2">
+            <Info className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            <span>
+              <strong className="text-neutral-300">HTML5 Canvas Visualizer:</strong> Vector shapes rendered with hardware acceleration on Canvas 2D context.
+            </span>
+          </div>
+          <span className="rounded bg-indigo-500/10 px-2 py-0.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 hidden sm:inline">
+            Canvas 2D Engine
           </span>
         </div>
       )}
@@ -535,10 +707,13 @@ export function Visualizer({
                   </div>
                 </div>
 
-                {/* Vectorized Result */}
+                {/* Vectorized Result (HTML5 Canvas) */}
                 <div className="flex flex-col items-center">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
                     <span>Vectorized Result</span>
+                    <span className="rounded bg-indigo-500/10 px-1.5 py-0.2 text-[10px] font-medium text-indigo-300 border border-indigo-500/20">
+                      HTML5 Canvas
+                    </span>
                     {isUnlocked && (
                       <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
                         Unlocked
@@ -546,16 +721,16 @@ export function Visualizer({
                     )}
                   </div>
                   <div
-                    className="overflow-hidden rounded-xl border border-indigo-500/30 bg-neutral-900/50 shadow-xl relative"
+                    className="overflow-hidden rounded-xl border border-indigo-500/30 bg-neutral-900/50 shadow-xl relative flex items-center justify-center"
                     style={{ maxWidth: '40vw', maxHeight: '70vh' }}
                   >
                     {renderedVectorImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={renderedVectorImage}
-                        alt="Vectorized Result (High Quality WebP Bitmap)"
-                        draggable={false}
-                        className="max-h-[65vh] w-auto object-contain select-none pointer-events-none"
+                      <VectorCanvas
+                        svg={svg}
+                        fallbackUrl={renderedVectorImage}
+                        width={originalImage.width}
+                        height={originalImage.height}
+                        className="max-h-[65vh] w-auto object-contain"
                       />
                     ) : (
                       <div className="flex h-64 w-64 items-center justify-center text-xs text-neutral-500">
@@ -567,16 +742,16 @@ export function Visualizer({
               </div>
             )}
 
-            {/* Vector View Mode */}
+            {/* Vector View Mode (HTML5 Canvas) */}
             {viewMode === 'vector' && (
               <div className="flex items-center justify-center">
                 {renderedVectorImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={renderedVectorImage}
-                    alt="Vectorized Result (High Quality WebP Bitmap)"
-                    draggable={false}
-                    className="max-h-[75vh] max-w-[85vw] object-contain select-none pointer-events-none shadow-2xl"
+                  <VectorCanvas
+                    svg={svg}
+                    fallbackUrl={renderedVectorImage}
+                    width={originalImage.width}
+                    height={originalImage.height}
+                    className="max-h-[75vh] max-w-[85vw] object-contain shadow-2xl"
                   />
                 ) : (
                   <div className="text-xs text-neutral-400">Click &quot;Vectorize&quot; to generate output</div>
@@ -584,7 +759,7 @@ export function Visualizer({
               </div>
             )}
 
-            {/* Split Slider Mode */}
+            {/* Split Slider Mode (HTML5 Canvas Split Rendering) */}
             {viewMode === 'split' && (
               <div
                 ref={imageBoxRef}
@@ -596,32 +771,15 @@ export function Visualizer({
                   maxHeight: '75vh',
                 }}
               >
-                {/* Underneath: Raster Original */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={originalImage.dataUrl}
-                  alt="Original Raster"
-                  draggable={false}
-                  className="w-full h-full object-contain pointer-events-none select-none"
+                <SplitSliderCanvas
+                  rasterUrl={originalImage.dataUrl}
+                  svg={svg}
+                  fallbackUrl={renderedVectorImage}
+                  width={originalImage.width}
+                  height={originalImage.height}
+                  splitPos={splitPos}
+                  className="w-full h-full object-contain"
                 />
-
-                {/* On Top: Vector WebP clipped by split percentage */}
-                {renderedVectorImage && (
-                  <div
-                    className="absolute inset-0 overflow-hidden pointer-events-none select-none"
-                    style={{
-                      clipPath: `polygon(${splitPos}% 0, 100% 0, 100% 100%, ${splitPos}% 100%)`,
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={renderedVectorImage}
-                      alt="Vector WebP Preview"
-                      draggable={false}
-                      className="w-full h-full object-contain pointer-events-none select-none"
-                    />
-                  </div>
-                )}
 
                 {/* Vertical Divider Handle (Instant tracking without transition lag) */}
                 {renderedVectorImage && (
@@ -642,7 +800,7 @@ export function Visualizer({
                   Raster
                 </span>
                 <span className="absolute top-3 right-3 rounded-md bg-indigo-950/90 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-700/50">
-                  Vector Preview
+                  HTML5 Canvas Vector
                 </span>
               </div>
             )}

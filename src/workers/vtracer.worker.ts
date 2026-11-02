@@ -1,19 +1,21 @@
 /// <reference lib="webworker" />
 import { initVTracer, convertImage, countSvgNodes } from '@/lib/vtracer';
-import { WorkerInputPayload, WorkerResponse } from '@/lib/vtracer/types';
+import { WorkerInputPayload, WorkerResponse, EngineVersionOption } from '@/lib/vtracer/types';
 
 declare const self: DedicatedWorkerGlobalScope;
 
-let isInitialized = false;
+const initializedEngines = new Set<string>();
 
 self.onmessage = async (e: MessageEvent<WorkerInputPayload>) => {
   const { id, pixels, width, height, options, wasmUrl } = e.data;
   const startTime = performance.now();
+  const engine: EngineVersionOption = options.engineVersion || 'vtracer-2.0.10';
 
   try {
-    if (!isInitialized) {
-      await initVTracer(wasmUrl || '/wasm/vtracer.wasm');
-      isInitialized = true;
+    if (!initializedEngines.has(engine)) {
+      const defaultUrl = engine === 'vtracer-2.0.10' ? '/wasm/vtracer2.wasm' : '/wasm/vtracer.wasm';
+      await initVTracer(wasmUrl || defaultUrl, engine);
+      initializedEngines.add(engine);
     }
 
     const svg = convertImage(pixels, width, height, options);

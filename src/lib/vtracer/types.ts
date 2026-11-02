@@ -2,7 +2,7 @@ export type ColorModeOption = 'color' | 'binary';
 export type HierarchicalOption = 'stacked' | 'cutout';
 export type PathSimplifyModeOption = 'polygon' | 'spline' | 'none';
 export type PresetOption = 'photo' | 'gradient' | 'pixel-art' | 'line-art' | 'logo' | 'custom';
-export type EngineVersionOption = 'v0.6.5-optimized' | 'v0.6.5-standard' | 'v0.6.0-legacy';
+export type EngineVersionOption = 'vtracer-2.0.10' | 'vtracer-0.2.0';
 export type BackgroundModeOption = 'solid' | 'transparent';
 
 export interface VTracerOptions {
@@ -40,7 +40,7 @@ export const DEFAULT_VTRACER_OPTIONS: VTracerOptions = {
   pathPrecision: 2,
   gradientMode: false,
   maxColors: 128,
-  engineVersion: 'v0.6.5-optimized',
+  engineVersion: 'vtracer-2.0.10',
   backgroundMode: 'solid',
   cropToContent: false,
   optimizeSvg: true,

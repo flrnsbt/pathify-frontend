@@ -130,7 +130,9 @@ export function useVTracer() {
           statusText: 'Initializing WASM...',
           progress: 45,
         }));
-        await initVTracer('/wasm/vtracer.wasm');
+        const engine = options.engineVersion || 'vtracer-2.0.10';
+        const wasmPath = engine === 'vtracer-2.0.10' ? '/wasm/vtracer2.wasm' : '/wasm/vtracer.wasm';
+        await initVTracer(wasmPath, engine);
 
         setState((prev) => ({
           ...prev,
