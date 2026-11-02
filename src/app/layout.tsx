@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   description:
     "High-performance in-browser raster to vector graphics converter.",
   icons: {
-    icon: "/icons.svg",
-    shortcut: "/icons.svg",
-    apple: "/icons.svg",
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 

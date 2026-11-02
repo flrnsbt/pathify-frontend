@@ -15,7 +15,7 @@ import {
   VTracerOptions,
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
-import { svgToWebpBitmap } from '../lib/vtracer';
+import { svgToWebpBitmap, autoCropImage } from '../lib/vtracer';
 import {
   saveVectorizationHistory,
   fetchUserHistory,
@@ -127,19 +127,65 @@ export default function Home() {
   // Handle image load
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
-      setCurrentImage(info);
+      let finalInfo = info;
+      if (options.cropToContent) {
+        const cropRes = autoCropImage(info.imageData);
+        if (cropRes && cropRes.hasCropped) {
+          finalInfo = {
+            ...info,
+            imageData: cropRes.imageData,
+            width: cropRes.width,
+            height: cropRes.height,
+            dataUrl: cropRes.dataUrl,
+          };
+        }
+      }
+      setCurrentImage(finalInfo);
       setPreviewWebpUrl(null);
       reset();
       if (autoTrace) {
-        handleTrace(info, options);
+        handleTrace(finalInfo, options);
       }
     },
     [autoTrace, options, reset, handleTrace]
   );
 
+  // Handle Crop to Content (Auto-Trim margins on demand)
+  const handleCropToContent = useCallback(() => {
+    if (!currentImage) return;
+    const cropResult = autoCropImage(currentImage.imageData);
+    if (cropResult && cropResult.hasCropped) {
+      const croppedInfo: LoadedImageInfo = {
+        ...currentImage,
+        imageData: cropResult.imageData,
+        width: cropResult.width,
+        height: cropResult.height,
+        dataUrl: cropResult.dataUrl,
+      };
+      setCurrentImage(croppedInfo);
+      setPreviewWebpUrl(null);
+      handleTrace(croppedInfo, options);
+    }
+  }, [currentImage, options, handleTrace]);
+
   // Handle options change
   const handleOptionsChange = (newOptions: VTracerOptions) => {
     setOptions(newOptions);
+    if (newOptions.cropToContent !== options.cropToContent && newOptions.cropToContent && currentImage) {
+      const cropRes = autoCropImage(currentImage.imageData);
+      if (cropRes && cropRes.hasCropped) {
+        const croppedInfo: LoadedImageInfo = {
+          ...currentImage,
+          imageData: cropRes.imageData,
+          width: cropRes.width,
+          height: cropRes.height,
+          dataUrl: cropRes.dataUrl,
+        };
+        setCurrentImage(croppedInfo);
+        handleTrace(croppedInfo, newOptions);
+        return;
+      }
+    }
     if (autoTrace && currentImage && !isProcessing) {
       handleTrace(currentImage, newOptions);
     }
@@ -293,6 +339,7 @@ export default function Home() {
               hasImage={Boolean(currentImage)}
               autoTrace={autoTrace}
               onToggleAutoTrace={setAutoTrace}
+              onCropToContent={handleCropToContent}
             />
           </div>
 
@@ -305,6 +352,8 @@ export default function Home() {
               nodeCount={nodeCount}
               executionTimeMs={executionTimeMs}
               isUnlocked={isCurrentUnlocked}
+              isProcessing={isProcessing}
+              statusText={statusText}
               onRequestDownload={handleRequestDownload}
               onRequestCopyCode={handleRequestCopyCode}
             />

@@ -67,7 +67,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 blur transition group-hover:opacity-60" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icons.svg"
+              src="/icon.svg"
               alt="vectorizerr placeholder logo"
               className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 p-1.5 shadow-xl object-contain"
             />

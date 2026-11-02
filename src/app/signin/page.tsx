@@ -47,7 +47,7 @@ export default function SignInPage() {
           <Link href="/" className="flex items-center gap-3 group">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icons.svg"
+              src="/icon.svg"
               alt="vectorizerr logo"
               className="h-9 w-9 rounded-xl shadow-lg shadow-indigo-500/20 object-contain group-hover:scale-105 transition-transform"
             />
@@ -79,7 +79,7 @@ export default function SignInPage() {
               <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 blur transition group-hover:opacity-60" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/icons.svg"
+                src="/icon.svg"
                 alt="vectorizerr logo"
                 className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 p-1.5 shadow-xl object-contain"
               />

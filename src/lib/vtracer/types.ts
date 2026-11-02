@@ -3,6 +3,7 @@ export type HierarchicalOption = 'stacked' | 'cutout';
 export type PathSimplifyModeOption = 'polygon' | 'spline' | 'none';
 export type PresetOption = 'photo' | 'gradient' | 'pixel-art' | 'line-art' | 'logo' | 'custom';
 export type EngineVersionOption = 'v0.6.5-optimized' | 'v0.6.5-standard' | 'v0.6.0-legacy';
+export type BackgroundModeOption = 'solid' | 'transparent';
 
 export interface VTracerOptions {
   colorMode: ColorModeOption;
@@ -19,6 +20,9 @@ export interface VTracerOptions {
   gradientMode?: boolean; // smooth color transition contours
   maxColors?: number; // target color richness (16 to 256)
   engineVersion?: EngineVersionOption;
+  backgroundMode?: BackgroundModeOption; // 'solid' | 'transparent'
+  cropToContent?: boolean; // auto-trim margins
+  optimizeSvg?: boolean; // clean and optimize paths
   preset?: PresetOption;
 }
 
@@ -37,6 +41,9 @@ export const DEFAULT_VTRACER_OPTIONS: VTracerOptions = {
   gradientMode: false,
   maxColors: 128,
   engineVersion: 'v0.6.5-optimized',
+  backgroundMode: 'solid',
+  cropToContent: false,
+  optimizeSvg: true,
   preset: 'photo',
 };
 

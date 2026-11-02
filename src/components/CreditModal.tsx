@@ -85,23 +85,15 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
     ? selectedToken
     : chainMeta.tokens[0];
 
-  // Fetch optional server wallets on open
+  // Fetch / update configured wallets on open
   useEffect(() => {
     if (!isOpen) return;
-    let active = true;
-    fetch('/api/payment-wallets')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (active && data?.wallets && Array.isArray(data.wallets) && data.wallets.length > 0) {
-          setConfiguredWallets(data.wallets);
-        }
-      })
-      .catch(() => {
-        // Fallback to client configured
+    const clientParsed = parsePaymentWallets();
+    if (clientParsed.length > 0) {
+      Promise.resolve().then(() => {
+        setConfiguredWallets(clientParsed);
       });
-    return () => {
-      active = false;
-    };
+    }
   }, [isOpen]);
 
   // Recipient wallet address
@@ -263,7 +255,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icons.svg"
+              src="/icon.svg"
               alt="vectorizerr"
               className="h-10 w-10 rounded-xl border border-neutral-700/80 bg-neutral-950 p-1 object-contain shadow-md"
             />

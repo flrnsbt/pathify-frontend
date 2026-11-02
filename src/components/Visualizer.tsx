@@ -26,6 +26,8 @@ interface VisualizerProps {
   nodeCount: number;
   executionTimeMs: number;
   isUnlocked: boolean;
+  isProcessing?: boolean;
+  statusText?: string;
   onRequestDownload: () => void;
   onRequestCopyCode: () => void;
 }
@@ -40,6 +42,8 @@ export function Visualizer({
   nodeCount,
   executionTimeMs,
   isUnlocked,
+  isProcessing = false,
+  statusText = '',
   onRequestDownload,
   onRequestCopyCode,
 }: VisualizerProps) {
@@ -65,41 +69,78 @@ export function Visualizer({
   }
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageBoxRef = useRef<HTMLDivElement>(null);
 
-  // Handle Split bar dragging
+  // Handle Split bar dragging start (mouse & touch)
   const handleSplitMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingSplit(true);
+  };
+
+  const handleSplitTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
     setIsDraggingSplit(true);
   };
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDraggingSplit && containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const offsetX = e.clientX - rect.left;
-        const newPct = Math.max(0, Math.min(100, (offsetX / rect.width) * 100));
-        setSplitPos(newPct);
+    let animId: number | null = null;
+
+    const handlePointerMove = (clientX: number, clientY: number) => {
+      if (isDraggingSplit) {
+        // Measure relative to actual rendered image box for 100% accurate tracking
+        const targetElement = imageBoxRef.current || containerRef.current;
+        if (targetElement) {
+          const rect = targetElement.getBoundingClientRect();
+          const offsetX = clientX - rect.left;
+          const newPct = Math.max(0, Math.min(100, (offsetX / rect.width) * 100));
+          if (animId) cancelAnimationFrame(animId);
+          animId = requestAnimationFrame(() => {
+            setSplitPos(newPct);
+          });
+        }
       } else if (isPanning) {
-        setPan({
-          x: e.clientX - dragStart.x,
-          y: e.clientY - dragStart.y,
+        if (animId) cancelAnimationFrame(animId);
+        animId = requestAnimationFrame(() => {
+          setPan({
+            x: clientX - dragStart.x,
+            y: clientY - dragStart.y,
+          });
         });
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handlePointerUp = () => {
       setIsDraggingSplit(false);
       setIsPanning(false);
+      if (animId) cancelAnimationFrame(animId);
     };
 
     if (isDraggingSplit || isPanning) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+      window.addEventListener('mouseup', handlePointerUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      window.addEventListener('touchend', handlePointerUp);
     }
 
     return () => {
+      document.body.style.userSelect = '';
+      if (animId) cancelAnimationFrame(animId);
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handlePointerUp);
     };
   }, [isDraggingSplit, isPanning, dragStart]);
 
@@ -437,7 +478,8 @@ export function Visualizer({
             {/* Split Slider Mode */}
             {viewMode === 'split' && (
               <div
-                className="relative flex items-center justify-center shadow-2xl"
+                ref={imageBoxRef}
+                className="relative flex items-center justify-center shadow-2xl select-none"
                 style={{
                   width: originalImage.width,
                   height: originalImage.height,
@@ -472,14 +514,15 @@ export function Visualizer({
                   </div>
                 )}
 
-                {/* Vertical Divider Handle */}
+                {/* Vertical Divider Handle (Instant tracking without transition lag) */}
                 {renderedVectorImage && (
                   <div
                     onMouseDown={handleSplitMouseDown}
-                    className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg hover:w-1.5 transition-all z-20"
+                    onTouchStart={handleSplitTouchStart}
+                    className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-2xl z-20 group"
                     style={{ left: `${splitPos}%`, transform: 'translateX(-50%)' }}
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-950 text-white shadow-xl border border-neutral-700 text-[10px]">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-white shadow-2xl border-2 border-indigo-500 text-xs font-bold ring-4 ring-black/40 group-hover:scale-110 active:scale-95 transition-transform cursor-ew-resize">
                       ↔
                     </div>
                   </div>
@@ -507,6 +550,50 @@ export function Visualizer({
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Fancy Loading Indicator on Top of Viewer */}
+        {isProcessing && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[2px] animate-in fade-in duration-150">
+            {/* Top scanning laser beam */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 via-pink-500 to-transparent animate-pulse" />
+
+            {/* Futuristic Glassmorphism Card */}
+            <div className="relative flex flex-col items-center max-w-xs sm:max-w-sm mx-4 p-6 rounded-3xl border border-indigo-500/30 bg-neutral-950/90 shadow-2xl shadow-indigo-500/25 text-center backdrop-blur-md animate-in zoom-in-95 duration-150">
+              {/* Outer pulsing ring glow */}
+              <div className="relative mb-3 flex items-center justify-center">
+                <div className="absolute h-20 w-20 rounded-full border-2 border-dashed border-indigo-500/40 animate-[spin_6s_linear_infinite]" />
+                <div className="absolute h-24 w-24 rounded-full border border-purple-500/30 animate-ping opacity-25" />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 p-0.5 shadow-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/icon.svg"
+                    alt="processing"
+                    className="h-full w-full rounded-2xl bg-neutral-950 p-1 object-contain"
+                  />
+                </div>
+              </div>
+
+              {/* Status Header Badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold text-indigo-300 mb-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>VECTORIZING RASTER</span>
+              </div>
+
+              <h4 className="text-sm font-bold text-white tracking-tight">
+                {statusText || 'Tracing Vector Geometry...'}
+              </h4>
+
+              <p className="mt-1 text-[11px] text-neutral-400 max-w-xs leading-relaxed">
+                Fitting high-precision Bezier splines and clustering color layers.
+              </p>
+
+              {/* Progress shimmer track */}
+              <div className="mt-3.5 w-full h-1.5 rounded-full bg-neutral-800 overflow-hidden relative">
+                <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-pulse" />
+              </div>
+            </div>
           </div>
         )}
 

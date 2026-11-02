@@ -89,7 +89,7 @@ export function HistoryDrawer({
             <div className="flex flex-col items-center justify-center py-16 text-center text-neutral-500">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/icons.svg"
+                src="/icon.svg"
                 alt="vectorizerr"
                 className="h-12 w-12 mb-3 opacity-30 grayscale"
               />

@@ -29,7 +29,7 @@ export function UnlockModal({
           <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icons.svg"
+              src="/icon.svg"
               alt="vectorizerr"
               className="h-8 w-8 rounded-lg border border-neutral-700/80 bg-neutral-950 p-0.5 object-contain"
             />

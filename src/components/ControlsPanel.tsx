@@ -11,6 +11,8 @@ import {
   ChevronUp,
   Settings2,
   Cpu,
+  Crop,
+  FileCheck,
 } from 'lucide-react';
 import {
   VTracerOptions,
@@ -28,6 +30,7 @@ interface ControlsPanelProps {
   hasImage: boolean;
   autoTrace: boolean;
   onToggleAutoTrace: (enabled: boolean) => void;
+  onCropToContent?: () => void;
 }
 
 export function ControlsPanel({
@@ -39,6 +42,7 @@ export function ControlsPanel({
   hasImage,
   autoTrace,
   onToggleAutoTrace,
+  onCropToContent,
 }: ControlsPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -171,8 +175,90 @@ export function ControlsPanel({
         />
       </div>
 
+      {/* SVG Optimization Checkbox */}
+      <div className="flex items-center justify-between rounded-xl bg-neutral-950/80 px-3 py-2.5 border border-neutral-800">
+        <div>
+          <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
+            <FileCheck className="h-3.5 w-3.5 text-emerald-400" />
+            Optimize SVG Output
+          </span>
+          <p className="text-[11px] text-neutral-500">
+            Rounds decimals, merges duplicate paths &amp; reduces SVG size
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={options.optimizeSvg !== false}
+          onChange={(e) => setOption('optimizeSvg', e.target.checked)}
+          className="accent-emerald-500 h-4 w-4 rounded cursor-pointer"
+        />
+      </div>
+
+      {/* Crop to Content Feature */}
+      <div className="flex flex-col gap-2 rounded-xl bg-neutral-950/80 p-3 border border-neutral-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
+              <Crop className="h-3.5 w-3.5 text-indigo-400" />
+              Crop to Content (Auto-Trim)
+            </span>
+            <p className="text-[11px] text-neutral-500">
+              Trims blank transparent or solid background margins
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={Boolean(options.cropToContent)}
+            onChange={(e) => setOption('cropToContent', e.target.checked)}
+            className="accent-indigo-500 h-4 w-4 rounded cursor-pointer"
+          />
+        </div>
+        {onCropToContent && hasImage && (
+          <button
+            type="button"
+            onClick={onCropToContent}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 py-1.5 px-3 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:text-white transition mt-1"
+          >
+            <Crop className="h-3.5 w-3.5 text-indigo-400" />
+            <span>Trim Margins of Loaded Image</span>
+          </button>
+        )}
+      </div>
+
       {/* Core Mode Toggles */}
       <div className="space-y-4">
+        {/* Background Parameter: Solid vs Transparent */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-medium text-neutral-300">Background Mode</span>
+            <span className="text-neutral-500 capitalize">{options.backgroundMode || 'solid'}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setOption('backgroundMode', 'solid')}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
+                (options.backgroundMode || 'solid') === 'solid'
+                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+              }`}
+            >
+              Solid Background
+            </button>
+            <button
+              type="button"
+              onClick={() => setOption('backgroundMode', 'transparent')}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
+                options.backgroundMode === 'transparent'
+                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+              }`}
+            >
+              Transparent (Cutout)
+            </button>
+          </div>
+        </div>
+
         {/* Color vs Binary */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">

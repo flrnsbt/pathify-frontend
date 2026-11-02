@@ -30,7 +30,7 @@ export function Header({
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/icons.svg"
+            src="/icon.svg"
             alt="vectorizerr logo"
             className="h-10 w-10 rounded-xl shadow-lg shadow-indigo-500/20 object-contain hover:scale-105 transition-transform"
           />

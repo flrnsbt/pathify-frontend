@@ -3,6 +3,7 @@ import {
   VTracerOptions,
   DEFAULT_VTRACER_OPTIONS,
 } from './types';
+import { optimizeSvg } from './optimizer';
 
 let wasmInitialized = false;
 let initPromise: Promise<void> | null = null;
@@ -90,7 +91,7 @@ export function convertImage(
   }
 
   // Hierarchical
-  if (opts.hierarchical === 'cutout') {
+  if (opts.hierarchical === 'cutout' || opts.backgroundMode === 'transparent') {
     config.setHierarchical(bg.Hierarchical.Cutout);
   } else {
     config.setHierarchical(bg.Hierarchical.Stacked);
@@ -151,6 +152,37 @@ export function convertImage(
       resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
     } else if (!resultSvg.includes('fill="#') && resultSvg.includes('fill="none"')) {
       resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
+    }
+
+    // Transparent background processing:
+    // When transparent background is requested, strip the outer bounding path
+    // that covers the canvas edges (typically the first path in cutout mode).
+    if (opts.backgroundMode === 'transparent' && resultSvg) {
+      const firstPathMatch = resultSvg.match(/<path[^>]+>/i);
+      if (firstPathMatch) {
+        const firstPath = firstPathMatch[0];
+        // If it starts at (0,0) or reaches width/height corners
+        if (
+          firstPath.includes('M 0 0') ||
+          firstPath.includes('M0 0') ||
+          firstPath.includes(`L ${width} 0`) ||
+          firstPath.includes(`L${width} 0`) ||
+          firstPath.includes(`L ${width} ${height}`) ||
+          firstPath.includes(`L${width} ${height}`)
+        ) {
+          resultSvg = resultSvg.replace(firstPath, '');
+        }
+      }
+    }
+
+    // SVG Optimization: clean decimals, merge paths with matching fills, remove empty tags
+    if (opts.optimizeSvg !== false && resultSvg) {
+      resultSvg = optimizeSvg(resultSvg, {
+        decimalPlaces: 2,
+        mergePaths: true,
+        cleanWhitespace: true,
+        removeEmptyTags: true,
+      });
     }
 
     return resultSvg;
@@ -217,3 +249,5 @@ export async function svgToWebpBitmap(
 }
 
 export * from './types';
+export * from './autocrop';
+export * from './optimizer';
