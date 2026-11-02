@@ -15,14 +15,21 @@ import {
   VTracerOptions,
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
-import { svgToWebpBitmap, autoCropImage } from '../lib/vtracer';
+import {
+  svgToWebpBitmap,
+  autoCropImage,
+  compressImageToBase64,
+  computeImageHash,
+} from '../lib/vtracer';
 import {
   saveVectorizationHistory,
   fetchUserHistory,
   deleteHistoryItem,
   VectorizationHistoryItem,
   canAccessSvg,
-  unlockSvgWithCredit,
+  unlockImageWithCredit,
+  getImageUnlockStatus,
+  consumeImageGeneration,
 } from '../lib/firebase/firestore';
 
 export default function Home() {
@@ -80,9 +87,15 @@ export default function Home() {
     }
   }, [user]);
 
-  // Check if current active SVG is unlocked
+  // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
+  const unlockStatus = getImageUnlockStatus(profile, currentImage?.imageHash);
   const isCurrentUnlocked = Boolean(
-    profile && canAccessSvg(profile, currentSvgId)
+    profile && (
+      profile.isAdmin ||
+      profile.subscription?.status === 'active' ||
+      unlockStatus.isUnlocked ||
+      canAccessSvg(profile, currentSvgId, currentImage?.imageHash)
+    )
   );
 
   // Execute Vectorization
@@ -103,12 +116,32 @@ export default function Home() {
         const webpUrl = await svgToWebpBitmap(generatedSvg, img.width, img.height);
         setPreviewWebpUrl(webpUrl);
 
-        // Save to history (if user is authenticated)
-        if (user && generatedSvg) {
+        // "history only save paid generation"
+        // If image is already unlocked or user is admin/subscriber, this is a paid generation!
+        const status = getImageUnlockStatus(profile, img.imageHash);
+        const isPaid = Boolean(
+          profile && (
+            profile.isAdmin ||
+            profile.subscription?.status === 'active' ||
+            status.isUnlocked ||
+            canAccessSvg(profile, generatedId, img.imageHash)
+          )
+        );
+
+        if (user && isPaid && generatedSvg) {
+          // Consume 1 generation for this unlocked image
+          await consumeImageGeneration(user.uid, img.imageHash);
+          await refreshProfile();
+
+          // Save original file as compressed base64
+          const originalBase64 = await compressImageToBase64(img.imageData);
+
           await saveVectorizationHistory(user.uid, {
             fileName: img.fileName,
             originalDimensions: { width: img.width, height: img.height },
             originalSize: img.fileSize,
+            originalBase64,
+            imageHash: img.imageHash,
             nodeCount: (generatedSvg.match(/<path/g) || []).length,
             executionTimeMs: 0,
             parameters: opts,
@@ -121,23 +154,33 @@ export default function Home() {
         console.error('Vectorization error:', err);
       }
     },
-    [currentImage, options, vectorize, user, loadHistory]
+    [currentImage, options, vectorize, user, profile, refreshProfile, loadHistory]
   );
 
   // Handle image load
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
-      let finalInfo = info;
+      const finalInfo = info;
       if (options.cropToContent) {
         const cropRes = autoCropImage(info.imageData);
         if (cropRes && cropRes.hasCropped) {
-          finalInfo = {
-            ...info,
-            imageData: cropRes.imageData,
-            width: cropRes.width,
-            height: cropRes.height,
-            dataUrl: cropRes.dataUrl,
-          };
+          computeImageHash(cropRes.imageData).then((newHash) => {
+            const cropped = {
+              ...info,
+              imageData: cropRes.imageData,
+              width: cropRes.width,
+              height: cropRes.height,
+              dataUrl: cropRes.dataUrl,
+              imageHash: newHash,
+            };
+            setCurrentImage(cropped);
+            setPreviewWebpUrl(null);
+            reset();
+            if (autoTrace) {
+              handleTrace(cropped, options);
+            }
+          });
+          return;
         }
       }
       setCurrentImage(finalInfo);
@@ -155,16 +198,19 @@ export default function Home() {
     if (!currentImage) return;
     const cropResult = autoCropImage(currentImage.imageData);
     if (cropResult && cropResult.hasCropped) {
-      const croppedInfo: LoadedImageInfo = {
-        ...currentImage,
-        imageData: cropResult.imageData,
-        width: cropResult.width,
-        height: cropResult.height,
-        dataUrl: cropResult.dataUrl,
-      };
-      setCurrentImage(croppedInfo);
-      setPreviewWebpUrl(null);
-      handleTrace(croppedInfo, options);
+      computeImageHash(cropResult.imageData).then((newHash) => {
+        const croppedInfo: LoadedImageInfo = {
+          ...currentImage,
+          imageData: cropResult.imageData,
+          width: cropResult.width,
+          height: cropResult.height,
+          dataUrl: cropResult.dataUrl,
+          imageHash: newHash,
+        };
+        setCurrentImage(croppedInfo);
+        setPreviewWebpUrl(null);
+        handleTrace(croppedInfo, options);
+      });
     }
   }, [currentImage, options, handleTrace]);
 
@@ -255,16 +301,35 @@ export default function Home() {
     setIsCreditsOpen(true);
   }, [svg, currentImage, user, isCurrentUnlocked, profile]);
 
-  // Confirm Unlock with 1 Credit
+  // Confirm Unlock with 1 Credit: grants 10 generations on currentImage.imageHash
   const handleConfirmUnlock = async () => {
-    if (!user || !currentSvgId) return;
+    if (!user || !currentImage) return;
     setIsUnlocking(true);
     try {
-      const success = await unlockSvgWithCredit(user.uid, currentSvgId);
+      const success = await unlockImageWithCredit(user.uid, currentImage.imageHash, currentSvgId);
       if (success) {
+        // "history only save paid generation": this generation is now paid!
+        if (svg) {
+          const originalBase64 = await compressImageToBase64(currentImage.imageData);
+          await saveVectorizationHistory(user.uid, {
+            fileName: currentImage.fileName,
+            originalDimensions: { width: currentImage.width, height: currentImage.height },
+            originalSize: currentImage.fileSize,
+            originalBase64,
+            imageHash: currentImage.imageHash,
+            nodeCount: (svg.match(/<path/g) || []).length,
+            executionTimeMs: 0,
+            parameters: options,
+            svg: svg,
+            svgSize: new Blob([svg]).size,
+          });
+          // Consume 1 generation for this initial paid generation
+          await consumeImageGeneration(user.uid, currentImage.imageHash);
+          loadHistory();
+        }
         await refreshProfile();
         setIsUnlockOpen(false);
-        if (svg && currentImage) {
+        if (svg) {
           triggerSvgDownload(svg, currentImage.fileName);
         }
       }
@@ -279,6 +344,32 @@ export default function Home() {
   const handleSelectHistoryItem = async (item: VectorizationHistoryItem) => {
     setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
     setCurrentSvgId(item.id);
+
+    // If item has stored compressed originalBase64, reconstruct originalImage
+    if (item.originalBase64) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = item.originalDimensions.width || img.width;
+        canvas.height = item.originalDimensions.height || img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          setCurrentImage({
+            fileName: item.fileName,
+            fileSize: item.originalSize || 0,
+            width: canvas.width,
+            height: canvas.height,
+            imageData,
+            dataUrl: item.originalBase64 || '',
+            imageHash: item.imageHash || `hash-${item.id}`,
+          });
+        }
+      };
+      img.src = item.originalBase64;
+    }
+
     const webpUrl = await svgToWebpBitmap(
       item.svg,
       item.originalDimensions.width || 300,
@@ -354,6 +445,7 @@ export default function Home() {
               nodeCount={nodeCount}
               executionTimeMs={executionTimeMs}
               isUnlocked={isCurrentUnlocked}
+              generationsRemaining={unlockStatus.generationsRemaining}
               isProcessing={isProcessing}
               statusText={statusText}
               onRequestDownload={handleRequestDownload}

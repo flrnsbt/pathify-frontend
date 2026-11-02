@@ -135,16 +135,25 @@ export function HistoryDrawer({
                       </div>
                     </div>
 
-                    {/* Secure Icon thumbnail without exposing raw SVG DOM */}
-                    <div className="h-11 w-11 rounded-lg bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center text-indigo-400 shrink-0">
-                      {isAdmin ? (
-                        <Shield className="h-5 w-5 text-purple-400" />
-                      ) : accessible ? (
-                        <Layers className="h-5 w-5 text-emerald-400" />
-                      ) : (
-                        <Lock className="h-5 w-5 text-amber-400" />
-                      )}
-                    </div>
+                    {/* Thumbnail of original image (stored compressed) or fallback icon */}
+                    {item.originalBase64 ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.originalBase64}
+                        alt="Thumbnail"
+                        className="h-11 w-11 rounded-lg border border-neutral-800 object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-lg bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center text-indigo-400 shrink-0">
+                        {isAdmin ? (
+                          <Shield className="h-5 w-5 text-purple-400" />
+                        ) : accessible ? (
+                          <Layers className="h-5 w-5 text-emerald-400" />
+                        ) : (
+                          <Lock className="h-5 w-5 text-amber-400" />
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Card Actions */}

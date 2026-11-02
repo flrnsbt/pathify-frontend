@@ -45,32 +45,42 @@ export function UnlockModal({
 
         <div className="my-4 space-y-3">
           <p className="text-xs text-neutral-300 leading-relaxed">
-            Unlock the clean vector SVG file and markup for{' '}
-            <strong className="text-white truncate block">{fileName}</strong>.
+            Unlock <strong className="text-white truncate block">{fileName}</strong> for vector downloads and editing.
           </p>
 
           <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3 flex items-center justify-between text-xs">
             <span className="text-neutral-400 flex items-center gap-1.5">
               <Coins className="h-4 w-4 text-amber-400" /> Cost:
             </span>
-            <span className="font-semibold text-white">1 Credit</span>
+            <div className="text-right">
+              <span className="font-semibold text-white">1 Credit</span>
+              <span className="block text-[10px] text-emerald-400 font-medium">Includes 10 Generations</span>
+            </div>
           </div>
 
           <div className="rounded-xl border border-neutral-850 bg-neutral-950/60 p-3 flex items-center justify-between text-xs">
-            <span className="text-neutral-400">Credits Remaining:</span>
+            <span className="text-neutral-400">Your Credits:</span>
             <span className="font-semibold text-emerald-400">
               {creditsAvailable} credits
             </span>
           </div>
 
-          <ul className="text-[11px] text-neutral-400 space-y-1 pl-1">
+          <ul className="text-[11px] text-neutral-400 space-y-1.5 pl-1">
             <li className="flex items-center gap-1.5">
-              <Check className="h-3 w-3 text-indigo-400" />
-              <span>Full resolution SVG download</span>
+              <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span><strong>10 Generations</strong> on this image to fine-tune presets &amp; sliders</span>
             </li>
             <li className="flex items-center gap-1.5">
-              <Check className="h-3 w-3 text-indigo-400" />
-              <span>Access &amp; export raw SVG code anytime</span>
+              <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <span>Full resolution mathematical SVG file download</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <span>Inspect &amp; copy raw SVG XML code</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <span>Saved to your permanent cloud history</span>
             </li>
           </ul>
         </div>

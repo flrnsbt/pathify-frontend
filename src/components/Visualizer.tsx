@@ -26,6 +26,7 @@ interface VisualizerProps {
   nodeCount: number;
   executionTimeMs: number;
   isUnlocked: boolean;
+  generationsRemaining?: number;
   isProcessing?: boolean;
   statusText?: string;
   onRequestDownload: () => void;
@@ -256,6 +257,7 @@ export function Visualizer({
   nodeCount,
   executionTimeMs,
   isUnlocked,
+  generationsRemaining,
   isProcessing = false,
   statusText = '',
   onRequestDownload,
@@ -592,18 +594,15 @@ export function Visualizer({
         </div>
       </div>
 
-      {/* HTML5 Canvas Visualizer Notice */}
+      {/* Disclaimer / Browser Rendering Warning Notice */}
       {renderedVectorImage && (
-        <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400 shrink-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-neutral-800 bg-neutral-950/85 px-4 py-2.5 text-[11px] text-neutral-400 gap-2 shrink-0">
           <div className="flex items-center gap-2">
-            <Info className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            <Info className="h-4 w-4 text-amber-400 shrink-0" />
             <span>
-              <strong className="text-neutral-300">HTML5 Canvas Visualizer:</strong> Vector shapes rendered with hardware acceleration on Canvas 2D context.
+              <strong className="text-neutral-200">Browser Rendering Notice:</strong> Web browsers may rasterize SVG curves and subpixel anti-aliasing slightly differently. The output SVG has infinite mathematical vector resolution — download or inspect the SVG to view true precision in Figma, Illustrator, or Inkscape.
             </span>
           </div>
-          <span className="rounded bg-indigo-500/10 px-2 py-0.5 text-[10px] font-mono text-indigo-300 border border-indigo-500/20 hidden sm:inline">
-            Canvas 2D Engine
-          </span>
         </div>
       )}
 
@@ -716,7 +715,7 @@ export function Visualizer({
                     </span>
                     {isUnlocked && (
                       <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
-                        Unlocked
+                        Unlocked {typeof generationsRemaining === 'number' && generationsRemaining < 9000 ? `(${generationsRemaining}/10 left)` : ''}
                       </span>
                     )}
                   </div>

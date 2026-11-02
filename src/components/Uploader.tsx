@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useCallback } from 'react';
 import { UploadCloud, Sparkles, AlertCircle, FileCheck } from 'lucide-react';
+import { computeImageHash } from '../lib/vtracer/compression';
 
 export interface LoadedImageInfo {
   fileName: string;
@@ -10,6 +11,7 @@ export interface LoadedImageInfo {
   height: number;
   imageData: ImageData;
   dataUrl: string;
+  imageHash: string;
 }
 
 interface UploaderProps {
@@ -50,13 +52,16 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
             ctx.drawImage(img, 0, 0, width, height);
             const imageData = ctx.getImageData(0, 0, width, height);
 
-            onImageLoaded({
-              fileName: file.name,
-              fileSize: file.size,
-              width: canvas.width,
-              height: canvas.height,
-              imageData,
-              dataUrl,
+            computeImageHash(imageData).then((imageHash) => {
+              onImageLoaded({
+                fileName: file.name,
+                fileSize: file.size,
+                width: canvas.width,
+                height: canvas.height,
+                imageData,
+                dataUrl,
+                imageHash,
+              });
             });
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -192,13 +197,16 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
     const dataUrl = canvas.toDataURL('image/png');
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    onImageLoaded({
-      fileName: `sample-${type}.png`,
-      fileSize: Math.round(dataUrl.length * 0.75),
-      width: canvas.width,
-      height: canvas.height,
-      imageData,
-      dataUrl,
+    computeImageHash(imageData).then((imageHash) => {
+      onImageLoaded({
+        fileName: `sample-${type}.png`,
+        fileSize: Math.round(dataUrl.length * 0.75),
+        width: canvas.width,
+        height: canvas.height,
+        imageData,
+        dataUrl,
+        imageHash,
+      });
     });
   };
 

@@ -288,3 +288,5 @@ export async function svgToWebpBitmap(
 export * from './types';
 export * from './autocrop';
 export * from './optimizer';
+export * from './compression';
+export * from './vtracer2';
