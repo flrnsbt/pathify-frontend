@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Wallet, Zap, AlertCircle, Shield, Sparkles } from 'lucide-react';
+import { X, Check, Wallet, AlertCircle, Shield, Sparkles } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { updateUserCredits } from '../lib/firebase/firestore';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
@@ -79,12 +79,15 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
       <div className="w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Zap className="h-5 w-5" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons.svg"
+              alt="vectorizerr"
+              className="h-9 w-9 rounded-xl border border-neutral-700/80 bg-neutral-950 p-1 object-contain"
+            />
             <div>
-              <h2 className="text-base font-semibold text-white">SVG Access &amp; Crypto Credits</h2>
+              <h2 className="text-base font-semibold text-white">vectorizerr Credits</h2>
               <p className="text-xs text-neutral-400">
                 Purchase pay-as-you-go credits via WalletConnect
               </p>

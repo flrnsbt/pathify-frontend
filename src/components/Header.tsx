@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
+import { Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
@@ -31,11 +31,16 @@ export function Header({
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo and Brand */}
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 shadow-md shadow-purple-500/20">
-            <Layers className="h-5 w-5 text-white" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons.svg"
+            alt="vectorizerr logo"
+            className="h-10 w-10 rounded-xl shadow-lg shadow-indigo-500/20 object-contain hover:scale-105 transition-transform"
+          />
           <div>
-            <span className="font-bold tracking-tight text-white text-lg">vectorizerr</span>
+            <span className="font-bold tracking-tight text-white text-lg bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent">
+              vectorizerr
+            </span>
             <p className="hidden sm:block text-xs text-neutral-400">
               Raster to SVG Vectorizer
             </p>

@@ -337,6 +337,11 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+        onOpenCredits={() => {
+          setIsAuthOpen(false);
+          setCreditReason('');
+          setIsCreditsOpen(true);
+        }}
       />
 
       <UnlockModal

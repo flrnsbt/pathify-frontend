@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Sparkles,
   Lock,
+  Info,
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
 
@@ -329,6 +330,16 @@ export function Visualizer({
           </div>
         </div>
       </div>
+
+      {/* Quality Preview Notice */}
+      {renderedVectorImage && (
+        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400">
+          <Info className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+          <span>
+            <strong className="text-neutral-300">Preview Notice:</strong> This viewer displays an anti-theft raster preview. The actual vector SVG has infinite mathematical resolution and zero pixelation — download the SVG to inspect the true vector result.
+          </span>
+        </div>
+      )}
 
       {/* Main Interactive Canvas Area */}
       <div

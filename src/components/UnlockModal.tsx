@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Sparkles, Download, Check, Coins } from 'lucide-react';
+import { X, Download, Check, Coins } from 'lucide-react';
 
 interface UnlockModalProps {
   isOpen: boolean;
@@ -26,10 +26,13 @@ export function UnlockModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl animate-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Sparkles className="h-4 w-4" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons.svg"
+              alt="vectorizerr"
+              className="h-8 w-8 rounded-lg border border-neutral-700/80 bg-neutral-950 p-0.5 object-contain"
+            />
             <h3 className="text-sm font-semibold text-white">Unlock Vector SVG</h3>
           </div>
           <button

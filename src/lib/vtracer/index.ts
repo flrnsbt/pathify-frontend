@@ -144,6 +144,15 @@ export function convertImage(
     if (resultSvg && !resultSvg.includes('viewBox')) {
       resultSvg = resultSvg.replace('<svg ', `<svg viewBox="0 0 ${width} ${height}" `);
     }
+
+    // Fix: In binary / silhouette / line-art tracing, VTracer sets fill="none" on paths which
+    // causes them to render completely invisible. Replace with solid black fill.
+    if (opts.colorMode === 'binary' || opts.preset === 'line-art') {
+      resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
+    } else if (!resultSvg.includes('fill="#') && resultSvg.includes('fill="none"')) {
+      resultSvg = resultSvg.replace(/fill="none"/g, 'fill="#000000"');
+    }
+
     return resultSvg;
   } finally {
     if (typeof config.free === 'function') {
@@ -154,14 +163,14 @@ export function convertImage(
 
 /**
  * Converts an SVG string into a high-quality WebP bitmap data URL.
- * Used for rendering a high-fidelity visualizer preview without exposing
- * the raw SVG DOM / vector path coordinates to unauthorized users.
+ * Uses 2x-3x supersampling to ensure the preview bitmap is crisp and equivalent
+ * in visual sharpness to the bitmap source, while preventing vector geometry theft.
  */
 export async function svgToWebpBitmap(
   svg: string,
   width: number,
   height: number,
-  quality = 0.95
+  quality = 0.98
 ): Promise<string> {
   if (typeof window === 'undefined' || !svg) return '';
   return new Promise((resolve) => {
@@ -172,18 +181,21 @@ export async function svgToWebpBitmap(
 
       img.onload = () => {
         try {
+          // Supersample up to 3x (or max dimension 2400) for Retina / 4K sharpness
+          const scale = Math.max(2, Math.min(3, Math.round(2400 / Math.max(width, height))));
           const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
+          canvas.width = Math.round(width * scale);
+          canvas.height = Math.round(height * scale);
+          const ctx = canvas.getContext('2d', { alpha: true });
           if (!ctx) {
             URL.revokeObjectURL(url);
             resolve('');
             return;
           }
-          ctx.drawImage(img, 0, 0, width, height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
-          // High-quality WebP bitmap
           const webpDataUrl = canvas.toDataURL('image/webp', quality);
           resolve(webpDataUrl);
         } catch {

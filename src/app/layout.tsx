@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "vectorizerr | Raster to SVG Vector Graphics",
   description:
     "High-performance in-browser raster to vector graphics converter.",
+  icons: {
+    icon: "/icons.svg",
+    shortcut: "/icons.svg",
+    apple: "/icons.svg",
+  },
 };
 
 export default function RootLayout({

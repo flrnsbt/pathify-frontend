@@ -1,20 +1,24 @@
 export type ColorModeOption = 'color' | 'binary';
 export type HierarchicalOption = 'stacked' | 'cutout';
 export type PathSimplifyModeOption = 'polygon' | 'spline' | 'none';
-export type PresetOption = 'photo' | 'pixel-art' | 'line-art' | 'logo' | 'custom';
+export type PresetOption = 'photo' | 'gradient' | 'pixel-art' | 'line-art' | 'logo' | 'custom';
+export type EngineVersionOption = 'v0.6.5-optimized' | 'v0.6.5-standard' | 'v0.6.0-legacy';
 
 export interface VTracerOptions {
   colorMode: ColorModeOption;
   hierarchical: HierarchicalOption;
   mode: PathSimplifyModeOption;
   filterSpeckle: number; // e.g. 0 - 64
-  colorPrecision: number; // 1 - 8
-  layerDifference: number; // 0 - 255
+  colorPrecision: number; // 1 - 8 (clustering depth)
+  layerDifference: number; // 1 - 255 (lower = finer gradient contours)
   cornerThreshold: number; // 0 - 180
   lengthThreshold: number; // 3.5 - 10
   maxIterations: number; // 1 - 30
   spliceThreshold: number; // 0 - 180
   pathPrecision: number; // 0 - 8
+  gradientMode?: boolean; // smooth color transition contours
+  maxColors?: number; // target color richness (16 to 256)
+  engineVersion?: EngineVersionOption;
   preset?: PresetOption;
 }
 
@@ -22,14 +26,17 @@ export const DEFAULT_VTRACER_OPTIONS: VTracerOptions = {
   colorMode: 'color',
   hierarchical: 'cutout',
   mode: 'spline',
-  filterSpeckle: 4,
-  colorPrecision: 6,
-  layerDifference: 16,
+  filterSpeckle: 2,
+  colorPrecision: 7,
+  layerDifference: 12,
   cornerThreshold: 60,
   lengthThreshold: 4,
   maxIterations: 10,
   spliceThreshold: 45,
   pathPrecision: 2,
+  gradientMode: false,
+  maxColors: 128,
+  engineVersion: 'v0.6.5-optimized',
   preset: 'photo',
 };
 
@@ -38,14 +45,31 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     colorMode: 'color',
     hierarchical: 'stacked',
     mode: 'spline',
-    filterSpeckle: 4,
-    colorPrecision: 6,
-    layerDifference: 16,
+    filterSpeckle: 2,
+    colorPrecision: 7,
+    layerDifference: 12,
     cornerThreshold: 60,
     lengthThreshold: 4,
     maxIterations: 10,
     spliceThreshold: 45,
     pathPrecision: 2,
+    gradientMode: false,
+    maxColors: 128,
+  },
+  gradient: {
+    colorMode: 'color',
+    hierarchical: 'stacked',
+    mode: 'spline',
+    filterSpeckle: 1,
+    colorPrecision: 8,
+    layerDifference: 4, // Ultra-fine color stepping for smooth gradients
+    cornerThreshold: 45,
+    lengthThreshold: 3.5,
+    maxIterations: 15,
+    spliceThreshold: 45,
+    pathPrecision: 3,
+    gradientMode: true,
+    maxColors: 256,
   },
   'pixel-art': {
     colorMode: 'color',
@@ -53,38 +77,41 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     mode: 'polygon',
     filterSpeckle: 0,
     colorPrecision: 8,
-    layerDifference: 8,
+    layerDifference: 4,
     cornerThreshold: 180,
     lengthThreshold: 3.5,
     maxIterations: 1,
     spliceThreshold: 180,
     pathPrecision: 1,
+    gradientMode: false,
   },
   'line-art': {
     colorMode: 'binary',
-    hierarchical: 'stacked',
+    hierarchical: 'cutout',
     mode: 'spline',
-    filterSpeckle: 2,
-    colorPrecision: 2,
-    layerDifference: 64,
-    cornerThreshold: 45,
-    lengthThreshold: 4,
-    maxIterations: 15,
+    filterSpeckle: 1,
+    colorPrecision: 8,
+    layerDifference: 16,
+    cornerThreshold: 60,
+    lengthThreshold: 3.5,
+    maxIterations: 12,
     spliceThreshold: 45,
     pathPrecision: 2,
+    gradientMode: false,
   },
   logo: {
     colorMode: 'color',
     hierarchical: 'cutout',
     mode: 'spline',
-    filterSpeckle: 8,
-    colorPrecision: 5,
-    layerDifference: 24,
+    filterSpeckle: 4,
+    colorPrecision: 7,
+    layerDifference: 16,
     cornerThreshold: 90,
-    lengthThreshold: 5,
+    lengthThreshold: 4.5,
     maxIterations: 12,
     spliceThreshold: 60,
     pathPrecision: 2,
+    gradientMode: false,
   },
 };
 

@@ -87,7 +87,12 @@ export function HistoryDrawer({
         <div className="flex-1 overflow-y-auto py-4 space-y-3">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-neutral-500">
-              <Layers className="h-10 w-10 mb-2 stroke-1" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icons.svg"
+                alt="vectorizerr"
+                className="h-12 w-12 mb-3 opacity-30 grayscale"
+              />
               <p className="text-sm font-medium">No history items yet</p>
               <p className="text-xs text-neutral-600 mt-1">
                 Vectorized outputs are automatically saved to your history.

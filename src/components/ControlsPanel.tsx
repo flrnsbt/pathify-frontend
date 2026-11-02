@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings2,
+  Cpu,
 } from 'lucide-react';
 import {
   VTracerOptions,
@@ -82,18 +83,48 @@ export function ControlsPanel({
         </button>
       </div>
 
+      {/* Engine Version Selector */}
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3">
+        <div className="flex items-center justify-between text-xs mb-1.5">
+          <span className="font-medium text-neutral-300 flex items-center gap-1.5">
+            <Cpu className="h-3.5 w-3.5 text-indigo-400" />
+            Tracer Engine Version
+          </span>
+          <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+            Best / Default
+          </span>
+        </div>
+        <select
+          value={options.engineVersion || 'v0.6.5-optimized'}
+          onChange={(e) =>
+            setOption(
+              'engineVersion',
+              e.target.value as 'v0.6.5-optimized' | 'v0.6.5-standard' | 'v0.6.0-legacy'
+            )
+          }
+          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-indigo-500 focus:outline-none cursor-pointer"
+        >
+          <option value="v0.6.5-optimized">
+            v0.6.5 Optimized (Recommended: Ultra-Fast &amp; High Precision)
+          </option>
+          <option value="v0.6.5-standard">v0.6.5 Standard (Reference Clustering)</option>
+          <option value="v0.6.0-legacy">v0.6.0 Legacy Engine</option>
+        </select>
+      </div>
+
       {/* Presets Bar */}
       <div>
         <label className="text-xs font-medium text-neutral-400 mb-2 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-amber-400" />
           Optimized Presets
         </label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {(['photo', 'pixel-art', 'line-art', 'logo'] as const).map((preset) => {
+        <div className="grid grid-cols-5 gap-1.5">
+          {(['photo', 'gradient', 'pixel-art', 'line-art', 'logo'] as const).map((preset) => {
             const isSelected = options.preset === preset;
             const labels: Record<string, string> = {
               photo: 'Photo',
-              'pixel-art': 'Pixel Art',
+              gradient: 'Gradient',
+              'pixel-art': 'Pixel',
               'line-art': 'Line Art',
               logo: 'Logo',
             };
@@ -113,6 +144,31 @@ export function ControlsPanel({
             );
           })}
         </div>
+      </div>
+
+      {/* Smooth Gradients Toggle */}
+      <div className="flex items-center justify-between rounded-xl bg-neutral-950/80 px-3 py-2.5 border border-neutral-800">
+        <div>
+          <span className="text-xs font-medium text-neutral-200">Allow Smooth Gradients</span>
+          <p className="text-[11px] text-neutral-500">
+            Ultra-fine contour bands for photorealistic color transitions
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={Boolean(options.gradientMode)}
+          onChange={(e) => {
+            const enabled = e.target.checked;
+            onChange({
+              ...options,
+              gradientMode: enabled,
+              layerDifference: enabled ? 4 : 12,
+              colorPrecision: enabled ? 8 : 7,
+              preset: enabled ? 'gradient' : 'custom',
+            });
+          }}
+          className="accent-indigo-500 h-4 w-4 rounded cursor-pointer"
+        />
       </div>
 
       {/* Core Mode Toggles */}
@@ -144,7 +200,7 @@ export function ControlsPanel({
                   : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
               }`}
             >
-              Binary (Monochrome)
+              Binary (Monochrome / Line)
             </button>
           </div>
         </div>
@@ -165,7 +221,7 @@ export function ControlsPanel({
                   : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
               }`}
             >
-              Stacked (Overlapping)
+              Stacked (Rich Overlap)
             </button>
             <button
               type="button"
@@ -176,7 +232,7 @@ export function ControlsPanel({
                   : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
               }`}
             >
-              Cutout (Holes Cut)
+              Cutout (Holes / Transparent)
             </button>
           </div>
         </div>
@@ -208,6 +264,37 @@ export function ControlsPanel({
 
       {/* Main Sliders */}
       <div className="space-y-4 border-t border-neutral-800/80 pt-4">
+        {/* Color Palette Richness */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="font-medium text-neutral-300">Palette Richness (Color Count)</span>
+            <span className="font-mono text-indigo-400">{options.maxColors || 128} Colors</span>
+          </div>
+          <input
+            type="range"
+            min={16}
+            max={256}
+            step={16}
+            value={options.maxColors || 128}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              const prec = Math.min(8, Math.max(4, Math.round(Math.log2(val))));
+              const diff = Math.max(2, Math.round(64 / Math.sqrt(val / 16)));
+              onChange({
+                ...options,
+                maxColors: val,
+                colorPrecision: prec,
+                layerDifference: diff,
+                preset: 'custom',
+              });
+            }}
+            className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+          />
+          <p className="mt-1 text-[11px] text-neutral-500">
+            Higher values keep nuanced color shades and gradients; lower values produce flat shapes.
+          </p>
+        </div>
+
         {/* Filter Speckle */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
@@ -224,47 +311,27 @@ export function ControlsPanel({
             className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
           />
           <p className="mt-1 text-[11px] text-neutral-500">
-            Removes isolated pixel artifacts smaller than this area.
-          </p>
-        </div>
-
-        {/* Color Precision */}
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-neutral-300">Color Precision (Clustering)</span>
-            <span className="font-mono text-indigo-400">{options.colorPrecision} bits</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={8}
-            step={1}
-            value={options.colorPrecision}
-            onChange={(e) => setOption('colorPrecision', parseInt(e.target.value, 10))}
-            className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
-          />
-          <p className="mt-1 text-[11px] text-neutral-500">
-            Higher values keep more nuanced shades; lower values merge colors into flat shapes.
+            Removes isolated pixel noise smaller than this area. Set to 0-1 for fine line art.
           </p>
         </div>
 
         {/* Layer Difference */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-neutral-300">Layer Difference Threshold</span>
+            <span className="font-medium text-neutral-300">Layer Contour Step</span>
             <span className="font-mono text-indigo-400">{options.layerDifference}</span>
           </div>
           <input
             type="range"
-            min={0}
-            max={128}
+            min={2}
+            max={64}
             step={2}
             value={options.layerDifference}
             onChange={(e) => setOption('layerDifference', parseInt(e.target.value, 10))}
             className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
           />
           <p className="mt-1 text-[11px] text-neutral-500">
-            Color distance required to form distinct vector layers.
+            Color distance to separate layers. Lower values (2-6) produce smooth gradient contours.
           </p>
         </div>
       </div>
@@ -278,13 +345,30 @@ export function ControlsPanel({
         >
           <span className="flex items-center gap-1.5">
             <Settings2 className="h-3.5 w-3.5" />
-            Advanced Curve & Path Fine-Tuning
+            Advanced Curve &amp; Path Fine-Tuning
           </span>
           {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {showAdvanced && (
           <div className="mt-4 space-y-4 pl-1">
+            {/* Color Precision (Bits) */}
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-neutral-300">Color Quantization Precision</span>
+                <span className="font-mono text-indigo-400">{options.colorPrecision} bits</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={8}
+                step={1}
+                value={options.colorPrecision}
+                onChange={(e) => setOption('colorPrecision', parseInt(e.target.value, 10))}
+                className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
             {/* Corner Threshold */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
