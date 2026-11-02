@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "vectorizerr | Private In-Browser Vector Graphics",
+  title: "vectorizerr | Raster to SVG Vector Graphics",
   description:
-    "High-performance in-browser raster to vector graphics converter. Privacy is entirely respected: all image processing runs in an isolated private sandbox directly on your device.",
+    "High-performance in-browser raster to vector graphics converter.",
 };
 
 export default function RootLayout({

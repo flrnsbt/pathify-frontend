@@ -253,7 +253,7 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
               <span className="text-indigo-400 hover:underline">browse</span>
             </p>
             <p className="mt-1 text-xs text-neutral-500">
-              Supports PNG, JPG, and WEBP • 100% private in-browser sandbox
+              Supports PNG, JPG, and WEBP
             </p>
           </div>
         )}

@@ -15,7 +15,6 @@ import {
   Image as ImageIcon,
   Sparkles,
   Lock,
-  ShieldCheck,
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
 
@@ -344,7 +343,7 @@ export function Visualizer({
             </div>
             <h3 className="font-semibold text-neutral-300 text-base">No Image Loaded</h3>
             <p className="mt-1 max-w-sm text-xs text-neutral-500">
-              Upload an image or pick a sample preset to begin vectorizing. Privacy is entirely respected: processing runs locally in a private browser sandbox.
+              Upload an image or pick a sample preset to begin vectorizing.
             </p>
           </div>
         ) : (
@@ -375,15 +374,11 @@ export function Visualizer({
                   </div>
                 </div>
 
-                {/* Vectorized Preview (High-Res WebP Bitmap - Anti-theft Protected) */}
+                {/* Vectorized Result */}
                 <div className="flex flex-col items-center">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
                     <span>Vectorized Result</span>
-                    {!isUnlocked ? (
-                      <span className="flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-medium text-amber-300 border border-amber-500/30">
-                        <Lock className="h-3 w-3" /> Protected Preview
-                      </span>
-                    ) : (
+                    {isUnlocked && (
                       <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
                         Unlocked
                       </span>
@@ -544,10 +539,6 @@ export function Visualizer({
                   (Ratio: {compressionRatio}x of raster)
                 </span>
               )}
-              <span className="hidden xl:inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                <ShieldCheck className="h-3 w-3" />
-                Private Sandbox (Local Device)
-              </span>
             </>
           ) : (
             <span>Ready to trace</span>

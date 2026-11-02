@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield, ShieldCheck } from 'lucide-react';
+import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
@@ -35,15 +35,9 @@ export function Header({
             <Layers className="h-5 w-5 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold tracking-tight text-white text-lg">vectorizerr</span>
-              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                <ShieldCheck className="h-3 w-3" />
-                Private Sandbox
-              </span>
-            </div>
+            <span className="font-bold tracking-tight text-white text-lg">vectorizerr</span>
             <p className="hidden sm:block text-xs text-neutral-400">
-              Privacy is entirely respected: all image processing runs in a secure local browser sandbox
+              Raster to SVG Vectorizer
             </p>
           </div>
         </div>
