@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/lib/vtracer/wasm_vtracer_bg.js",
+    "src/lib/vtracer/wasm_vtracer.d.ts",
   ]),
 ]);
 
