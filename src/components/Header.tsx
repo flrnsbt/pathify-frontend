@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
-import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -19,8 +18,6 @@ export function Header({
   historyCount,
 }: HeaderProps) {
   const { user, profile } = useAuth();
-  const { open } = useAppKit();
-  const { address, isConnected } = useAppKitAccount();
 
   const credits = profile?.credits ?? 0;
   const isAdmin = profile?.isAdmin ?? false;
@@ -71,7 +68,7 @@ export function Header({
                 ? 'border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
                 : isSubscribed
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50'
             }`}
           >
             {isAdmin ? (
@@ -87,23 +84,13 @@ export function Header({
             ) : (
               <>
                 <Coins className="h-4 w-4 text-amber-400" />
-                <span>{credits} Credits</span>
-                <span className="hidden sm:inline text-amber-400/80 font-bold">+</span>
+                <span className="font-semibold">{credits}</span>
+                <span className="text-neutral-400">Credits</span>
+                <span className="ml-1 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold text-amber-300">
+                  + Buy
+                </span>
               </>
             )}
-          </button>
-
-          {/* Web3 Connect Wallet for Crypto Payment */}
-          <button
-            onClick={() => open()}
-            className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:from-blue-500 hover:to-indigo-500 transition"
-          >
-            <Wallet className="h-4 w-4 text-white" />
-            <span className="hidden sm:inline">
-              {isConnected && address
-                ? `${address.slice(0, 6)}...${address.slice(-4)}`
-                : 'Pay with Crypto'}
-            </span>
           </button>
 
           {/* Google Auth Button */}
@@ -124,7 +111,7 @@ export function Header({
             <span className="hidden md:inline">
               {user && !user.isAnonymous
                 ? user.displayName || user.email || 'Google User'
-                : 'Sign In with Google'}
+                : 'Sign In'}
             </span>
           </button>
         </div>
