@@ -14,30 +14,38 @@ import {
   FileCode,
   Image as ImageIcon,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
 
 interface VisualizerProps {
   originalImage: LoadedImageInfo | null;
   svg: string | null;
+  previewWebpUrl: string | null;
   nodeCount: number;
   executionTimeMs: number;
-  isProcessing: boolean;
-  onSaveToHistory?: () => void;
+  isUnlocked: boolean;
+  onRequestDownload: () => void;
+  onRequestCopyCode: () => void;
 }
 
-type ViewMode = 'split' | 'side-by-side' | 'vector' | 'raster';
+type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster';
 type BgMode = 'checker' | 'dark' | 'light';
 
 export function Visualizer({
   originalImage,
   svg,
+  previewWebpUrl,
   nodeCount,
   executionTimeMs,
+  isUnlocked,
+  onRequestDownload,
+  onRequestCopyCode,
 }: VisualizerProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  // Default to full 'vector' or 'side-by-side' mode so user does not see split cut
+  const [viewMode, setViewMode] = useState<ViewMode>('side-by-side');
   const [bgMode, setBgMode] = useState<BgMode>('checker');
-  const [splitPos, setSplitPos] = useState<number>(50); // percentage 0 - 100
+  const [splitPos, setSplitPos] = useState<number>(50);
   const [isDraggingSplit, setIsDraggingSplit] = useState(false);
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -112,26 +120,24 @@ export function Visualizer({
     setPan({ x: 0, y: 0 });
   };
 
-  // Download SVG
-  const handleDownloadSvg = () => {
-    if (!svg) return;
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = (originalImage?.fileName ? originalImage.fileName.replace(/\.[^/.]+$/, '') : 'vector') + '.svg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleCopyClick = async () => {
+    if (!isUnlocked) {
+      onRequestCopyCode();
+      return;
+    }
+    if (svg) {
+      await navigator.clipboard.writeText(svg);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
-  // Copy SVG Code
-  const handleCopyCode = async () => {
-    if (!svg) return;
-    await navigator.clipboard.writeText(svg);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleToggleCode = () => {
+    if (!isUnlocked) {
+      onRequestCopyCode();
+      return;
+    }
+    setShowCode(!showCode);
   };
 
   // SVG Size calculation
@@ -149,6 +155,9 @@ export function Visualizer({
     light: 'bg-white',
   };
 
+  // Display image source: high-quality WebP bitmap to prevent SVG extraction
+  const renderedVectorImage = previewWebpUrl;
+
   return (
     <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 shadow-xl backdrop-blur-sm overflow-hidden h-full">
       {/* Top Controls Bar */}
@@ -157,19 +166,8 @@ export function Visualizer({
         <div className="flex items-center gap-1 rounded-xl bg-neutral-950/80 p-1 border border-neutral-800">
           <button
             type="button"
-            onClick={() => setViewMode('split')}
-            title="Split-Screen Slider"
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-              viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Split className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Split Slider</span>
-          </button>
-          <button
-            type="button"
             onClick={() => setViewMode('side-by-side')}
-            title="Side-by-Side View"
+            title="Side-by-Side Comparison"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'side-by-side' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
@@ -180,13 +178,24 @@ export function Visualizer({
           <button
             type="button"
             onClick={() => setViewMode('vector')}
-            title="Vector SVG Only"
+            title="Full Vector View"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'vector' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Eye className="h-3.5 w-3.5" />
-            <span>Vector</span>
+            <span>Vector View</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('split')}
+            title="Split-Screen Comparison Slider"
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+              viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Split className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Split Slider</span>
           </button>
           <button
             type="button"
@@ -262,39 +271,61 @@ export function Visualizer({
             </button>
           </div>
 
-          {/* Export Actions */}
+          {/* Export Actions with Access Protection */}
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={!svg}
-              onClick={handleCopyCode}
-              title="Copy SVG Code"
+              disabled={!renderedVectorImage}
+              onClick={handleCopyClick}
+              title={isUnlocked ? 'Copy SVG Code' : 'Unlock to copy SVG code'}
               className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-800/80 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white disabled:opacity-40 transition"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
+              {!isUnlocked ? (
+                <Lock className="h-3.5 w-3.5 text-amber-400" />
+              ) : copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {!isUnlocked ? 'Copy SVG' : copied ? 'Copied' : 'Copy'}
+              </span>
             </button>
 
             <button
               type="button"
-              disabled={!svg}
-              onClick={handleDownloadSvg}
-              title="Download .SVG File"
-              className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-40 transition"
+              disabled={!renderedVectorImage}
+              onClick={onRequestDownload}
+              title={isUnlocked ? 'Download .SVG File' : 'Unlock with credit to download SVG'}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition disabled:opacity-40 ${
+                isUnlocked
+                  ? 'border-emerald-500/30 bg-emerald-600 hover:bg-emerald-500'
+                  : 'border-indigo-500/40 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500'
+              }`}
             >
-              <Download className="h-3.5 w-3.5" />
-              <span>Download SVG</span>
+              {isUnlocked ? (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download SVG</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="h-3.5 w-3.5 text-amber-300" />
+                  <span>Download SVG</span>
+                </>
+              )}
             </button>
 
-            <button
-              type="button"
-              disabled={!svg}
-              onClick={() => setShowCode(!showCode)}
-              title="Toggle SVG Code Preview"
-              className="p-1.5 text-neutral-400 hover:text-white transition rounded-lg border border-neutral-800 bg-neutral-800/50"
-            >
-              <FileCode className="h-4 w-4" />
-            </button>
+            {isUnlocked && (
+              <button
+                type="button"
+                onClick={handleToggleCode}
+                title="Toggle Raw SVG Code"
+                className="p-1.5 text-neutral-400 hover:text-white transition rounded-lg border border-neutral-800 bg-neutral-800/50"
+              >
+                <FileCode className="h-4 w-4 text-emerald-400" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -312,7 +343,7 @@ export function Visualizer({
             </div>
             <h3 className="font-semibold text-neutral-300 text-base">No Image Loaded</h3>
             <p className="mt-1 max-w-sm text-xs text-neutral-500">
-              Upload an image or pick a sample preset from the left panel to begin vectorizing with VTracer WASM.
+              Upload an image or pick a sample preset from the left panel to begin vectorizing.
             </p>
           </div>
         ) : (
@@ -323,6 +354,79 @@ export function Visualizer({
               transformOrigin: 'center center',
             }}
           >
+            {/* Side by Side Mode (DEFAULT) */}
+            {viewMode === 'side-by-side' && (
+              <div className="flex items-center justify-center gap-6 p-4">
+                {/* Original */}
+                <div className="flex flex-col items-center">
+                  <span className="mb-2 text-xs font-semibold text-neutral-400">Original Raster</span>
+                  <div
+                    className="overflow-hidden rounded-xl border border-neutral-800 shadow-xl"
+                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={originalImage.dataUrl}
+                      alt="Original Raster"
+                      draggable={false}
+                      className="max-h-[65vh] w-auto object-contain select-none pointer-events-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Vectorized Preview (High-Res WebP Bitmap - Anti-theft Protected) */}
+                <div className="flex flex-col items-center">
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
+                    <span>Vectorized Result</span>
+                    {!isUnlocked ? (
+                      <span className="flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-medium text-amber-300 border border-amber-500/30">
+                        <Lock className="h-3 w-3" /> Protected Preview
+                      </span>
+                    ) : (
+                      <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
+                        Unlocked
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="overflow-hidden rounded-xl border border-indigo-500/30 bg-neutral-900/50 shadow-xl relative"
+                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
+                  >
+                    {renderedVectorImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={renderedVectorImage}
+                        alt="Vectorized Result (High Quality WebP Bitmap)"
+                        draggable={false}
+                        className="max-h-[65vh] w-auto object-contain select-none pointer-events-none"
+                      />
+                    ) : (
+                      <div className="flex h-64 w-64 items-center justify-center text-xs text-neutral-500">
+                        Pending vectorization...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Vector View Mode */}
+            {viewMode === 'vector' && (
+              <div className="flex items-center justify-center">
+                {renderedVectorImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={renderedVectorImage}
+                    alt="Vectorized Result (High Quality WebP Bitmap)"
+                    draggable={false}
+                    className="max-h-[75vh] max-w-[85vw] object-contain select-none pointer-events-none shadow-2xl"
+                  />
+                ) : (
+                  <div className="text-xs text-neutral-400">Click &quot;Vectorize&quot; to generate output</div>
+                )}
+              </div>
+            )}
+
             {/* Split Slider Mode */}
             {viewMode === 'split' && (
               <div
@@ -339,26 +443,30 @@ export function Visualizer({
                 <img
                   src={originalImage.dataUrl}
                   alt="Original Raster"
+                  draggable={false}
                   className="w-full h-full object-contain pointer-events-none select-none"
                 />
 
-                {/* On Top: Vector SVG clipped by split percentage */}
-                {svg && (
+                {/* On Top: Vector WebP clipped by split percentage */}
+                {renderedVectorImage && (
                   <div
                     className="absolute inset-0 overflow-hidden pointer-events-none select-none"
                     style={{
                       clipPath: `polygon(${splitPos}% 0, 100% 0, 100% 100%, ${splitPos}% 100%)`,
                     }}
                   >
-                    <div
-                      className="w-full h-full [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain"
-                      dangerouslySetInnerHTML={{ __html: svg }}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={renderedVectorImage}
+                      alt="Vector WebP Preview"
+                      draggable={false}
+                      className="w-full h-full object-contain pointer-events-none select-none"
                     />
                   </div>
                 )}
 
                 {/* Vertical Divider Handle */}
-                {svg && (
+                {renderedVectorImage && (
                   <div
                     onMouseDown={handleSplitMouseDown}
                     className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-lg hover:w-1.5 transition-all z-20"
@@ -375,63 +483,8 @@ export function Visualizer({
                   Raster
                 </span>
                 <span className="absolute top-3 right-3 rounded-md bg-indigo-950/90 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-700/50">
-                  Vector (SVG)
+                  Vector Preview
                 </span>
-              </div>
-            )}
-
-            {/* Side by Side Mode */}
-            {viewMode === 'side-by-side' && (
-              <div className="flex items-center justify-center gap-6 p-4">
-                {/* Original */}
-                <div className="flex flex-col items-center">
-                  <span className="mb-2 text-xs font-semibold text-neutral-400">Original Raster</span>
-                  <div
-                    className="overflow-hidden rounded-xl border border-neutral-800 shadow-xl"
-                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={originalImage.dataUrl}
-                      alt="Original"
-                      className="max-h-[65vh] w-auto object-contain"
-                    />
-                  </div>
-                </div>
-
-                {/* Vector SVG */}
-                <div className="flex flex-col items-center">
-                  <span className="mb-2 text-xs font-semibold text-indigo-400">Traced Vector SVG</span>
-                  <div
-                    className="overflow-hidden rounded-xl border border-indigo-500/30 bg-neutral-900/50 shadow-xl"
-                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
-                  >
-                    {svg ? (
-                      <div
-                        className="max-h-[65vh] w-auto [&>svg]:max-h-[65vh] [&>svg]:w-auto [&>svg]:object-contain"
-                        dangerouslySetInnerHTML={{ __html: svg }}
-                      />
-                    ) : (
-                      <div className="flex h-64 w-64 items-center justify-center text-xs text-neutral-500">
-                        Pending vectorization...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Vector Only Mode */}
-            {viewMode === 'vector' && (
-              <div className="flex items-center justify-center">
-                {svg ? (
-                  <div
-                    className="max-h-[75vh] max-w-[85vw] [&>svg]:max-h-[75vh] [&>svg]:max-w-[85vw] [&>svg]:object-contain"
-                    dangerouslySetInnerHTML={{ __html: svg }}
-                  />
-                ) : (
-                  <div className="text-xs text-neutral-400">Click &quot;Vectorize&quot; to generate SVG</div>
-                )}
               </div>
             )}
 
@@ -441,16 +494,17 @@ export function Visualizer({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={originalImage.dataUrl}
-                  alt="Original"
-                  className="max-h-[75vh] max-w-[85vw] object-contain"
+                  alt="Original Raster"
+                  draggable={false}
+                  className="max-h-[75vh] max-w-[85vw] object-contain select-none pointer-events-none"
                 />
               </div>
             )}
           </div>
         )}
 
-        {/* Floating Code Preview Modal/Drawer */}
-        {showCode && svg && (
+        {/* Floating Code Preview Modal (Only shown if unlocked) */}
+        {showCode && svg && isUnlocked && (
           <div className="absolute inset-x-4 bottom-4 top-16 z-30 rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 shadow-2xl backdrop-blur-md flex flex-col">
             <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
               <span className="text-xs font-semibold text-neutral-300">SVG Output Markup</span>
@@ -472,7 +526,7 @@ export function Visualizer({
       {/* Footer Metrics Bar */}
       <div className="flex flex-wrap items-center justify-between border-t border-neutral-800 bg-neutral-950/90 px-4 py-2.5 text-xs text-neutral-400 gap-2">
         <div className="flex items-center gap-4">
-          {svg ? (
+          {renderedVectorImage ? (
             <>
               <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
                 <Sparkles className="h-3.5 w-3.5" />

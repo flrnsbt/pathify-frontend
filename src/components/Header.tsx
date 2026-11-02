@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, ShieldCheck } from 'lucide-react';
+import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
@@ -9,7 +9,6 @@ interface HeaderProps {
   onOpenHistory: () => void;
   onOpenAuth: () => void;
   onOpenCredits: () => void;
-  onOpenAudit: () => void;
   historyCount: number;
 }
 
@@ -17,15 +16,15 @@ export function Header({
   onOpenHistory,
   onOpenAuth,
   onOpenCredits,
-  onOpenAudit,
   historyCount,
 }: HeaderProps) {
   const { user, profile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
 
-  const credits = profile?.credits ?? 10;
-  const isPro = profile?.isPro ?? false;
+  const credits = profile?.credits ?? 0;
+  const isAdmin = profile?.isAdmin ?? false;
+  const isSubscribed = profile?.subscription?.status === 'active';
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-md">
@@ -50,16 +49,6 @@ export function Header({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Performance Audit Tool */}
-          <button
-            onClick={onOpenAudit}
-            title="Performance & 4K Stress Test Audit"
-            className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
-          >
-            <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span className="hidden md:inline">Stress Test</span>
-          </button>
-
           {/* History Button */}
           <button
             onClick={onOpenHistory}
@@ -74,17 +63,37 @@ export function Header({
             )}
           </button>
 
-          {/* Credits Badge / Upgrade */}
+          {/* Credits Badge / Buy Credits */}
           <button
             onClick={onOpenCredits}
-            className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition"
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+              isAdmin
+                ? 'border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
+                : isSubscribed
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+            }`}
           >
-            <Coins className="h-4 w-4 text-amber-400" />
-            <span>{isPro ? 'PRO Unlimited' : `${credits} Credits`}</span>
-            {!isPro && <Sparkles className="h-3 w-3 text-amber-400" />}
+            {isAdmin ? (
+              <>
+                <Shield className="h-4 w-4 text-purple-400" />
+                <span>Admin Pass</span>
+              </>
+            ) : isSubscribed ? (
+              <>
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                <span>Subscribed</span>
+              </>
+            ) : (
+              <>
+                <Coins className="h-4 w-4 text-amber-400" />
+                <span>{credits} Credits</span>
+                <span className="hidden sm:inline text-amber-400/80 font-bold">+</span>
+              </>
+            )}
           </button>
 
-          {/* Web3 Connect Wallet */}
+          {/* Web3 Connect Wallet for Crypto Payment */}
           <button
             onClick={() => open()}
             className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:from-blue-500 hover:to-indigo-500 transition"
@@ -93,11 +102,11 @@ export function Header({
             <span className="hidden sm:inline">
               {isConnected && address
                 ? `${address.slice(0, 6)}...${address.slice(-4)}`
-                : 'Connect Wallet'}
+                : 'Pay with Crypto'}
             </span>
           </button>
 
-          {/* Auth Button */}
+          {/* Google Auth Button */}
           <button
             onClick={onOpenAuth}
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800 transition"

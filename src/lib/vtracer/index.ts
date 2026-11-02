@@ -139,12 +139,69 @@ export function convertImage(
   }
 
   try {
-    return bg.convertImageToSvg(rawBytes, width, height, config);
+    let resultSvg = bg.convertImageToSvg(rawBytes, width, height, config);
+    // Ensure viewBox is always present for responsive non-clipped scaling
+    if (resultSvg && !resultSvg.includes('viewBox')) {
+      resultSvg = resultSvg.replace('<svg ', `<svg viewBox="0 0 ${width} ${height}" `);
+    }
+    return resultSvg;
   } finally {
     if (typeof config.free === 'function') {
       config.free();
     }
   }
+}
+
+/**
+ * Converts an SVG string into a high-quality WebP bitmap data URL.
+ * Used for rendering a high-fidelity visualizer preview without exposing
+ * the raw SVG DOM / vector path coordinates to unauthorized users.
+ */
+export async function svgToWebpBitmap(
+  svg: string,
+  width: number,
+  height: number,
+  quality = 0.95
+): Promise<string> {
+  if (typeof window === 'undefined' || !svg) return '';
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            resolve('');
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          // High-quality WebP bitmap
+          const webpDataUrl = canvas.toDataURL('image/webp', quality);
+          resolve(webpDataUrl);
+        } catch {
+          URL.revokeObjectURL(url);
+          resolve('');
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve('');
+      };
+
+      img.src = url;
+    } catch {
+      resolve('');
+    }
+  });
 }
 
 export * from './types';

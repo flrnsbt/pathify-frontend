@@ -20,7 +20,7 @@ export interface VTracerOptions {
 
 export const DEFAULT_VTRACER_OPTIONS: VTracerOptions = {
   colorMode: 'color',
-  hierarchical: 'stacked',
+  hierarchical: 'cutout',
   mode: 'spline',
   filterSpeckle: 4,
   colorPrecision: 6,

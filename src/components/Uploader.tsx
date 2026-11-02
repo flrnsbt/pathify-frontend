@@ -37,15 +37,18 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
         img.onload = () => {
           try {
             const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
+            const width = img.naturalWidth || img.width;
+            const height = img.naturalHeight || img.height;
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (!ctx) {
               setError('Failed to create canvas 2D rendering context');
               return;
             }
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
 
             onImageLoaded({
               fileName: file.name,

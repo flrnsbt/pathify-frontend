@@ -28,13 +28,22 @@ export interface VectorizationHistoryItem {
   createdAt: number; // unix timestamp ms
 }
 
+export interface SubscriptionInfo {
+  status: 'inactive' | 'active' | 'canceled';
+  plan?: 'monthly' | 'yearly';
+  validUntil?: number;
+}
+
 export interface UserProfile {
   uid: string;
   email?: string | null;
   displayName?: string | null;
   walletAddress?: string | null;
   credits: number;
+  isAdmin: boolean;
+  subscription: SubscriptionInfo;
   isPro: boolean;
+  unlockedSvgIds: string[];
   updatedAt: number;
 }
 
@@ -55,6 +64,50 @@ function safeSetStorage(key: string, val: string): void {
   try {
     localStorage.setItem(key, val);
   } catch {}
+}
+
+export function canAccessSvg(profile: UserProfile | null, svgId?: string): boolean {
+  if (!profile) return false;
+  if (profile.isAdmin) return true;
+  if (profile.subscription?.status === 'active') return true;
+  if (svgId && profile.unlockedSvgIds?.includes(svgId)) return true;
+  return false;
+}
+
+export async function unlockSvgWithCredit(userId: string, svgId: string): Promise<boolean> {
+  const profile = await getUserProfile(userId);
+  if (canAccessSvg(profile, svgId)) {
+    return true;
+  }
+  if (profile.credits <= 0) {
+    return false;
+  }
+
+  const newCredits = profile.credits - 1;
+  const newUnlocked = Array.from(new Set([...(profile.unlockedSvgIds || []), svgId]));
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await setDoc(
+        userRef,
+        {
+          credits: newCredits,
+          unlockedSvgIds: newUnlocked,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Failed to unlock in Firestore:', err);
+    }
+  }
+
+  profile.credits = newCredits;
+  profile.unlockedSvgIds = newUnlocked;
+  profile.updatedAt = Date.now();
+  safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
+  return true;
 }
 
 export async function saveVectorizationHistory(
@@ -172,7 +225,15 @@ export async function linkWalletToUser(userId: string, walletAddress: string): P
     const existingRaw = safeGetStorage(LOCAL_STORAGE_PROFILE_KEY);
     const profile: UserProfile = existingRaw
       ? JSON.parse(existingRaw)
-      : { uid: userId, credits: 10, isPro: false, updatedAt: Date.now() };
+      : {
+          uid: userId,
+          credits: 0,
+          isAdmin: false,
+          subscription: { status: 'inactive' },
+          isPro: false,
+          unlockedSvgIds: [],
+          updatedAt: Date.now(),
+        };
     profile.walletAddress = walletAddress;
     profile.updatedAt = Date.now();
     safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
@@ -193,8 +254,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
           email: data.email || null,
           displayName: data.displayName || null,
           walletAddress: data.walletAddress || null,
-          credits: typeof data.credits === 'number' ? data.credits : 10,
+          credits: typeof data.credits === 'number' ? data.credits : 0,
+          isAdmin: Boolean(data.isAdmin || safeGetStorage('vtracer_admin_override') === 'true'),
+          subscription: data.subscription || { status: 'inactive' },
           isPro: Boolean(data.isPro),
+          unlockedSvgIds: Array.isArray(data.unlockedSvgIds) ? data.unlockedSvgIds : [],
           updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Date.now(),
         };
       }
@@ -206,20 +270,34 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
   try {
     const existingRaw = safeGetStorage(LOCAL_STORAGE_PROFILE_KEY);
     if (existingRaw) {
-      return JSON.parse(existingRaw);
+      const parsed: UserProfile = JSON.parse(existingRaw);
+      return {
+        ...parsed,
+        isAdmin: Boolean(parsed.isAdmin || safeGetStorage('vtracer_admin_override') === 'true'),
+        subscription: parsed.subscription || { status: 'inactive' },
+        unlockedSvgIds: parsed.unlockedSvgIds || [],
+      };
     }
   } catch {}
 
   const defaultProfile: UserProfile = {
     uid: userId,
-    credits: 10,
+    credits: 0,
+    isAdmin: safeGetStorage('vtracer_admin_override') === 'true',
+    subscription: { status: 'inactive' },
     isPro: false,
+    unlockedSvgIds: [],
     updatedAt: Date.now(),
   };
   return defaultProfile;
 }
 
-export async function updateUserCredits(userId: string, newCredits: number, isPro?: boolean): Promise<void> {
+export async function updateUserCredits(
+  userId: string,
+  newCredits: number,
+  isPro?: boolean,
+  isAdmin?: boolean
+): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
       const userRef = doc(db, 'users', userId);
@@ -228,6 +306,7 @@ export async function updateUserCredits(userId: string, newCredits: number, isPr
         {
           credits: newCredits,
           ...(typeof isPro === 'boolean' ? { isPro } : {}),
+          ...(typeof isAdmin === 'boolean' ? { isAdmin } : {}),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -241,10 +320,21 @@ export async function updateUserCredits(userId: string, newCredits: number, isPr
     const existingRaw = safeGetStorage(LOCAL_STORAGE_PROFILE_KEY);
     const profile: UserProfile = existingRaw
       ? JSON.parse(existingRaw)
-      : { uid: userId, credits: 10, isPro: false, updatedAt: Date.now() };
+      : {
+          uid: userId,
+          credits: 0,
+          isAdmin: false,
+          subscription: { status: 'inactive' },
+          isPro: false,
+          unlockedSvgIds: [],
+          updatedAt: Date.now(),
+        };
     profile.credits = newCredits;
     if (typeof isPro === 'boolean') {
       profile.isPro = isPro;
+    }
+    if (typeof isAdmin === 'boolean') {
+      profile.isAdmin = isAdmin;
     }
     profile.updatedAt = Date.now();
     safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
