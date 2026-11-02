@@ -116,11 +116,7 @@ export function HistoryDrawer({
                         <h3 className="text-sm font-medium text-neutral-200 truncate group-hover:text-indigo-400 transition">
                           {item.fileName}
                         </h3>
-                        {accessible ? (
-                          <span className="rounded bg-emerald-500/20 px-1 py-0.2 text-[9px] font-bold text-emerald-400 border border-emerald-500/30">
-                            UNLOCKED
-                          </span>
-                        ) : (
+                        {!accessible && (
                           <span className="flex items-center gap-0.5 rounded bg-amber-500/10 px-1 py-0.2 text-[9px] font-bold text-amber-400 border border-amber-500/20">
                             <Lock className="h-2.5 w-2.5" /> LOCKED
                           </span>
