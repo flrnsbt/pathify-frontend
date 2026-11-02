@@ -6,9 +6,6 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   GoogleAuthProvider,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInAnonymously,
   signOut as fbSignOut,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config';
@@ -20,9 +17,6 @@ interface AuthContextType {
   loading: boolean;
   isConfigured: boolean;
   loginWithGoogle: () => Promise<void>;
-  loginWithEmail: (email: string, pass: string) => Promise<void>;
-  signupWithEmail: (email: string, pass: string) => Promise<void>;
-  loginAnonymously: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -102,62 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         uid: mockUid,
         isAnonymous: false,
         displayName: 'Demo Google User',
-        email: 'user@example.com',
+        email: 'user@gmail.com',
+        photoURL: null,
       } as unknown as User;
       setUser(mockUser);
       await fetchProfile(mockUid);
       return;
     }
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     await signInWithPopup(auth, provider);
-  }, [fetchProfile]);
-
-  const loginWithEmail = useCallback(async (email: string, pass: string) => {
-    if (!isFirebaseConfigured || !auth) {
-      const mockUid = `email-${Date.now()}`;
-      const mockUser = {
-        uid: mockUid,
-        isAnonymous: false,
-        displayName: email.split('@')[0],
-        email,
-      } as unknown as User;
-      setUser(mockUser);
-      await fetchProfile(mockUid);
-      return;
-    }
-    await signInWithEmailAndPassword(auth, email, pass);
-  }, [fetchProfile]);
-
-  const signupWithEmail = useCallback(async (email: string, pass: string) => {
-    if (!isFirebaseConfigured || !auth) {
-      const mockUid = `email-${Date.now()}`;
-      const mockUser = {
-        uid: mockUid,
-        isAnonymous: false,
-        displayName: email.split('@')[0],
-        email,
-      } as unknown as User;
-      setUser(mockUser);
-      await fetchProfile(mockUid);
-      return;
-    }
-    await createUserWithEmailAndPassword(auth, email, pass);
-  }, [fetchProfile]);
-
-  const loginAnonymouslyHandler = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth) {
-      const guestUid = `guest-${Date.now()}`;
-      const mockUser = {
-        uid: guestUid,
-        isAnonymous: true,
-        displayName: 'Guest User',
-        email: null,
-      } as unknown as User;
-      setUser(mockUser);
-      await fetchProfile(guestUid);
-      return;
-    }
-    await signInAnonymously(auth);
   }, [fetchProfile]);
 
   const logout = useCallback(async () => {
@@ -181,23 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       isConfigured: isFirebaseConfigured,
       loginWithGoogle,
-      loginWithEmail,
-      signupWithEmail,
-      loginAnonymously: loginAnonymouslyHandler,
       logout,
       refreshProfile,
     }),
-    [
-      user,
-      profile,
-      loading,
-      loginWithGoogle,
-      loginWithEmail,
-      signupWithEmail,
-      loginAnonymouslyHandler,
-      logout,
-      refreshProfile,
-    ]
+    [user, profile, loading, loginWithGoogle, logout, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -102,9 +102,20 @@ export function Header({
             onClick={onOpenAuth}
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800 transition"
           >
-            <UserIcon className="h-4 w-4 text-neutral-400" />
+            {user?.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.photoURL}
+                alt={user.displayName || 'User'}
+                className="h-4 w-4 rounded-full"
+              />
+            ) : (
+              <UserIcon className="h-4 w-4 text-neutral-400" />
+            )}
             <span className="hidden md:inline">
-              {user?.displayName || user?.email || (user?.isAnonymous ? 'Guest' : 'Sign In')}
+              {user && !user.isAnonymous
+                ? user.displayName || user.email || 'Google User'
+                : 'Sign In with Google'}
             </span>
           </button>
         </div>
