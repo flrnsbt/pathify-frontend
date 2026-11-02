@@ -213,15 +213,17 @@ export async function svgToWebpBitmap(
 
       img.onload = () => {
         try {
+          const w = Math.max(1, Math.round(width || img.naturalWidth || 400));
+          const h = Math.max(1, Math.round(height || img.naturalHeight || 400));
           // Supersample up to 3x (or max dimension 2400) for Retina / 4K sharpness
-          const scale = Math.max(2, Math.min(3, Math.round(2400 / Math.max(width, height))));
+          const scale = Math.max(2, Math.min(3, Math.round(2400 / Math.max(w, h))));
           const canvas = document.createElement('canvas');
-          canvas.width = Math.round(width * scale);
-          canvas.height = Math.round(height * scale);
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
           const ctx = canvas.getContext('2d', { alpha: true });
           if (!ctx) {
             URL.revokeObjectURL(url);
-            resolve('');
+            resolve('data:image/svg+xml;utf8,' + encodeURIComponent(svg));
             return;
           }
           ctx.imageSmoothingEnabled = true;
@@ -229,21 +231,28 @@ export async function svgToWebpBitmap(
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           URL.revokeObjectURL(url);
           const webpDataUrl = canvas.toDataURL('image/webp', quality);
-          resolve(webpDataUrl);
-        } catch {
+          if (webpDataUrl && webpDataUrl.startsWith('data:image')) {
+            resolve(webpDataUrl);
+          } else {
+            resolve(canvas.toDataURL('image/png'));
+          }
+        } catch (canvasErr) {
+          console.warn('Canvas rasterization error:', canvasErr);
           URL.revokeObjectURL(url);
-          resolve('');
+          resolve('data:image/svg+xml;utf8,' + encodeURIComponent(svg));
         }
       };
 
-      img.onerror = () => {
+      img.onerror = (e) => {
+        console.warn('SVG preview image load error, falling back to direct SVG data URI:', e);
         URL.revokeObjectURL(url);
-        resolve('');
+        resolve('data:image/svg+xml;utf8,' + encodeURIComponent(svg));
       };
 
       img.src = url;
-    } catch {
-      resolve('');
+    } catch (err) {
+      console.warn('svgToWebpBitmap error:', err);
+      resolve('data:image/svg+xml;utf8,' + encodeURIComponent(svg));
     }
   });
 }

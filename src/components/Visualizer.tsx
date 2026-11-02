@@ -197,8 +197,9 @@ export function Visualizer({
     light: 'bg-white',
   };
 
-  // Display image source: high-quality WebP bitmap to prevent SVG extraction
-  const renderedVectorImage = previewWebpUrl;
+  // Display image source: high-quality WebP bitmap, or instant SVG data fallback
+  const renderedVectorImage =
+    previewWebpUrl || (svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : null);
 
   return (
     <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 shadow-xl backdrop-blur-sm overflow-hidden h-full">

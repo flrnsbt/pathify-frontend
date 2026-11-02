@@ -202,12 +202,6 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                 </span>
               </div>
               <div className="flex items-start gap-2.5 text-xs text-neutral-300">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
-                <span>
-                  <strong>Pay-as-you-go crypto credits:</strong> Unlock mathematical SVG downloads directly with WalletConnect.
-                </span>
-              </div>
-              <div className="flex items-start gap-2.5 text-xs text-neutral-300">
                 <Lock className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
                 <span>
                   <strong>100% Client-side privacy:</strong> Raster processing executes entirely in your local browser sandbox.
