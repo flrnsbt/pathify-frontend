@@ -308,23 +308,25 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
       {/* Top Navigation Bar */}
-      <Header
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        onOpenCredits={() => {
-          setCreditReason('');
-          setIsCreditsOpen(true);
-        }}
-        historyCount={historyItems.length}
-      />
+      <div className="shrink-0">
+        <Header
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenCredits={() => {
+            setCreditReason('');
+            setIsCreditsOpen(true);
+          }}
+          historyCount={historyItems.length}
+        />
+      </div>
 
       {/* Main Studio Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Upload & Parameters Panel (5 cols) */}
-          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-6 flex flex-col lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start lg:items-stretch lg:h-full lg:min-h-0">
+          {/* Left Column: Upload & Parameters Panel (5 cols) - scrollable independently */}
+          <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 lg:h-full lg:overflow-y-auto lg:pr-2 lg:pb-8 custom-scrollbar">
             <Uploader
               onImageLoaded={handleImageLoaded}
               currentImage={currentImage}
@@ -343,8 +345,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Right Column: Interactive Visualizer & Canvas (7 cols) */}
-          <div className="lg:col-span-7 xl:col-span-8 flex flex-col min-h-[640px]">
+          {/* Right Column: Interactive Visualizer & Canvas (7 cols) - fixed in viewport */}
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col min-h-[500px] lg:min-h-0 lg:h-full lg:overflow-hidden">
             <Visualizer
               originalImage={currentImage}
               svg={svg}

@@ -32,8 +32,34 @@ interface VisualizerProps {
   onRequestCopyCode: () => void;
 }
 
-type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster';
+type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster' | 'code';
 type BgMode = 'checker' | 'dark' | 'light';
+
+function formatXml(xml: string): string {
+  if (!xml) return '';
+  let formatted = '';
+  let indent = 0;
+  const clean = xml.replace(/>\s*</g, '>\n<');
+  const lines = clean.split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    if (line.startsWith('</')) {
+      indent = Math.max(0, indent - 1);
+    }
+    formatted += '  '.repeat(indent) + line + '\n';
+    if (
+      line.startsWith('<') &&
+      !line.startsWith('</') &&
+      !line.endsWith('/>') &&
+      !line.startsWith('<?') &&
+      !line.startsWith('<!')
+    ) {
+      indent++;
+    }
+  }
+  return formatted.trim();
+}
 
 export function Visualizer({
   originalImage,
@@ -57,7 +83,6 @@ export function Visualizer({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
-  const [showCode, setShowCode] = useState(false);
 
   // Reset zoom & pan when image changes using render-time prop comparison
   const [prevDataUrl, setPrevDataUrl] = useState<string | undefined>(originalImage?.dataUrl);
@@ -174,12 +199,18 @@ export function Visualizer({
     }
   };
 
+  const formattedSvg = React.useMemo(() => (svg ? formatXml(svg) : ''), [svg]);
+  const formattedLines = React.useMemo(
+    () => (formattedSvg ? formattedSvg.split('\n') : []),
+    [formattedSvg]
+  );
+
   const handleToggleCode = () => {
     if (!isUnlocked) {
       onRequestCopyCode();
       return;
     }
-    setShowCode(!showCode);
+    setViewMode((prev) => (prev === 'code' ? 'vector' : 'code'));
   };
 
   // SVG Size calculation
@@ -202,9 +233,9 @@ export function Visualizer({
     previewWebpUrl || (svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : null);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 shadow-xl backdrop-blur-sm overflow-hidden h-full">
+    <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 shadow-xl backdrop-blur-sm overflow-hidden h-full min-h-0">
       {/* Top Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-3 gap-2">
+      <div className="flex flex-wrap items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-3 gap-2 shrink-0">
         {/* View Mode Selectors */}
         <div className="flex items-center gap-1 rounded-xl bg-neutral-950/80 p-1 border border-neutral-800">
           <button
@@ -250,6 +281,23 @@ export function Visualizer({
           >
             <ImageIcon className="h-3.5 w-3.5" />
             <span>Raster</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isUnlocked) {
+                onRequestCopyCode();
+                return;
+              }
+              setViewMode('code');
+            }}
+            title="Inspect SVG XML Code"
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+              viewMode === 'code' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <FileCode className="h-3.5 w-3.5 text-emerald-400" />
+            <span>SVG Code</span>
           </button>
         </div>
 
@@ -363,8 +411,12 @@ export function Visualizer({
               <button
                 type="button"
                 onClick={handleToggleCode}
-                title="Toggle Raw SVG Code"
-                className="p-1.5 text-neutral-400 hover:text-white transition rounded-lg border border-neutral-800 bg-neutral-800/50"
+                title="Toggle Raw SVG Code View"
+                className={`p-1.5 transition rounded-lg border ${
+                  viewMode === 'code'
+                    ? 'border-indigo-500 bg-indigo-600 text-white'
+                    : 'border-neutral-800 bg-neutral-800/50 text-neutral-400 hover:text-white'
+                }`}
               >
                 <FileCode className="h-4 w-4 text-emerald-400" />
               </button>
@@ -375,7 +427,7 @@ export function Visualizer({
 
       {/* Quality Preview Notice */}
       {renderedVectorImage && (
-        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400">
+        <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/70 px-4 py-2 text-[11px] text-neutral-400 shrink-0">
           <Info className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
           <span>
             <strong className="text-neutral-300">Preview Notice:</strong> This viewer displays an anti-theft raster preview. The actual vector SVG has infinite mathematical resolution and zero pixelation — download the SVG to inspect the true vector result.
@@ -383,12 +435,68 @@ export function Visualizer({
         </div>
       )}
 
-      {/* Main Interactive Canvas Area */}
-      <div
-        ref={containerRef}
-        onMouseDown={handlePanMouseDown}
-        className={`relative flex-1 min-h-[460px] overflow-hidden select-none cursor-grab active:cursor-grabbing ${bgClasses[bgMode]}`}
-      >
+      {/* Main Interactive Canvas Area / Dedicated XML Code View */}
+      {viewMode === 'code' ? (
+        <div className="flex-1 min-h-[380px] lg:min-h-0 flex flex-col bg-neutral-950 font-mono text-xs select-text cursor-auto overflow-hidden">
+          {/* Top Code Toolbar */}
+          <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-2.5 text-xs text-neutral-300 shrink-0">
+            <div className="flex items-center gap-2">
+              <FileCode className="h-4 w-4 text-emerald-400" />
+              <span className="font-semibold text-white">SVG Source Code</span>
+              <span className="rounded bg-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400">
+                {nodeCount} nodes • {(svgSizeBytes / 1024).toFixed(1)} KB
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyClick}
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-200 hover:bg-neutral-750 hover:text-white transition"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Copy XML</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={onRequestDownload}
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-600/20 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Download .SVG</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Code Area with Line Numbers */}
+          <div className="flex-1 min-h-0 overflow-auto flex text-neutral-300 custom-scrollbar">
+            {/* Line numbers gutter */}
+            <div className="select-none py-3 pl-3 pr-2 text-right text-neutral-600 bg-neutral-950/80 border-r border-neutral-900 font-mono text-[11px] leading-relaxed shrink-0">
+              {formattedLines.map((_, i) => (
+                <div key={i}>{i + 1}</div>
+              ))}
+            </div>
+
+            {/* Code content */}
+            <pre className="flex-1 p-3 overflow-x-auto text-[11px] font-mono leading-relaxed select-text cursor-text text-neutral-200 whitespace-pre custom-scrollbar">
+              <code>{formattedSvg || svg || 'No SVG generated yet'}</code>
+            </pre>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={containerRef}
+          onMouseDown={handlePanMouseDown}
+          className={`relative flex-1 min-h-[380px] lg:min-h-0 overflow-hidden select-none cursor-grab active:cursor-grabbing ${bgClasses[bgMode]}`}
+        >
         {!originalImage ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-800/50 text-neutral-500 mb-3 border border-neutral-700/50">
@@ -597,29 +705,11 @@ export function Visualizer({
             </div>
           </div>
         )}
-
-        {/* Floating Code Preview Modal (Only shown if unlocked) */}
-        {showCode && svg && isUnlocked && (
-          <div className="absolute inset-x-4 bottom-4 top-16 z-30 rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 shadow-2xl backdrop-blur-md flex flex-col">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-              <span className="text-xs font-semibold text-neutral-300">SVG Output Markup</span>
-              <button
-                type="button"
-                onClick={() => setShowCode(false)}
-                className="text-xs text-neutral-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-            <pre className="mt-3 flex-1 overflow-auto rounded-lg bg-neutral-900 p-3 text-xs font-mono text-emerald-400">
-              {svg}
-            </pre>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Footer Metrics Bar */}
-      <div className="flex flex-wrap items-center justify-between border-t border-neutral-800 bg-neutral-950/90 px-4 py-2.5 text-xs text-neutral-400 gap-2">
+      <div className="flex flex-wrap items-center justify-between border-t border-neutral-800 bg-neutral-950/90 px-4 py-2.5 text-xs text-neutral-400 gap-2 shrink-0">
         <div className="flex items-center gap-4">
           {renderedVectorImage ? (
             <>
