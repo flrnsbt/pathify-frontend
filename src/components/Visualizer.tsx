@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Sparkles,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
 
@@ -343,7 +344,7 @@ export function Visualizer({
             </div>
             <h3 className="font-semibold text-neutral-300 text-base">No Image Loaded</h3>
             <p className="mt-1 max-w-sm text-xs text-neutral-500">
-              Upload an image or pick a sample preset from the left panel to begin vectorizing.
+              Upload an image or pick a sample preset to begin vectorizing. Privacy is entirely respected: processing runs locally in a private browser sandbox.
             </p>
           </div>
         ) : (
@@ -543,6 +544,10 @@ export function Visualizer({
                   (Ratio: {compressionRatio}x of raster)
                 </span>
               )}
+              <span className="hidden xl:inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                <ShieldCheck className="h-3 w-3" />
+                Private Sandbox (Local Device)
+              </span>
             </>
           ) : (
             <span>Ready to trace</span>

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VTracer WASM Studio | Raster to SVG Vectorizer",
+  title: "vectorizerr | Private In-Browser Vector Graphics",
   description:
-    "High-performance in-browser raster to vector graphics converter using Rust WebAssembly, Web Workers, Firebase Auth/Firestore, and Web3 credits.",
+    "High-performance in-browser raster to vector graphics converter. Privacy is entirely respected: all image processing runs in an isolated private sandbox directly on your device.",
 };
 
 export default function RootLayout({

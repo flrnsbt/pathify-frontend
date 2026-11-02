@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield } from 'lucide-react';
+import { Layers, Sparkles, History, Wallet, User as UserIcon, Coins, Shield, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
@@ -36,13 +36,14 @@ export function Header({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold tracking-tight text-white text-lg">VTracer</span>
-              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-semibold text-indigo-400 border border-indigo-500/30">
-                WASM Studio
+              <span className="font-bold tracking-tight text-white text-lg">vectorizerr</span>
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Private Sandbox
               </span>
             </div>
             <p className="hidden sm:block text-xs text-neutral-400">
-              Raster to SVG Vectorizer powered by Rust WebAssembly
+              Privacy is entirely respected: all image processing runs in a secure local browser sandbox
             </p>
           </div>
         </div>

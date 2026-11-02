@@ -14,9 +14,9 @@ export const wagmiAdapter = new WagmiAdapter({
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 export const metadata = {
-  name: 'VTracer Studio',
-  description: 'High-performance WebAssembly Vector Graphics Tracer',
-  url: 'https://vtracer.studio',
+  name: 'vectorizerr',
+  description: 'Private in-browser vector graphics studio',
+  url: 'https://vectorizerr.app',
   icons: ['https://avatars.githubusercontent.com/u/179229932'],
 };
 

@@ -1,6 +1,6 @@
-# VTracer WASM Studio
+# vectorizerr
 
-High-performance, in-browser raster to vector graphics (SVG) converter powered by **Next.js**, **Rust WebAssembly (VTracer)**, **Web Workers**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
+High-performance, private in-browser raster to vector graphics (SVG) converter. Privacy is entirely respected: all image processing runs inside an isolated, client-side private sandbox on your device. Powered by **Next.js**, **Web Workers**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
 
 ---
 

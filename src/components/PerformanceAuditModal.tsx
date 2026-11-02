@@ -169,7 +169,7 @@ export function PerformanceAuditModal({ isOpen, onClose }: PerformanceAuditModal
               <HardDrive className="h-3.5 w-3.5 text-emerald-400" />
               Memory Engine
             </span>
-            <div className="text-sm font-semibold text-white mt-1">VTracer Rust WASM</div>
+            <div className="text-sm font-semibold text-white mt-1">Private Sandbox Engine</div>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3">
             <span className="flex items-center gap-1.5 text-[11px] text-neutral-400">
