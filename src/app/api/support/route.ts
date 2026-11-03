@@ -16,9 +16,10 @@ export async function POST(request: NextRequest) {
       'Content-Type': 'application/json',
     };
 
-    const clientSecret = request.headers.get('x-api-secret') || APP_CONFIG.api.apiSecret;
-    if (clientSecret) {
-      headers['x-api-secret'] = clientSecret;
+    // 1. Inject private server-side secret (never seen by browser)
+    const serverSecret = process.env.API_SECRET;
+    if (serverSecret) {
+      headers['x-api-secret'] = serverSecret;
     }
 
     const appCheck = request.headers.get('X-Firebase-AppCheck');

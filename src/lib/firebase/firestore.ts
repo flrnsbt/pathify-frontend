@@ -886,10 +886,8 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
 
   let cloudFunctionNotified = false;
 
-  // Cloud Function webhook/endpoint trigger
-  const functionUrl =
-    process.env.NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL ||
-    process.env.NEXT_PUBLIC_CLOUD_FUNCTION_URL;
+  // Server endpoint trigger (proxied server-side so no secret is exposed to client)
+  const functionUrl = APP_CONFIG.api.refreshCreditsUrl || '/api/refresh-credits';
 
   if (functionUrl && pending.length > 0) {
     try {
@@ -910,11 +908,6 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
       const appCheckToken = await getAppCheckToken();
       if (appCheckToken) {
         headers['X-Firebase-AppCheck'] = appCheckToken;
-      }
-
-      // 3. Attach API Secret
-      if (APP_CONFIG.api.apiSecret) {
-        headers['x-api-secret'] = APP_CONFIG.api.apiSecret;
       }
 
       const res = await fetch(functionUrl, {

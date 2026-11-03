@@ -35,12 +35,7 @@ export async function submitSupportTicket(
     'Content-Type': 'application/json',
   };
 
-  // 1. Attach Backend API Secret
-  if (APP_CONFIG.api.apiSecret) {
-    headers['x-api-secret'] = APP_CONFIG.api.apiSecret;
-  }
-
-  // 2. Attach Firebase App Check token
+  // 1. Attach Firebase App Check token
   try {
     const appCheckToken = await getAppCheckToken();
     if (appCheckToken) {

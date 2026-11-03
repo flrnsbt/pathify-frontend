@@ -23,13 +23,12 @@ export function Footer() {
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-relaxed max-w-md">
-              High-performance, private in-browser raster to vector graphics (SVG) studio.
-              All image tracing occurs 100% locally on your device inside a WebAssembly sandbox.
-              Your images are never transmitted or stored on remote servers.
+              High-performance raster to vector graphics (SVG) conversion studio.
+              Uploaded data and vector assets are temporarily saved solely for user convenience, are never used for any external purposes, and remain strictly private and confidential.
             </p>
             <div className="flex items-center gap-2 pt-1 text-[11px] text-emerald-400 font-medium">
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>100% In-Browser Private Processing & Cryptographic Integrity</span>
+              <span>Strict Privacy & Confidentiality &bull; Never Used for Other Purposes</span>
             </div>
           </div>
 

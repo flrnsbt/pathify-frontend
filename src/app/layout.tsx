@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "vectorizerr | Raster to SVG Vector Graphics",
   description:
-    "High-performance in-browser raster to vector graphics converter.",
+    "High-performance raster to SVG vector graphics converter studio.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",

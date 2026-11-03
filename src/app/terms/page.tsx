@@ -89,7 +89,7 @@ export default function TermsOfServicePage() {
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong className="text-neutral-200">Free In-Browser Previews & Raster Downloads:</strong> High-resolution vectorization preview, split-screen comparison, and exports to PNG or WebP formats are completely free and do not require user login or credit consumption.
+                  <strong className="text-neutral-200">Free Previews & Raster Downloads:</strong> High-resolution vectorization preview, split-screen comparison, and exports to PNG or WebP formats are completely free and do not require user login or credit consumption.
                 </li>
                 <li>
                   <strong className="text-neutral-200">SVG Unlocks & Quotas:</strong> Exporting raw, scalable, lossless SVG files requires credits or an active plan. Unlocking an image with 1 credit grants a quota of up to 10 vector re-generations on that image hash, allowing you to fine-tune presets and parameters without redundant charges.

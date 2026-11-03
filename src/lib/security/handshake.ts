@@ -102,7 +102,7 @@ export async function requestServerHandshake(
     // 2. Obtain Firebase App Check token
     const appCheckToken = await getAppCheckToken();
 
-    // 3. Prepare headers
+    // 3. Prepare client headers (no secret exposed to client)
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${idToken}`,
@@ -112,12 +112,7 @@ export async function requestServerHandshake(
       headers['X-Firebase-AppCheck'] = appCheckToken;
     }
 
-    if (APP_CONFIG.api.apiSecret) {
-      headers['x-api-secret'] = APP_CONFIG.api.apiSecret;
-    }
-
-    const endpoint =
-      process.env.NEXT_PUBLIC_HANDSHAKE_API_URL || '/api/handshake';
+    const endpoint = APP_CONFIG.api.handshakeUrl || '/api/handshake';
 
     const res = await fetch(endpoint, {
       method: 'POST',

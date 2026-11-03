@@ -7,7 +7,7 @@ export const APP_CONFIG = {
   name: "vectorizerr",
   displayName: "Vectorizerr",
   description:
-    "Private in-browser vector graphics studio & lossless raster to SVG vectorizer",
+    "High-performance vector graphics studio & lossless raster to SVG vectorizer",
   // Base public deployment URL
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://vectorizerr.pages.dev",
 
@@ -35,21 +35,13 @@ export const APP_CONFIG = {
     debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === "true",
   },
 
-  // API Endpoints & Secrets
+  // API Endpoints (Handled or proxied server-side so no secrets leak to DevTools)
   api: {
     backendUrl:
       process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.vectorizerr.workers.dev",
-    handshakeUrl: process.env.NEXT_PUBLIC_HANDSHAKE_API_URL || "/api/handshake",
-    refreshCreditsUrl:
-      process.env.NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL ||
-      "https://api.vectorizerr.workers.dev/api/refresh-credits",
-    supportUrl:
-      process.env.NEXT_PUBLIC_SUPPORT_API_URL ||
-      (process.env.NEXT_PUBLIC_BACKEND_URL
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/support`
-        : "https://api.vectorizerr.workers.dev/api/support"),
-    // Secret passed in x-api-secret header to authenticate requests to our backend
-    apiSecret: process.env.NEXT_PUBLIC_API_SECRET,
+    handshakeUrl: "/api/handshake",
+    refreshCreditsUrl: "/api/refresh-credits",
+    supportUrl: "/api/support",
   },
 
   // CORS allowed origins for serverless API routes

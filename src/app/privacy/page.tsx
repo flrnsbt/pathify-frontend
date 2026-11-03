@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ShieldCheck, Lock, EyeOff, Cpu, Key, FileCheck, LifeBuoy } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Lock, EyeOff, Clock, Key, FileCheck, LifeBuoy } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 
 export default function PrivacyPolicyPage() {
@@ -38,7 +38,7 @@ export default function PrivacyPolicyPage() {
         {/* Hero badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-medium text-emerald-300 mb-6">
           <ShieldCheck className="h-4 w-4" />
-          <span>Privacy-by-Design Architecture</span>
+          <span>Strict Data Privacy & Confidentiality</span>
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
@@ -56,10 +56,10 @@ export default function PrivacyPolicyPage() {
             </div>
             <div>
               <h2 className="text-base font-semibold text-white mb-1.5">
-                Core Principle: Your Images Never Leave Your Device
+                Core Principle: Data is Temporarily Saved for Convenience & Remains Private
               </h2>
               <p className="text-xs text-neutral-300 leading-relaxed">
-                Vectorizerr executes all image rasterization, vector segmentation, path clustering, and SVG curve-fitting directly inside your browser using a local WebAssembly (WASM) compiled sandbox. <strong>We do not transmit, upload, inspect, or store your original images or generated vectors on remote servers.</strong> Processing is 100% private to your browser session.
+                Your uploaded images and generated vector files are temporarily saved solely for user convenience, enabling interactive previews, parameter adjustments, and instant downloads during your active workflow. <strong>Your data is never used for any secondary purposes, is never used to train AI models, and remains strictly confidential and private.</strong>
               </p>
             </div>
           </div>
@@ -70,80 +70,91 @@ export default function PrivacyPolicyPage() {
           {/* Section 1 */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <Cpu className="h-4 w-4 text-indigo-400" />
-              <h3>1. Local Execution & In-Browser Processing</h3>
+              <Clock className="h-4 w-4 text-indigo-400" />
+              <h3>1. Temporary Storage for Convenience & Workflow Continuity</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              When you upload or drag a bitmap image (PNG, JPG, WEBP) into Vectorizerr, it is decoded into raw pixel data exclusively within an isolated browser Web Worker running the VTracer WebAssembly engine. No network requests containing your image content are dispatched during vectorization. Even when exporting or downloading SVG, PNG, or WebP formats, the encoding is completed in-browser.
+              When you upload an image to Vectorizerr, your file and generated vector assets are temporarily saved exclusively to support real-time canvas viewing, comparison sliders, and format downloads. This temporary storage exists purely for your convenience as you work. We do not inspect, monetize, or repurpose your image content for any other objective.
             </p>
           </section>
 
           {/* Section 2 */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <FileCheck className="h-4 w-4 text-indigo-400" />
-              <h3>2. Information We Collect</h3>
+              <EyeOff className="h-4 w-4 text-indigo-400" />
+              <h3>2. Zero Secondary Use & No AI Training</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              We only collect the minimum information required to manage account authentication, credit quotas, and transaction confirmations:
+              We uphold a strict standard of non-exploitation. Your visual assets and designs are never used to train machine learning models, are never commercialized or licensed to external parties, and are never shared with advertising networks. Your intellectual property remains exclusively yours.
+            </p>
+          </section>
+
+          {/* Section 3 */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-white font-semibold text-base">
+              <FileCheck className="h-4 w-4 text-indigo-400" />
+              <h3>3. Information We Collect</h3>
+            </div>
+            <p className="text-xs text-neutral-400">
+              We collect only the essential operational data necessary to manage account authentication, credit quotas, and transaction confirmations:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-xs text-neutral-400">
               <li>
                 <strong className="text-neutral-200">Account Credentials:</strong> If you sign in via Google Sign-In or email/password authentication, your user identifier (UID), email address, and profile name are securely stored via Google Firebase Authentication.
               </li>
               <li>
-                <strong className="text-neutral-200">Vectorization History (Optional):</strong> If you are signed in and save vector results to your history, compressed SVG paths and metadata (node counts, execution duration, parameters) are stored in your private Firestore record (<code className="text-neutral-300 font-mono">users/{'{userId}'}/history</code>) protected by security rules allowing only you to read them.
+                <strong className="text-neutral-200">Vectorization History (Optional):</strong> If you choose to save vector results to your history while signed in, compressed SVG paths and metadata are stored in your private Firestore record (<code className="text-neutral-300 font-mono">users/{'{userId}'}/history</code>) protected by security rules allowing only you to access them.
               </li>
               <li>
                 <strong className="text-neutral-200">Crypto Payment Receipts:</strong> When purchasing credit packs via cryptocurrency, public on-chain identifiers (transaction hash, blockchain network, credit amount, timestamp) are recorded to automatically credit your balance upon block confirmation.
               </li>
               <li>
-                <strong className="text-neutral-200">Security & Anti-Abuse Attestation:</strong> We use Firebase App Check and reCAPTCHA Enterprise tokens to prevent automated bot attacks and denial-of-service abuse.
+                <strong className="text-neutral-200">Security & Anti-Abuse Attestation:</strong> We use Firebase App Check and reCAPTCHA Enterprise tokens to protect the service from automated bot attacks and denial-of-service abuse.
               </li>
             </ul>
-          </section>
-
-          {/* Section 3 */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <Lock className="h-4 w-4 text-indigo-400" />
-              <h3>3. Web3 & Blockchain Transparency</h3>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Cryptocurrency transactions conducted on public blockchains (Ethereum, BNB Smart Chain, Polygon, Base, Arbitrum) are immutable and publicly visible by nature. Vectorizerr does not custody your private keys or have access to your wallet funds. All transactions are signed by your own Web3 wallet provider (e.g. MetaMask, Coinbase Wallet, WalletConnect).
-            </p>
           </section>
 
           {/* Section 4 */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <Key className="h-4 w-4 text-indigo-400" />
-              <h3>4. Cryptographic Security & Server Handshake</h3>
+              <Lock className="h-4 w-4 text-indigo-400" />
+              <h3>4. Web3 & Blockchain Transparency</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              Vectorizerr protects credit transactions and generation quotas with a server-side Cryptographic Handshake system. Generation tickets are signed using HMAC-SHA256 algorithms and attested against Google App Check JWKS keys. This safeguards the integrity of credits without requiring server transmission of your underlying graphics.
+              Cryptocurrency transactions conducted on public blockchains (Ethereum, BNB Smart Chain, Polygon, Base, Arbitrum) are immutable and publicly visible on decentralized ledgers. Vectorizerr does not custody your private keys or have access to your wallet funds. All transactions are signed by your own Web3 wallet provider (e.g. MetaMask, Coinbase Wallet, WalletConnect).
             </p>
           </section>
 
           {/* Section 5 */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <ShieldCheck className="h-4 w-4 text-indigo-400" />
-              <h3>5. Your Rights & Data Deletion</h3>
+              <Key className="h-4 w-4 text-indigo-400" />
+              <h3>5. Cryptographic Security & Server Handshake</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              You maintain total ownership and control over your data. You may delete individual items from your vectorization history at any time through the in-app History Drawer. If you wish to delete your entire account and associated Firestore data, you can reach out via our Support Portal.
+              Vectorizerr protects credit transactions and generation quotas with a server-side Cryptographic Handshake system. Generation tickets are signed using HMAC-SHA256 algorithms and attested against Google App Check JWKS keys. This safeguards the integrity of credits and prevents unauthorized manipulation.
             </p>
           </section>
 
           {/* Section 6 */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
-              <LifeBuoy className="h-4 w-4 text-indigo-400" />
-              <h3>6. Contact Regarding Privacy</h3>
+              <ShieldCheck className="h-4 w-4 text-indigo-400" />
+              <h3>6. Your Rights & Data Deletion</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              If you have inquiries or requests regarding our privacy practices or security guarantees, please contact our assistance team through our encrypted support portal at{' '}
+              You maintain total ownership and control over your content. You may delete individual items from your vectorization history at any time through the in-app History Drawer. If you wish to delete your entire account and associated Firestore data, you can submit a request through our Support Portal.
+            </p>
+          </section>
+
+          {/* Section 7 */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-white font-semibold text-base">
+              <LifeBuoy className="h-4 w-4 text-indigo-400" />
+              <h3>7. Contact Regarding Privacy</h3>
+            </div>
+            <p className="text-xs text-neutral-400">
+              If you have inquiries or requests regarding our privacy practices or data confidentiality guarantees, please contact our assistance team through our support portal at{' '}
               <Link href="/support" className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4">
                 Vectorizerr Support Portal
               </Link>

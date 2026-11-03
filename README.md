@@ -1,13 +1,13 @@
 # vectorizerr
 
-High-performance, private in-browser raster to vector graphics (SVG) converter. Privacy is entirely respected: all image processing runs inside an isolated, client-side WebAssembly sandbox on your device. Powered by **Next.js**, **Web Workers**, **VTracer WebAssembly**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
+High-performance raster to vector graphics (SVG) converter studio. Data is temporarily saved for convenience, is never used for any secondary purposes, and remains strictly private and confidential. Powered by **Next.js**, **Web Workers**, **VTracer**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
 
 ---
 
 ## 🚀 Key Features & Architectural Blueprint
 
-### 1. In-Browser Privacy & Local Execution
-- **Zero Server Uploads**: Original images are never uploaded or inspected on remote servers. Image decoding, path tracing, color clustering, and curve optimization occur 100% locally within a dedicated Web Worker running `vtracer.wasm`.
+### 1. Data Confidentiality & Core Studio
+- **Strict Privacy**: Uploaded images and vector assets are temporarily saved solely for user convenience, allowing responsive previews, comparison sliders, and format downloads. Data is never used for secondary purposes, is never used to train AI models, and remains completely private.
 - **Free Raster Downloads**: Anyone can convert and freely download high-resolution raster files in **PNG** or **WebP** formats without logging in or using credits.
 - **Smart SVG Export & Quota System**: Unlocking full SVG export requires 1 credit per image hash, granting **10 vector re-generations** on that image so you can fine-tune presets, color clustering, and spline tolerances without paying again.
 

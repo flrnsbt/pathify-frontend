@@ -403,9 +403,37 @@ export async function POST(req: NextRequest) {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-    // 1. App Check token verification
     const appCheckToken = req.headers.get("X-Firebase-AppCheck");
+    const authHeader = req.headers.get("Authorization") || "";
 
+    // If Cloudflare Worker backend is configured, forward securely with server-side API_SECRET
+    const backendUrl = process.env.BACKEND_URL || APP_CONFIG.api.backendUrl;
+    if (backendUrl && !backendUrl.includes('localhost:3000')) {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (process.env.API_SECRET) {
+        headers['x-api-secret'] = process.env.API_SECRET;
+      }
+      if (appCheckToken) {
+        headers['X-Firebase-AppCheck'] = appCheckToken;
+      }
+      if (authHeader) {
+        headers['Authorization'] = authHeader;
+      }
+
+      const bodyText = await req.text();
+      const workerRes = await fetch(`${backendUrl}/api/handshake`, {
+        method: 'POST',
+        headers,
+        body: bodyText,
+      });
+
+      const data = await workerRes.json().catch(() => ({}));
+      return NextResponse.json(data, { status: workerRes.status, headers: corsHeaders });
+    }
+
+    // 1. App Check token verification
     if (!appCheckToken) {
       return NextResponse.json(
         { success: false, error: "App Check token required." },
@@ -422,7 +450,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Auth Token verification
-    const authHeader = req.headers.get("Authorization") || "";
     if (!authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         {

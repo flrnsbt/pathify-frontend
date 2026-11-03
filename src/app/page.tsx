@@ -401,9 +401,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
       {/* Top Navigation Bar */}
-      <div className="shrink-0">
+      <div className="shrink-0 sticky top-0 z-40">
         <Header
           onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
@@ -415,8 +415,8 @@ export default function Home() {
         />
       </div>
 
-      {/* Main Studio Workspace */}
-      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-6 flex flex-col lg:overflow-hidden">
+      {/* Main Studio Workspace - fills full viewport on desktop; scroll down to reveal footer */}
+      <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-6 flex flex-col lg:h-[calc(100vh-4rem)] lg:min-h-[640px]">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start lg:items-stretch lg:h-full lg:min-h-0">
           {/* Left Column: Upload & Parameters Panel (5 cols) - scrollable independently */}
           <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 lg:h-full lg:overflow-y-auto lg:pr-2 lg:pb-8 custom-scrollbar">
