@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { initAppCheck, getAppCheckToken } from './app-check';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAJ1he5OrzyuuLy9S3Q6efQmRCQsDV5O-s",
@@ -21,6 +22,9 @@ try {
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  if (typeof window !== 'undefined') {
+    initAppCheck(app);
+  }
 } catch (error) {
   console.warn('Firebase initialization warning (using local fallback mode if not configured):', error);
   // Ensure we still export safe instances or stubs
@@ -29,4 +33,4 @@ try {
   db = getFirestore(app);
 }
 
-export { app, auth, db };
+export { app, auth, db, initAppCheck, getAppCheckToken };

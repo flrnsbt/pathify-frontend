@@ -2,9 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User profile: only the authenticated user can read & write their own profile
+    // User profile: only the authenticated user can read their profile
+    // Safe fields only can be updated by the client
+    // 'credits', 'isAdmin', 'subscription', and 'unlockedImages' can NEVER be altered directly by client writes
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Initial registration: cannot self-grant credits, admin privileges, or active subscription
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && (!('credits' in request.resource.data) || request.resource.data.credits == 0)
+                    && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
+                    && (!('subscription' in request.resource.data) || request.resource.data.subscription.status == 'inactive');
+      
+      // Profile updates: clients cannot tamper with credits, privileges, subscriptions, or unlocked image quotas
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['credits', 'isAdmin', 'subscription', 'unlockedImages']);
       
       // Vectorization history: only the authenticated user can read & write their history records
       match /history/{historyId} {
@@ -12,11 +24,19 @@ service cloud.firestore {
       }
     }
     
-    // Crypto Transactions: users can read their own transactions and create pending transactions
+    // Cryptographic Handshake Tickets: read-only for ticket owner, created strictly by server
+    match /handshakes/{ticketId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only server (Admin SDK / service account) can create/update tickets
+    }
+    
+    // Crypto Transactions: users can read their own transactions and submit pending orders
     match /transactions/{transactionId} {
       allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Clients cannot self-confirm transactions or alter credit amounts
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'credits']);
     }
     
     // Deny all other access by default

@@ -2,7 +2,7 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { mainnet, arbitrum, polygon, base, bsc, sepolia, type AppKitNetwork } from '@reown/appkit/networks';
 import { createAppKit } from '@reown/appkit/react';
 
-export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || 'b56e18d47c72ab683b10814fe9495694';
+export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID as string;
 
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [mainnet, bsc, polygon, base, arbitrum, sepolia];
 

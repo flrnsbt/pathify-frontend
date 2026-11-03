@@ -19,6 +19,11 @@ import { db, isFirebaseConfigured } from './config';
 import { VTracerOptions } from '../vtracer/types';
 import { compressSvgString, decompressSvgString } from '../vtracer/compression';
 import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
+import {
+  requestServerHandshake,
+  hasValidSessionTicket,
+  getSessionTicket,
+} from '../security/handshake';
 
 export interface VectorizationHistoryItem {
   id: string;
@@ -130,6 +135,19 @@ export function getImageUnlockStatus(
     return { isUnlocked: true, generationsRemaining: 9999, generationsUsed: 0, maxGenerations: 9999 };
   }
 
+  // Check active cryptographic session ticket
+  if (hasValidSessionTicket(imageHash)) {
+    const sessionTicket = getSessionTicket(imageHash);
+    if (sessionTicket) {
+      return {
+        isUnlocked: sessionTicket.generationsRemaining > 0,
+        generationsRemaining: sessionTicket.generationsRemaining,
+        generationsUsed: sessionTicket.generationsUsed,
+        maxGenerations: sessionTicket.maxGenerations,
+      };
+    }
+  }
+
   const info = profile.unlockedImages?.[imageHash];
   if (!info) {
     return { isUnlocked: false, generationsRemaining: 0, generationsUsed: 0, maxGenerations: 10 };
@@ -160,7 +178,9 @@ export function canAccessSvg(profile: UserProfile | null, svgId?: string, imageH
 }
 
 /**
- * Unlocks an image with 1 credit.
+ * Unlocks an image with 1 credit using a Cryptographic Server Handshake.
+ * Protects against client-side exploitation by having the server verify App Check,
+ * validate user authorization, deduct credit in Firestore, and sign a cryptographic ticket.
  * Grants the user the right to do 10 generations on the same image (identified by hash).
  */
 export async function unlockImageWithCredit(
@@ -176,54 +196,43 @@ export async function unlockImageWithCredit(
     return true;
   }
 
-  // User needs at least 1 credit to unlock 10 generations
-  if (profile.credits <= 0) {
-    return false;
-  }
+  // Perform Cryptographic Server Handshake
+  const handshake = await requestServerHandshake({
+    action: 'unlock_image',
+    imageHash,
+  });
 
-  const newCredits = profile.credits - 1;
-  const newUnlockedImages: Record<string, UnlockedImageInfo> = {
-    ...(profile.unlockedImages || {}),
-    [imageHash]: {
-      imageHash,
-      generationsUsed: 0,
-      maxGenerations: 10,
-      unlockedAt: Date.now(),
-    },
-  };
-
-  const newUnlockedSvgIds = currentSvgId
-    ? Array.from(new Set([...(profile.unlockedSvgIds || []), currentSvgId]))
-    : profile.unlockedSvgIds || [];
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(
-        userRef,
-        {
-          credits: newCredits,
-          unlockedImages: newUnlockedImages,
-          unlockedSvgIds: newUnlockedSvgIds,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    } catch (err) {
-      console.warn('Failed to unlock image in Firestore:', err);
+  if (handshake.success && handshake.ticket) {
+    // Re-sync local profile state
+    if (typeof handshake.creditsRemaining === 'number') {
+      profile.credits = handshake.creditsRemaining;
     }
+    profile.unlockedImages = {
+      ...(profile.unlockedImages || {}),
+      [imageHash]: {
+        imageHash,
+        generationsUsed: handshake.ticket.generationsUsed,
+        maxGenerations: handshake.ticket.maxGenerations,
+        unlockedAt: handshake.ticket.issuedAt,
+      },
+    };
+    if (currentSvgId) {
+      profile.unlockedSvgIds = Array.from(
+        new Set([...(profile.unlockedSvgIds || []), currentSvgId])
+      );
+    }
+    profile.updatedAt = Date.now();
+    safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
+    return true;
   }
 
-  profile.credits = newCredits;
-  profile.unlockedImages = newUnlockedImages;
-  profile.unlockedSvgIds = newUnlockedSvgIds;
-  profile.updatedAt = Date.now();
-  safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
-  return true;
+  console.warn('[Handshake] Server handshake rejected:', handshake.error);
+  return false;
 }
 
 /**
- * Consumes 1 generation from the unlocked quota for the given image hash.
+ * Consumes 1 generation from the unlocked quota for the given image hash
+ * via Cryptographic Server Handshake to prevent client-side counter manipulation.
  */
 export async function consumeImageGeneration(
   userId: string,
@@ -234,6 +243,23 @@ export async function consumeImageGeneration(
     return 9999;
   }
 
+  // Request server to consume 1 generation from quota and re-sign ticket
+  const handshake = await requestServerHandshake({
+    action: 'consume_generation',
+    imageHash,
+  });
+
+  if (handshake.success && handshake.ticket) {
+    const remaining = handshake.ticket.generationsRemaining;
+    if (profile.unlockedImages?.[imageHash]) {
+      profile.unlockedImages[imageHash].generationsUsed = handshake.ticket.generationsUsed;
+      profile.updatedAt = Date.now();
+      safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
+    }
+    return remaining;
+  }
+
+  // Fallback to local profile count if offline
   const currentInfo = profile.unlockedImages?.[imageHash];
   if (!currentInfo) {
     return 0;
@@ -241,38 +267,7 @@ export async function consumeImageGeneration(
 
   const newUsed = (currentInfo.generationsUsed || 0) + 1;
   const maxGen = currentInfo.maxGenerations || 10;
-  const remaining = Math.max(0, maxGen - newUsed);
-
-  const updatedInfo: UnlockedImageInfo = {
-    ...currentInfo,
-    generationsUsed: newUsed,
-  };
-
-  const newUnlockedImages: Record<string, UnlockedImageInfo> = {
-    ...(profile.unlockedImages || {}),
-    [imageHash]: updatedInfo,
-  };
-
-  if (isFirebaseConfigured && db) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(
-        userRef,
-        {
-          unlockedImages: newUnlockedImages,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    } catch (err) {
-      console.warn('Failed to update generation quota in Firestore:', err);
-    }
-  }
-
-  profile.unlockedImages = newUnlockedImages;
-  profile.updatedAt = Date.now();
-  safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
-  return remaining;
+  return Math.max(0, maxGen - newUsed);
 }
 
 /**
