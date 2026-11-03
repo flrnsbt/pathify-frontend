@@ -1,0 +1,129 @@
+### 1. Frontend Environment Variables (.env.example)                                                                                                                                
+                                                                                                                                                                                      
+  Create a file named .env.local in frontend/ (or set these in Cloudflare Pages → Settings → Environment variables):                                                                  
+                                                                                                                                                                                      
+   Variable                                  │  Required?  │ Default / Example                       │ Purpose & Where to Get
+  ───────────────────────────────────────────┼─────────────┼─────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────
+   NEXT_PUBLIC_REOWN_PROJECT_ID              │     Yes     │ b56e18d47c72ab683b10814fe9495694        │ Reown AppKit / WalletConnect Project ID. Obtain free from cloud.reown.com[1].
+   NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL  │     Yes     │ https://vectorizerr-                    │ Points frontend "Refresh Credits" calls to your deployed Cloudflare Worker.
+                                             │             │ backend.<subdomain>.workers.dev/api/ref │
+                                             │             │ resh-credits                            │
+   NEXT_PUBLIC_RECAPTCHA_SITE_KEY            │  Optional   │ 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKh │ Google reCAPTCHA v3 Site Key for Firebase App Check. Create at
+                                             │             │ I                                       │ google.com/recaptcha/admin[2] or in Firebase Console → App Check.
+   NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY      │  Optional   │ (leave empty if using v3)               │ Set if using reCAPTCHA Enterprise instead of v3.
+   NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN │ Local only  │ true                                    │ Allows testing App Check on localhost without solving captchas. Register this
+                                             │             │                                         │ debug token in Firebase Console → App Check → Apps → Debug tokens.
+   ENFORCE_APPCHECK                          │  Optional   │ false                                   │ Set to true to strictly reject handshake requests lacking an App Check token.
+   HANDSHAKE_SECRET                          │ Recommended │ Any 32+ character random string         │ Secret key used by /api/handshake to sign HMAC-SHA256 vectorization
+                                             │             │                                         │ authorization tickets.
+   NEXT_PUBLIC_HANDSHAKE_API_URL             │  Optional   │ /api/handshake (local route)            │ Set only if you wish to route handshake authorizations directly through the
+                                             │             │                                         │ Cloudflare Worker instead of Next.js.
+   NEXT_PUBLIC_PAYMENT_WALLETS               │  Optional   │ (uses wallets.json)                     │ JSON string to override recipient addresses without modifying code.
+   OUTPUT_MODE                               │ For Deploy  │ export                                  │ Tells Next.js to produce a static HTML/JS export for Cloudflare Pages.         
+                                                                                                                                                                                      
+  [1]: cloud.reown.com https://cloud.reown.com                                                                                                                                        
+  [2]: google.com/recaptcha/admin https://www.google.com/recaptcha/admin                                                                                                              
+  ──────                                                                                                                                                                              
+  ### 2. Backend Secrets & Variables (.dev.vars.example)                                                                                                                              
+                                                                                                                                                                                      
+  For local testing, create .dev.vars inside backend/.                                                                                                                                
+  For production deployment, use npx wrangler secret put <NAME>:                                                                                                                      
+                                                                                                                                                                                      
+   Variable / Secret     │ Required? │ Example Value                                        │ Description & Where to Get
+  ───────────────────────┼───────────┼──────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────
+   FIREBASE_PROJECT_ID   │    Yes    │ vectorizerr                                          │ Your Firebase Project ID.
+   FIREBASE_CLIENT_EMAIL │    Yes    │ firebase-adminsdk-                                   │ Service Account email from Firebase Console → Project Settings → Service accounts.
+                         │           │ xxx@vectorizerr.iam.gserviceaccount.com              │
+   FIREBASE_PRIVATE_KEY  │    Yes    │ "-----BEGIN PRIVATE KEY-----\nMIIEvg...-----END      │ RSA Private Key from your downloaded Service Account JSON. Needed for worker to
+                         │           │ PRIVATE KEY-----\n"                                  │ read/update Firestore.
+   API_SECRET            │ Optional  │ (any random secret)                                  │ Optional shared secret header (x-api-secret) if you want to restrict the worker's HTTP
+                         │           │                                                      │ endpoints.
+  ──────                                                                                                                                                                              
+  ### 3. What Should You Do Next (Step-by-Step)                                                                                                                                       
+                                                                                                                                                                                      
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│ 1. Update wallets.json with your crypto addresses │
+│                                                   │
+└─────────────────────────┬─────────────────────────┘
+                          │
+                          ▼
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│     2. Download Firebase Service Account JSON     │
+│                                                   │
+└─────────────────────────┬─────────────────────────┘
+                          │
+                          ▼
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│        3. Deploy Cloudflare Worker Backend        │
+│                                                   │
+└─────────────────────────┬─────────────────────────┘
+                          │
+                          ▼
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│         4. Connect Worker URL to Frontend         │
+│                                                   │
+└─────────────────────────┬─────────────────────────┘
+                          │
+                          ▼
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│         5. Deploy Firestore Security Rules        │
+│                                                   │
+└─────────────────────────┬─────────────────────────┘
+                          │
+                          ▼
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│     6. Register App Check in Firebase Console     │
+│                                                   │
+└───────────────────────────────────────────────────┘
+                                                                                                                                                                                      
+  #### Step 1: Set your real crypto wallet addresses                                                                                                                                  
+                                                                                                                                                                                      
+  Open wallets.json (or wallets.json) and replace the placeholder 0x000... and bc1q... addresses with your actual receiving wallet addresses for BSC, Ethereum, Bitcoin, Polygon,     
+  Base, and Arbitrum.                                                                                                                                                                 
+                                                                                                                                                                                      
+  #### Step 2: Download Firebase Service Account credentials                                                                                                                          
+                                                                                                                                                                                      
+  1. Go to Firebase Console https://console.firebase.google.com/ → vectorizerr → Project Settings → Service accounts.                                                                 
+  2. Click Generate new private key (downloads a .json file).                                                                                                                         
+  3. From this file, note client_email and private_key.                                                                                                                               
+                                                                                                                                                                                      
+  #### Step 3: Run / Deploy the Cloudflare Worker Backend
+  
+  1. Local test:
+    cd backend
+    cp .dev.vars.example .dev.vars
+    # Paste your FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY into .dev.vars
+    npm run dev
+  
+  2. Deploy to Cloudflare:
+    cd backend
+    npx wrangler secret put FIREBASE_CLIENT_EMAIL
+    npx wrangler secret put FIREBASE_PRIVATE_KEY
+    npm run deploy
+  Wrangler will output your live worker URL (e.g. https://vectorizerr-backend.<your-subdomain>.workers.dev).
+  
+  #### Step 4: Connect the Worker URL to the Frontend
+  
+  In frontend/.env.local (and in your Cloudflare Pages dashboard):
+  
+    NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL=https://vectorizerr-backend.<your-subdomain>.workers.dev/api/refresh-credits
+  
+  #### Step 5: Deploy the updated Firestore Security Rules
+  
+  Deploy the updated firestore.rules to lock down credits and enforce server-only authorization:
+  
+    cd frontend
+    firebase deploy --only firestore:rules
+  
+  #### Step 6: Enable Firebase App Check
+  
+  1. In Firebase Console, go to App Check → Apps → select your Web App.
+  2. Select reCAPTCHA v3 or Enterprise, paste your secret key, and copy the public site key into NEXT_PUBLIC_RECAPTCHA_SITE_KEY.
+  3. For local debugging, open your browser DevTools console on localhost:3000 to view the App Check debug token, and paste it into App Check → Manage debug tokens in Firebase       
+  Console.
