@@ -7,6 +7,10 @@ import {
   query,
   orderBy,
   limit,
+  where,
+  onSnapshot,
+  Unsubscribe,
+  updateDoc,
   setDoc,
   getDoc,
   serverTimestamp,
@@ -14,6 +18,7 @@ import {
 import { db, isFirebaseConfigured } from './config';
 import { VTracerOptions } from '../vtracer/types';
 import { compressSvgString, decompressSvgString } from '../vtracer/compression';
+import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
 
 export interface VectorizationHistoryItem {
   id: string;
@@ -58,8 +63,34 @@ export interface UserProfile {
   updatedAt: number;
 }
 
+export type TransactionStatus = 'pending' | 'confirmed' | 'failed' | 'cancelled';
+export type PaymentMethod = 'web3' | 'direct';
+
+export interface CryptoTransaction {
+  id: string;
+  userId: string;
+  userEmail?: string | null;
+  packId: string;
+  credits: number;
+  usdPrice: number;
+  cryptoAmount: string;
+  cryptoToken: SupportedToken;
+  chainKey: SupportedChainKey;
+  chainId?: number;
+  paymentMethod: PaymentMethod;
+  fromAddress?: string;
+  toAddress: string;
+  txHash?: string;
+  status: TransactionStatus;
+  statusMessage?: string;
+  createdAt: number;
+  updatedAt: number;
+  confirmedAt?: number;
+}
+
 const LOCAL_STORAGE_HISTORY_KEY = 'vtracer_local_history';
 const LOCAL_STORAGE_PROFILE_KEY = 'vtracer_local_profile';
+const LOCAL_STORAGE_TRANSACTIONS_KEY = 'vtracer_local_transactions';
 
 function safeGetStorage(key: string): string | null {
   if (typeof window === 'undefined') return null;
@@ -549,4 +580,334 @@ export async function updateUserCredits(
   } catch (err) {
     console.error('Error saving updated profile locally:', err);
   }
+}
+
+/**
+ * Creates a new crypto transaction record in Firestore (and localStorage fallback).
+ */
+export async function createCryptoTransaction(
+  data: Omit<CryptoTransaction, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+    status?: TransactionStatus;
+  }
+): Promise<string> {
+  const now = Date.now();
+  const status: TransactionStatus = data.status || 'pending';
+
+  const txData = {
+    ...data,
+    status,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const txCollection = collection(db, 'transactions');
+      const docRef = await addDoc(txCollection, {
+        ...txData,
+        serverCreatedAt: serverTimestamp(),
+        serverUpdatedAt: serverTimestamp(),
+      });
+      createdId = docRef.id;
+    } catch (err) {
+      console.warn('Failed to save transaction to Firestore, storing locally:', err);
+    }
+  }
+
+  // Also save to localStorage
+  try {
+    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
+    const existing: CryptoTransaction[] = raw ? JSON.parse(raw) : [];
+    const item: CryptoTransaction = { ...txData, id: createdId };
+    const updated = [item, ...existing.filter((t) => t.id !== createdId)].slice(0, 100);
+    safeSetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.error('Error saving transaction locally:', err);
+  }
+
+  return createdId;
+}
+
+/**
+ * Fetches all transactions for a specific user from Firestore or localStorage.
+ */
+export async function fetchUserTransactions(userId: string): Promise<CryptoTransaction[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const txCollection = collection(db, 'transactions');
+      const q = query(
+        txCollection,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+      const snapshot = await getDocs(q);
+      const items: CryptoTransaction[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        items.push({
+          id: docSnap.id,
+          userId: d.userId,
+          userEmail: d.userEmail,
+          packId: d.packId,
+          credits: d.credits || 0,
+          usdPrice: d.usdPrice || 0,
+          cryptoAmount: d.cryptoAmount || '0',
+          cryptoToken: d.cryptoToken,
+          chainKey: d.chainKey,
+          chainId: d.chainId,
+          paymentMethod: d.paymentMethod || 'web3',
+          fromAddress: d.fromAddress,
+          toAddress: d.toAddress,
+          txHash: d.txHash,
+          status: d.status || 'pending',
+          statusMessage: d.statusMessage,
+          createdAt: d.createdAt || Date.now(),
+          updatedAt: d.updatedAt || Date.now(),
+          confirmedAt: d.confirmedAt,
+        });
+      });
+      return items;
+    } catch (err) {
+      console.warn('Failed to query transactions from Firestore, using local fallback:', err);
+    }
+  }
+
+  try {
+    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
+    if (!raw) return [];
+    const items: CryptoTransaction[] = JSON.parse(raw);
+    return items.filter((t) => t.userId === userId || !userId || userId === 'guest');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Subscribes to real-time updates for a user's transactions.
+ */
+export function listenToUserTransactions(
+  userId: string,
+  onUpdate: (transactions: CryptoTransaction[]) => void
+): Unsubscribe {
+  if (isFirebaseConfigured && db && userId) {
+    try {
+      const txCollection = collection(db, 'transactions');
+      const q = query(
+        txCollection,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const items: CryptoTransaction[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            items.push({
+              id: docSnap.id,
+              userId: d.userId,
+              userEmail: d.userEmail,
+              packId: d.packId,
+              credits: d.credits || 0,
+              usdPrice: d.usdPrice || 0,
+              cryptoAmount: d.cryptoAmount || '0',
+              cryptoToken: d.cryptoToken,
+              chainKey: d.chainKey,
+              chainId: d.chainId,
+              paymentMethod: d.paymentMethod || 'web3',
+              fromAddress: d.fromAddress,
+              toAddress: d.toAddress,
+              txHash: d.txHash,
+              status: d.status || 'pending',
+              statusMessage: d.statusMessage,
+              createdAt: d.createdAt || Date.now(),
+              updatedAt: d.updatedAt || Date.now(),
+              confirmedAt: d.confirmedAt,
+            });
+          });
+          onUpdate(items);
+        },
+        (err) => {
+          console.warn('Firestore transactions snapshot error:', err);
+          fetchUserTransactions(userId).then(onUpdate);
+        }
+      );
+    } catch (err) {
+      console.warn('Error setting up transaction snapshot listener:', err);
+    }
+  }
+
+  // Fallback to initial local fetch
+  fetchUserTransactions(userId).then(onUpdate);
+  return () => {};
+}
+
+/**
+ * Subscribes to real-time updates for a single transaction.
+ */
+export function listenToTransaction(
+  transactionId: string,
+  onUpdate: (tx: CryptoTransaction | null) => void
+): Unsubscribe {
+  if (isFirebaseConfigured && db && transactionId) {
+    try {
+      const txDocRef = doc(db, 'transactions', transactionId);
+      return onSnapshot(
+        txDocRef,
+        (docSnap) => {
+          if (!docSnap.exists()) {
+            onUpdate(null);
+            return;
+          }
+          const d = docSnap.data();
+          onUpdate({
+            id: docSnap.id,
+            userId: d.userId,
+            userEmail: d.userEmail,
+            packId: d.packId,
+            credits: d.credits || 0,
+            usdPrice: d.usdPrice || 0,
+            cryptoAmount: d.cryptoAmount || '0',
+            cryptoToken: d.cryptoToken,
+            chainKey: d.chainKey,
+            chainId: d.chainId,
+            paymentMethod: d.paymentMethod || 'web3',
+            fromAddress: d.fromAddress,
+            toAddress: d.toAddress,
+            txHash: d.txHash,
+            status: d.status || 'pending',
+            statusMessage: d.statusMessage,
+            createdAt: d.createdAt || Date.now(),
+            updatedAt: d.updatedAt || Date.now(),
+            confirmedAt: d.confirmedAt,
+          });
+        },
+        (err) => {
+          console.warn('Error listening to single transaction:', err);
+        }
+      );
+    } catch (err) {
+      console.warn('Error setting up single transaction listener:', err);
+    }
+  }
+
+  return () => {};
+}
+
+/**
+ * Updates the status of an existing transaction.
+ */
+export async function updateTransactionStatus(
+  transactionId: string,
+  status: TransactionStatus,
+  options?: {
+    txHash?: string;
+    statusMessage?: string;
+    confirmedAt?: number;
+  }
+): Promise<void> {
+  const now = Date.now();
+  if (isFirebaseConfigured && db) {
+    try {
+      const txDocRef = doc(db, 'transactions', transactionId);
+      await updateDoc(txDocRef, {
+        status,
+        ...(options?.txHash ? { txHash: options.txHash } : {}),
+        ...(options?.statusMessage ? { statusMessage: options.statusMessage } : {}),
+        ...(options?.confirmedAt ? { confirmedAt: options.confirmedAt } : {}),
+        updatedAt: now,
+        serverUpdatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn('Failed to update transaction in Firestore:', err);
+    }
+  }
+
+  // Update in localStorage
+  try {
+    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
+    if (raw) {
+      const items: CryptoTransaction[] = JSON.parse(raw);
+      const updated = items.map((item) =>
+        item.id === transactionId
+          ? {
+              ...item,
+              status,
+              ...(options?.txHash ? { txHash: options.txHash } : {}),
+              ...(options?.statusMessage ? { statusMessage: options.statusMessage } : {}),
+              ...(options?.confirmedAt ? { confirmedAt: options.confirmedAt } : {}),
+              updatedAt: now,
+            }
+          : item
+      );
+      safeSetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY, JSON.stringify(updated));
+    }
+  } catch {}
+}
+
+export interface RefreshCreditsResult {
+  updatedCredits: number;
+  profile: UserProfile;
+  pendingTransactions: CryptoTransaction[];
+  confirmedTransactions: CryptoTransaction[];
+  cloudFunctionNotified: boolean;
+}
+
+/**
+ * Checks pending transactions and refreshes the user's credits.
+ * If a Cloud Function URL is configured (NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL),
+ * it triggers the function to verify blockchain receipts and finalize pending transactions.
+ */
+export async function refreshUserCredits(userId: string): Promise<RefreshCreditsResult> {
+  const transactions = await fetchUserTransactions(userId);
+  const pending = transactions.filter((t) => t.status === 'pending');
+  const confirmed = transactions.filter((t) => t.status === 'confirmed');
+
+  let cloudFunctionNotified = false;
+
+  // Cloud Function webhook/endpoint trigger
+  const functionUrl =
+    process.env.NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL ||
+    process.env.NEXT_PUBLIC_CLOUD_FUNCTION_URL;
+
+  if (functionUrl && pending.length > 0) {
+    try {
+      const res = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          pendingTransactions: pending.map((t) => ({
+            id: t.id,
+            chainKey: t.chainKey,
+            txHash: t.txHash,
+            cryptoAmount: t.cryptoAmount,
+            cryptoToken: t.cryptoToken,
+            credits: t.credits,
+          })),
+        }),
+      });
+      if (res.ok) {
+        cloudFunctionNotified = true;
+      }
+    } catch (err) {
+      console.warn('Cloud Function refresh invocation error:', err);
+    }
+  }
+
+  // Fetch updated user profile from Firestore (which reflects the latest credits balance)
+  const profile = await getUserProfile(userId);
+
+  return {
+    updatedCredits: profile.credits,
+    profile,
+    pendingTransactions: pending,
+    confirmedTransactions: confirmed,
+    cloudFunctionNotified,
+  };
 }

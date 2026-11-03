@@ -31,6 +31,7 @@ import {
   getImageUnlockStatus,
   consumeImageGeneration,
 } from '../lib/firebase/firestore';
+import { useTransactionListener } from '../hooks/useTransactionListener';
 
 export default function Home() {
   const { user, profile, refreshProfile } = useAuth();
@@ -86,6 +87,14 @@ export default function Home() {
       console.warn('Could not load history:', err);
     }
   }, [user]);
+
+  // Listen for finished crypto transactions in background to automatically refresh credits
+  useTransactionListener({
+    userId: user?.uid,
+    onTransactionFinished: () => {
+      refreshProfile();
+    },
+  });
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
   const unlockStatus = getImageUnlockStatus(profile, currentImage?.imageHash);

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import QRCode from 'qrcode';
 import {
   X,
@@ -14,9 +15,13 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  ReceiptText,
 } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
-import { updateUserCredits } from '../lib/firebase/firestore';
+import {
+  createCryptoTransaction,
+  listenToTransaction,
+} from '../lib/firebase/firestore';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useSendTransaction, useWriteContract, useSwitchChain } from 'wagmi';
 import { parseEther, parseUnits } from 'viem';
@@ -53,7 +58,7 @@ const ERC20_ABI = [
 ] as const;
 
 export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProps) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
   const { chainId: currentChainId } = useAppKitNetwork();
@@ -202,14 +207,41 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         txHash = tx;
       }
 
-      // 3. Update Firestore credits
-      const currentCredits = profile?.credits ?? 0;
-      const newCredits = currentCredits + selectedPack.credits;
-      await updateUserCredits(user.uid, newCredits);
-      await refreshProfile();
+      // 3. Record transaction in Firestore with status 'pending'
+      const txId = await createCryptoTransaction({
+        userId: user.uid,
+        userEmail: user.email,
+        packId: selectedPack.id,
+        credits: selectedPack.credits,
+        usdPrice: selectedPack.usdPrice,
+        cryptoAmount: amountToPay,
+        cryptoToken: activeToken,
+        chainKey: selectedChainKey,
+        chainId: chainMeta.chainId,
+        paymentMethod: 'web3',
+        fromAddress: address || undefined,
+        toAddress: recipientWallet,
+        txHash,
+        status: 'pending',
+        statusMessage: `Submitted on ${chainMeta.name}. Awaiting blockchain confirmation.`,
+      });
+
+      // Listen for transaction confirmation in real-time
+      const unsubscribe = listenToTransaction(txId, (updatedTx) => {
+        if (updatedTx?.status === 'confirmed') {
+          refreshProfile();
+          setSuccessMsg(
+            `🎉 Transaction confirmed (${txHash.slice(0, 10)}...)! Added ${selectedPack.credits} credits to your account.`
+          );
+          unsubscribe();
+        } else if (updatedTx?.status === 'failed') {
+          setErrorMsg('Transaction verification failed. Please check transactions page for details.');
+          unsubscribe();
+        }
+      });
 
       setSuccessMsg(
-        `🎉 Transaction confirmed (${txHash.slice(0, 10)}...)! Added ${selectedPack.credits} credits to your account.`
+        `🎉 Transaction submitted on ${chainMeta.name} (${txHash.slice(0, 10)}...)! Awaiting confirmation. Your credits will update automatically once verified.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -231,14 +263,37 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         throw new Error('Please sign in with Google first so your credits are saved to your account.');
       }
 
-      // Credit user
-      const currentCredits = profile?.credits ?? 0;
-      const newCredits = currentCredits + selectedPack.credits;
-      await updateUserCredits(user.uid, newCredits);
-      await refreshProfile();
+      // Record transaction in Firestore with status 'pending'
+      const txId = await createCryptoTransaction({
+        userId: user.uid,
+        userEmail: user.email,
+        packId: selectedPack.id,
+        credits: selectedPack.credits,
+        usdPrice: selectedPack.usdPrice,
+        cryptoAmount: amountToPay,
+        cryptoToken: activeToken,
+        chainKey: selectedChainKey,
+        chainId: chainMeta.chainId,
+        paymentMethod: 'direct',
+        toAddress: recipientWallet,
+        txHash: txHashInput.trim() || undefined,
+        status: 'pending',
+        statusMessage: 'Direct network transfer submitted. Awaiting verification.',
+      });
+
+      // Listen for transaction confirmation
+      const unsubscribe = listenToTransaction(txId, (updatedTx) => {
+        if (updatedTx?.status === 'confirmed') {
+          refreshProfile();
+          setSuccessMsg(
+            `🎉 Payment confirmed! ${selectedPack.credits} credits have been deposited to your account.`
+          );
+          unsubscribe();
+        }
+      });
 
       setSuccessMsg(
-        `🎉 Payment confirmed! ${selectedPack.credits} credits have been deposited to your account.`
+        `🎉 Payment submitted! Your transaction is now pending verification. Credits will be automatically added as soon as confirmed.`
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -297,9 +352,19 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
 
         {/* Success Alert */}
         {successMsg && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
-            <span className="flex-1">{successMsg}</span>
+          <div className="mt-4 flex items-center justify-between gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+            <div className="flex items-center gap-2 flex-1">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+            <Link
+              href="/transactions"
+              onClick={onClose}
+              className="shrink-0 underline font-semibold text-emerald-200 hover:text-white flex items-center gap-1"
+            >
+              <span>Transactions</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         )}
 
@@ -659,8 +724,19 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         </div>
 
         {/* Footer info */}
-        <div className="mt-4 flex items-center justify-between text-[11px] text-neutral-500">
-          <span>Supported: BSC, ETH, BTC, POL, Base, Arbitrum</span>
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-neutral-500">
+          <div className="flex items-center gap-2.5">
+            <span>Supported: BSC, ETH, BTC, POL, Base, Arbitrum</span>
+            <span>•</span>
+            <Link
+              href="/transactions"
+              onClick={onClose}
+              className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition underline"
+            >
+              <ReceiptText className="h-3 w-3" />
+              <span>View Transactions</span>
+            </Link>
+          </div>
           {chainMeta.explorerUrl && (
             <a
               href={chainMeta.explorerUrl}
