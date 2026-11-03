@@ -24,6 +24,13 @@ export function useTransactionListener({
   const pendingSetRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
+  // Keep callback refs up to date so changing callback references never re-trigger listener effect
+  const onTransactionFinishedRef = useRef(onTransactionFinished);
+  onTransactionFinishedRef.current = onTransactionFinished;
+
+  const onRefreshCompletedRef = useRef(onRefreshCompleted);
+  onRefreshCompletedRef.current = onRefreshCompleted;
+
   // Derive active transactions based on current userId
   const transactions = userId ? rawTransactions : [];
 
@@ -33,7 +40,7 @@ export function useTransactionListener({
     setIsRefreshing(true);
     try {
       const result = await refreshUserCredits(userId);
-      onRefreshCompleted?.(result);
+      onRefreshCompletedRef.current?.(result);
       return result;
     } catch (err) {
       console.warn('Failed to refresh user credits:', err);
@@ -41,14 +48,21 @@ export function useTransactionListener({
     } finally {
       setIsRefreshing(false);
     }
-  }, [userId, onRefreshCompleted]);
+  }, [userId]);
+
+  const triggerRefreshRef = useRef(triggerRefresh);
+  triggerRefreshRef.current = triggerRefresh;
 
   useEffect(() => {
     if (!userId) {
+      setRawTransactions([]);
       pendingSetRef.current.clear();
       initialLoadRef.current = true;
       return;
     }
+
+    pendingSetRef.current.clear();
+    initialLoadRef.current = true;
 
     const unsubscribe = listenToUserTransactions(userId, (txList) => {
       setRawTransactions(txList);
@@ -64,8 +78,8 @@ export function useTransactionListener({
             const finishedTx = txList.find((t) => t.id === prevId);
             if (finishedTx && finishedTx.status !== 'pending') {
               // Trigger cloud function / refresh logic
-              triggerRefresh();
-              onTransactionFinished?.(finishedTx);
+              triggerRefreshRef.current();
+              onTransactionFinishedRef.current?.(finishedTx);
             }
           }
         }
@@ -78,7 +92,7 @@ export function useTransactionListener({
     return () => {
       unsubscribe();
     };
-  }, [userId, triggerRefresh, onTransactionFinished]);
+  }, [userId]);
 
   const pendingCount = transactions.filter((t) => t.status === 'pending').length;
 

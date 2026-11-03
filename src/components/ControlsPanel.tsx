@@ -138,11 +138,10 @@ export function ControlsPanel({
                 key={preset}
                 type="button"
                 onClick={() => handleSelectPreset(preset)}
-                className={`rounded-lg py-1.5 text-xs font-medium capitalize transition border ${
-                  isSelected
-                    ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                    : 'border-neutral-800 bg-neutral-800/40 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
-                }`}
+                className={`rounded-lg py-1.5 text-xs font-medium capitalize transition border ${isSelected
+                  ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                  : 'border-neutral-800 bg-neutral-800/40 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
+                  }`}
               >
                 {labels[preset]}
               </button>
@@ -151,30 +150,7 @@ export function ControlsPanel({
         </div>
       </div>
 
-      {/* Smooth Gradients Toggle */}
-      <div className="flex items-center justify-between rounded-xl bg-neutral-950/80 px-3 py-2.5 border border-neutral-800">
-        <div>
-          <span className="text-xs font-medium text-neutral-200">Allow Smooth Gradients</span>
-          <p className="text-[11px] text-neutral-500">
-            Ultra-fine contour bands for photorealistic color transitions
-          </p>
-        </div>
-        <input
-          type="checkbox"
-          checked={Boolean(options.gradientMode)}
-          onChange={(e) => {
-            const enabled = e.target.checked;
-            onChange({
-              ...options,
-              gradientMode: enabled,
-              layerDifference: enabled ? 4 : 12,
-              colorPrecision: enabled ? 8 : 7,
-              preset: enabled ? 'gradient' : 'custom',
-            });
-          }}
-          className="accent-indigo-500 h-4 w-4 rounded cursor-pointer"
-        />
-      </div>
+
 
       {/* SVG Optimization Checkbox */}
       <div className="flex items-center justify-between rounded-xl bg-neutral-950/80 px-3 py-2.5 border border-neutral-800">
@@ -238,22 +214,20 @@ export function ControlsPanel({
             <button
               type="button"
               onClick={() => setOption('backgroundMode', 'solid')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                (options.backgroundMode || 'solid') === 'solid'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${(options.backgroundMode || 'solid') === 'solid'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Solid Background
             </button>
             <button
               type="button"
               onClick={() => setOption('backgroundMode', 'transparent')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                options.backgroundMode === 'transparent'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${options.backgroundMode === 'transparent'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Transparent (Cutout)
             </button>
@@ -270,22 +244,20 @@ export function ControlsPanel({
             <button
               type="button"
               onClick={() => setOption('colorMode', 'color')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                options.colorMode === 'color'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${options.colorMode === 'color'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Full Color
             </button>
             <button
               type="button"
               onClick={() => setOption('colorMode', 'binary')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                options.colorMode === 'binary'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${options.colorMode === 'binary'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Binary (Monochrome / Line)
             </button>
@@ -302,22 +274,20 @@ export function ControlsPanel({
             <button
               type="button"
               onClick={() => setOption('hierarchical', 'stacked')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                options.hierarchical === 'stacked'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${options.hierarchical === 'stacked'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Stacked (Rich Overlap)
             </button>
             <button
               type="button"
               onClick={() => setOption('hierarchical', 'cutout')}
-              className={`rounded-lg py-1.5 text-xs font-medium border transition ${
-                options.hierarchical === 'cutout'
-                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-              }`}
+              className={`rounded-lg py-1.5 text-xs font-medium border transition ${options.hierarchical === 'cutout'
+                ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
             >
               Cutout (Holes / Transparent)
             </button>
@@ -336,11 +306,10 @@ export function ControlsPanel({
                 key={m}
                 type="button"
                 onClick={() => setOption('mode', m)}
-                className={`rounded-lg py-1.5 text-xs font-medium capitalize border transition ${
-                  options.mode === m
-                    ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                    : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-                }`}
+                className={`rounded-lg py-1.5 text-xs font-medium capitalize border transition ${options.mode === m
+                  ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                  }`}
               >
                 {m === 'spline' ? 'Spline Curves' : m === 'polygon' ? 'Polygons' : 'Raw Edges'}
               </button>
@@ -546,13 +515,12 @@ export function ControlsPanel({
           type="button"
           disabled={!hasImage || isProcessing}
           onClick={onTrace}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition shadow-lg ${
-            !hasImage
-              ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-              : isProcessing
+          className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition shadow-lg ${!hasImage
+            ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+            : isProcessing
               ? 'bg-indigo-700 text-white cursor-wait animate-pulse'
               : 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/25'
-          }`}
+            }`}
         >
           {isProcessing ? (
             <>

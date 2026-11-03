@@ -24,7 +24,7 @@ import {
   TransactionStatus,
 } from '../../lib/firebase/firestore';
 import { SUPPORTED_CHAINS, SupportedChainKey } from '../../lib/web3/payment-wallets';
-import { ChainIcon } from '../../components/ChainIcons';
+import { ChainIcon, TokenIcon } from '../../components/ChainIcons';
 import { CreditModal } from '../../components/CreditModal';
 import { useTransactionListener } from '../../hooks/useTransactionListener';
 
@@ -37,10 +37,8 @@ export default function TransactionsPage() {
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
 
-  // Real-time listener for user transactions and status change
-  const { transactions, pendingCount, isRefreshing, refreshCredits } = useTransactionListener({
-    userId: user?.uid,
-    onTransactionFinished: (tx) => {
+  const handleTransactionFinished = React.useCallback(
+    (tx: CryptoTransaction) => {
       refreshProfile();
       if (tx.status === 'confirmed') {
         setStatusNotice(`🎉 Transaction ${tx.id.slice(0, 8)} confirmed! ${tx.credits} credits added.`);
@@ -48,6 +46,13 @@ export default function TransactionsPage() {
         setStatusNotice(`⚠️ Transaction ${tx.id.slice(0, 8)} failed or was rejected.`);
       }
     },
+    [refreshProfile]
+  );
+
+  // Real-time listener for user transactions and status change
+  const { transactions, pendingCount, isRefreshing, refreshCredits } = useTransactionListener({
+    userId: user?.uid,
+    onTransactionFinished: handleTransactionFinished,
   });
 
   const handleManualRefresh = async () => {
@@ -382,8 +387,9 @@ export default function TransactionsPage() {
 
                         {/* Crypto Amount & Token */}
                         <td className="py-3.5 px-4">
-                          <div className="font-semibold text-neutral-200">
-                            {tx.cryptoAmount} {tx.cryptoToken}
+                          <div className="flex items-center gap-1.5 font-semibold text-neutral-200">
+                            <TokenIcon token={tx.cryptoToken} className="w-4 h-4 shrink-0" />
+                            <span>{tx.cryptoAmount} {tx.cryptoToken}</span>
                           </div>
                           <div className="text-[10px] text-neutral-500 uppercase">
                             {tx.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Direct QR'}
@@ -433,7 +439,7 @@ export default function TransactionsPage() {
                         </td>
 
                         {/* Date */}
-                        <td className="py-3.5 px-4 text-neutral-400 text-xs whitespace-nowrap">
+                        <td suppressHydrationWarning className="py-3.5 px-4 text-neutral-400 text-xs whitespace-nowrap">
                           {dateStr}
                         </td>
 
@@ -472,10 +478,12 @@ export default function TransactionsPage() {
       )}
 
       {/* Credit Purchase Modal */}
-      <CreditModal
-        isOpen={isCreditModalOpen}
-        onClose={() => setIsCreditModalOpen(false)}
-      />
+      {isCreditModalOpen && (
+        <CreditModal
+          isOpen={isCreditModalOpen}
+          onClose={() => setIsCreditModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -587,8 +595,9 @@ function TransactionDetailsModal({
           {/* Crypto Amount */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
             <span className="text-neutral-400">Crypto Amount</span>
-            <span className="font-mono font-semibold text-neutral-200">
-              {tx.cryptoAmount} {tx.cryptoToken}
+            <span className="font-mono font-semibold text-neutral-200 flex items-center gap-1.5">
+              <TokenIcon token={tx.cryptoToken} className="w-4 h-4 shrink-0" />
+              <span>{tx.cryptoAmount} {tx.cryptoToken}</span>
             </span>
           </div>
 
@@ -662,7 +671,7 @@ function TransactionDetailsModal({
           {/* Timestamps */}
           <div className="flex items-center justify-between py-1">
             <span className="text-neutral-400">Created At</span>
-            <span className="text-neutral-300">
+            <span suppressHydrationWarning className="text-neutral-300">
               {new Date(tx.createdAt).toLocaleString()}
             </span>
           </div>
@@ -670,7 +679,7 @@ function TransactionDetailsModal({
           {tx.confirmedAt && (
             <div className="flex items-center justify-between py-1">
               <span className="text-neutral-400">Confirmed At</span>
-              <span className="text-emerald-400 font-semibold">
+              <span suppressHydrationWarning className="text-emerald-400 font-semibold">
                 {new Date(tx.confirmedAt).toLocaleString()}
               </span>
             </div>

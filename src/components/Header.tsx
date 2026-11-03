@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
+import { isAdminPassEnabled } from '@/config/app.config';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -21,7 +22,7 @@ export function Header({
   const { user, profile } = useAuth();
 
   const credits = profile?.credits ?? 0;
-  const isAdmin = profile?.isAdmin ?? false;
+  const isAdmin = isAdminPassEnabled() && (profile?.isAdmin ?? false);
   const isSubscribed = profile?.subscription?.status === 'active';
 
   return (

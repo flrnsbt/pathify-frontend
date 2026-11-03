@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import {
@@ -22,8 +22,8 @@ import {
   createCryptoTransaction,
   listenToTransaction,
 } from '../lib/firebase/firestore';
-import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
-import { useSendTransaction, useWriteContract, useSwitchChain } from 'wagmi';
+import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+import { useChainId, useSendTransaction, useWriteContract, useSwitchChain } from 'wagmi';
 import { parseEther, parseUnits } from 'viem';
 import {
   SUPPORTED_CHAINS,
@@ -32,11 +32,16 @@ import {
   CreditPack,
   SupportedChainKey,
   SupportedToken,
-  getRecipientWallet,
-  parsePaymentWallets,
   ParsedPaymentWallet,
+  loadPaymentWallets,
+  getCachedPaymentWallets,
+  getRecipientWallet,
+  getAvailableChains,
+  fetchLiveTokenPrices,
+  getCachedTokenPrices,
+  calculateCryptoAmount,
 } from '../lib/web3/payment-wallets';
-import { ChainIcon } from './ChainIcons';
+import { ChainIcon, TokenIcon } from './ChainIcons';
 
 interface CreditModalProps {
   isOpen: boolean;
@@ -61,7 +66,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
   const { user, refreshProfile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
-  const { chainId: currentChainId } = useAppKitNetwork();
+  const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
   const { writeContractAsync } = useWriteContract();
@@ -79,49 +84,119 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [txHashInput, setTxHashInput] = useState<string>('');
 
-  const [configuredWallets, setConfiguredWallets] = useState<ParsedPaymentWallet[]>(() =>
-    parsePaymentWallets()
-  );
+  // Keep track of active Firestore listener unsubscribers to prevent memory leaks
+  const activeUnsubscribesRef = useRef<Array<() => void>>([]);
 
-  const chainMeta = SUPPORTED_CHAINS[selectedChainKey];
-  const isEvm = chainMeta?.isEvm ?? false;
+  // Wallets loaded asynchronously once from wallets.json or dev.wallets.json
+  const [wallets, setWallets] = useState<ParsedPaymentWallet[]>(() => getCachedPaymentWallets() || []);
+  const [isLoadingWallets, setIsLoadingWallets] = useState<boolean>(() => !getCachedPaymentWallets());
 
-  // Derive valid active token for the selected chain without useEffect setState
+  // Real-time token prices
+  const [tokenPrices, setTokenPrices] = useState<Record<SupportedToken, number>>(() => getCachedTokenPrices());
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let mounted = true;
+    loadPaymentWallets()
+      .then((loaded) => {
+        if (mounted) {
+          setWallets(loaded);
+          setIsLoadingWallets(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load payment wallets:', err);
+        if (mounted) setIsLoadingWallets(false);
+      });
+
+    fetchLiveTokenPrices()
+      .then((prices) => {
+        if (mounted) setTokenPrices(prices);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch live token prices:', err);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
+
+  // Dynamically derive available chains that have valid non-zero wallet addresses
+  const availableChains = useMemo(() => getAvailableChains(wallets), [wallets]);
+
+  // Ensure selected chain stays valid whenever available chains load or update
+  useEffect(() => {
+    if (availableChains.length > 0) {
+      const isSelectedValid = availableChains.some((c) => c.key === selectedChainKey);
+      if (!isSelectedValid) {
+        setSelectedChainKey(availableChains[0].key);
+      }
+    }
+  }, [availableChains, selectedChainKey]);
+
+  const chainMeta =
+    SUPPORTED_CHAINS[selectedChainKey] ||
+    availableChains[0] ||
+    SUPPORTED_CHAINS['bsc'];
+  const isEvm = chainMeta?.isEvm ?? true;
+
+  // Active token for the selected chain
   const activeToken: SupportedToken = chainMeta.tokens.includes(selectedToken)
     ? selectedToken
     : chainMeta.tokens[0];
 
-  // Fetch / update configured wallets on open
+  // Recipient wallet address and amount resolved from loaded wallets
+  const recipientWallet = useMemo(() => {
+    return getRecipientWallet(
+      chainMeta.key,
+      activeToken,
+      wallets,
+      chainMeta.chainId
+    );
+  }, [chainMeta.key, activeToken, wallets, chainMeta.chainId]);
+
+  const isInvalidRecipient =
+    !recipientWallet ||
+    recipientWallet.startsWith('0x0000000000000000000000000000000000000000');
+
+  // Calculate live crypto amount based on USD pack price and real-time token rates
+  const amountToPay = useMemo(() => {
+    return calculateCryptoAmount(selectedPack.usdPrice, activeToken, tokenPrices);
+  }, [selectedPack.usdPrice, activeToken, tokenPrices]);
+
+  // Reset transient feedback state when modal opens or closes
   useEffect(() => {
-    if (!isOpen) return;
-    const clientParsed = parsePaymentWallets();
-    if (clientParsed.length > 0) {
-      Promise.resolve().then(() => {
-        setConfiguredWallets(clientParsed);
-      });
+    if (!isOpen) {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setLoading(false);
+      setTxHashInput('');
+      setCopiedField(null);
+
+      // Clean up any pending Firestore listeners
+      activeUnsubscribesRef.current.forEach((unsub) => unsub());
+      activeUnsubscribesRef.current = [];
     }
   }, [isOpen]);
 
-  // Recipient wallet address
-  const recipientWallet = getRecipientWallet(selectedChainKey, activeToken, configuredWallets);
-  const amountToPay = selectedPack.cryptoPrices[activeToken] || '0';
+  // Clean up listeners on unmount
+  useEffect(() => {
+    return () => {
+      activeUnsubscribesRef.current.forEach((unsub) => unsub());
+      activeUnsubscribesRef.current = [];
+    };
+  }, []);
 
   // Generate QR code for the recipient wallet
   useEffect(() => {
-    let active = true;
-    if (!recipientWallet) {
-      Promise.resolve().then(() => {
-        if (active) setQrCodeUrl('');
-      });
+    if (!isOpen || isLoadingWallets || isInvalidRecipient || !recipientWallet) {
+      setQrCodeUrl('');
       return;
     }
 
-    let qrPayload = recipientWallet;
-    if (selectedChainKey === 'btc') {
-      qrPayload = `bitcoin:${recipientWallet}?amount=${amountToPay}`;
-    }
-
-    QRCode.toDataURL(qrPayload, {
+    let active = true;
+    QRCode.toDataURL(recipientWallet, {
       width: 220,
       margin: 1,
       color: {
@@ -139,7 +214,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
     return () => {
       active = false;
     };
-  }, [recipientWallet, selectedChainKey, amountToPay]);
+  }, [isOpen, isLoadingWallets, isInvalidRecipient, recipientWallet]);
 
   if (!isOpen) return null;
 
@@ -158,6 +233,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
     try {
       if (!user || user.isAnonymous) {
         throw new Error('Please sign in with Google first so your credits are saved to your account.');
+      }
+
+      if (isInvalidRecipient) {
+        throw new Error(`Payment wallet for ${chainMeta.name} is not configured yet. Please choose another chain.`);
       }
 
       if (!isConnected) {
@@ -184,7 +263,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
       let txHash = '';
 
       if (activeToken === chainMeta.nativeToken) {
-        // Native transfer (ETH, BNB, POL)
+        // Native transfer (ETH, BNB, POL, AVAX, XPL)
         const tx = await sendTransactionAsync({
           to: recipientWallet as `0x${string}`,
           value: parseEther(amountToPay),
@@ -194,7 +273,9 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         // ERC-20 token transfer (USDT, USDC)
         const tokenConfig = ERC20_CONTRACTS[targetChainId]?.[activeToken];
         if (!tokenConfig) {
-          throw new Error(`Direct Web3 transfer not configured for ${activeToken} on ${chainMeta.name}. Please use Direct Transfer / QR Code below.`);
+          throw new Error(
+            `Direct Web3 transfer not configured for ${activeToken} on ${chainMeta.name}. Please use Direct Transfer / QR Code below.`
+          );
         }
 
         const parsedAmount = parseUnits(amountToPay, tokenConfig.decimals);
@@ -239,6 +320,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           unsubscribe();
         }
       });
+      activeUnsubscribesRef.current.push(unsubscribe);
 
       setSuccessMsg(
         `🎉 Transaction submitted on ${chainMeta.name} (${txHash.slice(0, 10)}...)! Awaiting confirmation. Your credits will update automatically once verified.`
@@ -261,6 +343,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
     try {
       if (!user || user.isAnonymous) {
         throw new Error('Please sign in with Google first so your credits are saved to your account.');
+      }
+
+      if (isInvalidRecipient) {
+        throw new Error(`Payment wallet for ${chainMeta.name} is not configured yet. Please choose another chain.`);
       }
 
       // Record transaction in Firestore with status 'pending'
@@ -291,6 +377,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           unsubscribe();
         }
       });
+      activeUnsubscribesRef.current.push(unsubscribe);
 
       setSuccessMsg(
         `🎉 Payment submitted! Your transaction is now pending verification. Credits will be automatically added as soon as confirmed.`
@@ -390,11 +477,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                   key={pack.id}
                   type="button"
                   onClick={() => setSelectedPack(pack)}
-                  className={`relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition text-center ${
-                    isSelected
+                  className={`relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition text-center ${isSelected
                       ? 'border-indigo-500 bg-indigo-600/15 shadow-md shadow-indigo-500/10'
                       : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900'
-                  }`}
+                    }`}
                 >
                   {pack.popular && (
                     <span className="absolute -top-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">
@@ -428,69 +514,75 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(Object.keys(SUPPORTED_CHAINS) as SupportedChainKey[]).map((key) => {
-              const chain = SUPPORTED_CHAINS[key];
-              const isSelected = selectedChainKey === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSelectedChainKey(key)}
-                  style={{
-                    backgroundColor: isSelected ? chain.bgGlow : undefined,
-                    borderColor: isSelected ? chain.color : undefined,
-                  }}
-                  className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border text-left transition-all duration-150 ${
-                    isSelected
-                      ? 'shadow-md shadow-black/40 ring-1 ring-white/10'
-                      : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900/80'
-                  }`}
-                >
-                  {/* Chain Icon with custom network brand style */}
-                  <div
-                    className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl p-1 transition-transform group-hover:scale-105"
+            {availableChains.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-neutral-800 bg-neutral-950/40 p-4 text-center text-xs text-neutral-400">
+                {isLoadingWallets ? 'Loading payment networks...' : 'No payment networks configured.'}
+              </div>
+            ) : (
+              availableChains.map((chain) => {
+                const key = chain.key;
+                const isSelected = selectedChainKey === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedChainKey(key)}
                     style={{
-                      backgroundColor: `${chain.color}15`,
+                      backgroundColor: isSelected ? chain.bgGlow : undefined,
+                      borderColor: isSelected ? chain.color : undefined,
                     }}
+                    className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border text-left transition-all duration-150 ${
+                      isSelected
+                        ? 'shadow-md shadow-black/40 ring-1 ring-white/10'
+                        : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900/80'
+                    }`}
                   >
-                    <ChainIcon chainKey={key} className="h-5 w-5 object-contain" />
-                  </div>
-
-                  {/* Chain Details */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-bold text-white truncate">
-                        {chain.shortName}
-                      </span>
-                      {isSelected && (
-                        <span
-                          className="h-1.5 w-1.5 rounded-full shrink-0 animate-pulse"
-                          style={{ backgroundColor: chain.color }}
-                        />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="rounded bg-neutral-800/80 px-1 py-0.2 text-[9px] font-mono text-neutral-300">
-                        {chain.badge}
-                      </span>
-                      <span className="text-[9px] text-neutral-500 font-mono">
-                        {chain.isEvm ? 'EVM' : 'UTXO'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Active Indicator Checkmark */}
-                  {isSelected && (
+                    {/* Chain Icon with custom network brand style */}
                     <div
-                      className="absolute top-2 right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full text-white shadow-sm"
-                      style={{ backgroundColor: chain.color }}
+                      className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl p-1 transition-transform group-hover:scale-105"
+                      style={{
+                        backgroundColor: `${chain.color}15`,
+                      }}
                     >
-                      <Check className="h-2 w-2 text-black stroke-[3]" />
+                      <ChainIcon chainKey={key} className="h-5 w-5 object-contain" />
                     </div>
-                  )}
-                </button>
-              );
-            })}
+
+                    {/* Chain Details */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-white truncate">
+                          {chain.shortName}
+                        </span>
+                        {isSelected && (
+                          <span
+                            className="h-1.5 w-1.5 rounded-full shrink-0 animate-pulse"
+                            style={{ backgroundColor: chain.color }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="rounded bg-neutral-800/80 px-1 py-0.2 text-[9px] font-mono text-neutral-300">
+                          {chain.badge}
+                        </span>
+                        <span className="text-[9px] text-neutral-500 font-mono">
+                          EVM
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Active Indicator Checkmark */}
+                    {isSelected && (
+                      <div
+                        className="absolute top-2 right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full text-white shadow-sm"
+                        style={{ backgroundColor: chain.color }}
+                      >
+                        <Check className="h-2 w-2 text-black stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -502,7 +594,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           <div className="flex flex-wrap gap-2">
             {chainMeta.tokens.map((token) => {
               const isSelected = activeToken === token;
-              const price = selectedPack.cryptoPrices[token] || '0';
+              const tokenPrice = calculateCryptoAmount(selectedPack.usdPrice, token, tokenPrices);
               return (
                 <button
                   key={token}
@@ -514,9 +606,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                       : 'border-neutral-800 bg-neutral-950/60 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
                   }`}
                 >
+                  <TokenIcon token={token} className="w-4 h-4 shrink-0" />
                   <span>{token}</span>
                   <span className="rounded bg-neutral-800/80 px-1.5 py-0.5 text-[10px] text-neutral-300 font-mono">
-                    {price} {token}
+                    {tokenPrice} {token}
                   </span>
                 </button>
               );
@@ -532,11 +625,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               <button
                 type="button"
                 onClick={() => setPayMethod('wallet')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${
-                  payMethod === 'wallet'
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${payMethod === 'wallet'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-neutral-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <Wallet className="h-3.5 w-3.5" />
                 <span>Web3 / WalletConnect</span>
@@ -544,11 +636,10 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               <button
                 type="button"
                 onClick={() => setPayMethod('qr')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${
-                  payMethod === 'qr'
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${payMethod === 'qr'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-neutral-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <QrCode className="h-3.5 w-3.5" />
                 <span>Direct Transfer / QR Code</span>
@@ -571,8 +662,9 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               <div className="flex items-center justify-between rounded-xl bg-neutral-900/60 p-3 border border-neutral-800 text-xs">
                 <div>
                   <span className="text-neutral-400 block text-[11px]">Total to Send</span>
-                  <span className="text-base font-bold text-white">
-                    {amountToPay} {activeToken}
+                  <span className="text-base font-bold text-white flex items-center gap-1.5">
+                    <TokenIcon token={activeToken} className="w-4 h-4 shrink-0" />
+                    <span>{amountToPay} {activeToken}</span>
                   </span>
                 </div>
                 <div className="text-right">
@@ -581,29 +673,18 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                 </div>
               </div>
 
-              <div className="text-[11px] text-neutral-400 space-y-1">
-                <p>
-                  Recipient Contract / Address:{' '}
-                  <span className="font-mono text-neutral-300">{recipientWallet}</span>
-                </p>
-                {isConnected && address && (
-                  <p>
-                    Connected Wallet:{' '}
-                    <span className="font-mono text-indigo-400">
-                      {address.slice(0, 8)}...{address.slice(-6)}
-                    </span>
-                  </p>
-                )}
-              </div>
-
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || isLoadingWallets || isInvalidRecipient}
                 onClick={handlePayWithWeb3}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition disabled:opacity-50"
               >
                 {loading ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : isLoadingWallets ? (
+                  <span>Loading configuration...</span>
+                ) : isInvalidRecipient ? (
+                  <span>Network not configured</span>
                 ) : (
                   <>
                     <Wallet className="h-4 w-4" />
@@ -622,7 +703,11 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-4 items-center">
                 {/* QR Code */}
-                {qrCodeUrl ? (
+                {isLoadingWallets ? (
+                  <div className="h-32 w-32 rounded-xl bg-neutral-800 animate-pulse shrink-0 flex items-center justify-center text-[10px] text-neutral-500 font-mono">
+                    Loading QR...
+                  </div>
+                ) : qrCodeUrl ? (
                   <div className="rounded-xl bg-white p-2 shrink-0 shadow-lg">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -632,7 +717,9 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                     />
                   </div>
                 ) : (
-                  <div className="h-32 w-32 rounded-xl bg-neutral-800 animate-pulse shrink-0" />
+                  <div className="h-32 w-32 rounded-xl bg-neutral-800 animate-pulse shrink-0 flex items-center justify-center text-[10px] text-neutral-500 font-mono">
+                    {isInvalidRecipient ? 'No wallet configured' : 'Generating QR...'}
+                  </div>
                 )}
 
                 {/* Address & Amount Copy */}
@@ -643,12 +730,19 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                     </label>
                     <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
                       <span className="font-mono text-xs text-neutral-200 truncate flex-1 select-all">
-                        {recipientWallet}
+                        {isLoadingWallets ? (
+                          <span className="text-neutral-500 animate-pulse">Loading wallet address...</span>
+                        ) : isInvalidRecipient ? (
+                          <span className="text-amber-400">Wallet not configured for this network</span>
+                        ) : (
+                          recipientWallet
+                        )}
                       </span>
                       <button
                         type="button"
+                        disabled={isLoadingWallets || isInvalidRecipient}
                         onClick={() => copyToClipboard(recipientWallet, 'address')}
-                        className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition"
+                        className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition disabled:opacity-40"
                         title="Copy Address"
                       >
                         {copiedField === 'address' ? (
@@ -665,8 +759,9 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                       Exact Amount to Transfer
                     </label>
                     <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
-                      <span className="font-mono text-xs font-semibold text-amber-300 truncate flex-1">
-                        {amountToPay} {activeToken}
+                      <span className="font-mono text-xs font-semibold text-amber-300 truncate flex-1 flex items-center gap-1.5">
+                        <TokenIcon token={activeToken} className="w-4 h-4 shrink-0" />
+                        <span>{amountToPay} {activeToken}</span>
                       </span>
                       <button
                         type="button"
@@ -689,12 +784,12 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 text-[11px] text-amber-400/90 leading-relaxed">
                 ⚠️ <strong>Network Safety:</strong> Please send only{' '}
                 <strong className="text-white">{activeToken}</strong> on the{' '}
-                <strong className="text-white">{chainMeta.badge}</strong>. Sending via an
+                <strong className="text-white">{chainMeta.badge}</strong> network. Sending via an
                 unsupported network may result in loss of funds.
               </div>
 
               {/* Optional TX Hash Input & Confirmation Button */}
-              <div className="pt-2 border-t border-neutral-850 space-y-2">
+              <div className="pt-2 border-t border-neutral-800 space-y-2">
                 <input
                   type="text"
                   placeholder="Optional: Transaction Hash / ID (e.g. 0x... or txid)"
@@ -705,12 +800,16 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
 
                 <button
                   type="button"
-                  disabled={loading}
+                  disabled={loading || isLoadingWallets || isInvalidRecipient}
                   onClick={handleConfirmManualPayment}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-emerald-500 transition disabled:opacity-50"
                 >
                   {loading ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : isLoadingWallets ? (
+                    <span>Loading configuration...</span>
+                  ) : isInvalidRecipient ? (
+                    <span>Address not configured</span>
                   ) : (
                     <>
                       <Check className="h-4 w-4" />
@@ -725,8 +824,8 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
 
         {/* Footer info */}
         <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-neutral-500">
-          <div className="flex items-center gap-2.5">
-            <span>Supported: BSC, ETH, BTC, POL, Base, Arbitrum</span>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span>Supported: BNB Chain, Ethereum, Polygon, Base, Arbitrum, Optimism, Avalanche, Plasma</span>
             <span>•</span>
             <Link
               href="/transactions"
@@ -742,7 +841,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               href={chainMeta.explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-neutral-400 transition"
+              className="flex items-center gap-1 hover:text-neutral-400 transition shrink-0"
             >
               <span>{chainMeta.name} Explorer</span>
               <ExternalLink className="h-3 w-3" />

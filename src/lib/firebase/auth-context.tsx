@@ -24,24 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (!isFirebaseConfigured || !auth) {
-      if (typeof window !== 'undefined') {
-        const localGuestUid =
-          localStorage.getItem('vtracer_guest_uid') ||
-          `guest-${Math.random().toString(36).substring(2, 9)}`;
-        localStorage.setItem('vtracer_guest_uid', localGuestUid);
-        return {
-          uid: localGuestUid,
-          isAnonymous: true,
-          displayName: 'Guest User',
-          email: null,
-        } as unknown as User;
-      }
-    }
-    return null;
-  });
-
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(() => {
     return isFirebaseConfigured && Boolean(auth);
@@ -59,8 +42,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     if (!isFirebaseConfigured || !auth) {
-      if (user?.uid) {
-        getUserProfile(user.uid)
+      if (typeof window !== 'undefined') {
+        const localGuestUid =
+          localStorage.getItem('vtracer_guest_uid') ||
+          `guest-${Math.random().toString(36).substring(2, 9)}`;
+        localStorage.setItem('vtracer_guest_uid', localGuestUid);
+
+        const guestUser = {
+          uid: localGuestUid,
+          isAnonymous: true,
+          displayName: 'Guest User',
+          email: null,
+        } as unknown as User;
+
+        if (active) {
+          setUser(guestUser);
+        }
+
+        getUserProfile(localGuestUid)
           .then((p) => {
             if (active) {
               setProfile(p);
@@ -87,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       unsubscribe();
     };
-  }, [fetchProfile, user?.uid]);
+  }, [fetchProfile]);
 
   const loginWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) {

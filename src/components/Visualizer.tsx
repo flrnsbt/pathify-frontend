@@ -16,8 +16,10 @@ import {
   Sparkles,
   Lock,
   Info,
+  ChevronDown,
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
+import { exportRasterImage } from '../lib/raster/export';
 
 interface VisualizerProps {
   originalImage: LoadedImageInfo | null;
@@ -37,14 +39,49 @@ type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster' | 'code';
 type BgMode = 'checker' | 'dark' | 'light';
 
 /**
+ * Adapts an SVG markup string to render at a target high resolution while preserving
+ * the original vector aspect ratio and viewBox coordinate space.
+ * Eliminates blurry/pixelated artifacts on HTML5 canvas during high-DPI and zoom.
+ */
+function adaptSvgForResolution(
+  svgString: string,
+  targetWidth: number,
+  targetHeight: number,
+  originalWidth?: number,
+  originalHeight?: number
+): string {
+  let adapted = svgString;
+
+  // 1. Ensure a valid viewBox exists matching original coordinates
+  if (!/viewBox\s*=/i.test(adapted)) {
+    const origW = originalWidth || targetWidth;
+    const origH = originalHeight || targetHeight;
+    adapted = adapted.replace(/<svg\b([^>]*)>/i, `<svg$1 viewBox="0 0 ${origW} ${origH}">`);
+  }
+
+  // 2. Set explicit width and height on root <svg> matching target high-res rendering size
+  adapted = adapted.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+    const cleanAttrs = attrs
+      .replace(/\bwidth\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/\bheight\s*=\s*["'][^"']*["']/gi, '')
+      .trim();
+    return `<svg width="${targetWidth}" height="${targetHeight}" ${cleanAttrs}>`;
+  });
+
+  return adapted;
+}
+
+/**
  * HTML5 Canvas Vector Renderer
  * Directly paints vector SVG / raster onto a hardware-accelerated 2D canvas context.
+ * Smartly adapts SVG rasterization size to current zoom level & DPR to prevent pixelation.
  */
 function VectorCanvas({
   svg,
   fallbackUrl,
   width,
   height,
+  zoom = 1,
   className = '',
   style = {},
 }: {
@@ -52,10 +89,20 @@ function VectorCanvas({
   fallbackUrl?: string | null;
   width: number;
   height: number;
+  zoom?: number;
   className?: string;
   style?: React.CSSProperties;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [debouncedZoom, setDebouncedZoom] = useState(zoom);
+
+  // Debounce resolution adaptation during rapid continuous zoom gestures (80ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedZoom(zoom);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [zoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,26 +112,36 @@ function VectorCanvas({
     let objectUrl: string | null = null;
     const img = new Image();
 
+    const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+    const baseW = width || 800;
+    const baseH = height || 800;
+
+    // Smartly adapt canvas pixel density to the current zoom level to avoid pixelation
+    const effectiveZoom = Math.max(1, debouncedZoom);
+    const maxDimension = 4096;
+    const maxScale = Math.min(maxDimension / baseW, maxDimension / baseH, 4 * dpr);
+    const scaleFactor = Math.min(Math.max(dpr * effectiveZoom, dpr), maxScale);
+
+    const targetW = Math.round(baseW * scaleFactor);
+    const targetH = Math.round(baseH * scaleFactor);
+
     img.onload = () => {
       if (!active || !canvas) return;
       const ctx = canvas.getContext('2d', { alpha: true });
       if (!ctx) return;
 
-      const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
-      const w = width || img.naturalWidth || 400;
-      const h = height || img.naturalHeight || 400;
+      canvas.width = targetW;
+      canvas.height = targetH;
 
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, targetW, targetH);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
     };
 
     if (svg) {
-      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const adaptedSvg = adaptSvgForResolution(svg, targetW, targetH, width, height);
+      const blob = new Blob([adaptedSvg], { type: 'image/svg+xml;charset=utf-8' });
       objectUrl = URL.createObjectURL(blob);
       img.src = objectUrl;
     } else if (fallbackUrl) {
@@ -95,13 +152,19 @@ function VectorCanvas({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [svg, fallbackUrl, width, height]);
+  }, [svg, fallbackUrl, width, height, debouncedZoom]);
 
   return (
     <canvas
       ref={canvasRef}
-      className={`select-none pointer-events-none ${className}`}
-      style={style}
+      className={`select-none pointer-events-none block ${className}`}
+      style={{
+        aspectRatio: width && height ? `${width} / ${height}` : undefined,
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+        ...style,
+      }}
     />
   );
 }
@@ -109,6 +172,7 @@ function VectorCanvas({
 /**
  * HTML5 Canvas Split Comparison Renderer
  * Uses 2D canvas clipping to composite raster & vector results with zero lag.
+ * Smartly scales vector layer resolution based on camera zoom.
  */
 function SplitSliderCanvas({
   rasterUrl,
@@ -117,6 +181,7 @@ function SplitSliderCanvas({
   width,
   height,
   splitPos,
+  zoom = 1,
   className = '',
   style = {},
 }: {
@@ -126,12 +191,21 @@ function SplitSliderCanvas({
   width: number;
   height: number;
   splitPos: number;
+  zoom?: number;
   className?: string;
   style?: React.CSSProperties;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rasterImgRef = useRef<HTMLImageElement | null>(null);
   const vectorImgRef = useRef<HTMLImageElement | null>(null);
+  const [debouncedZoom, setDebouncedZoom] = useState(zoom);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedZoom(zoom);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [zoom]);
 
   const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
@@ -143,11 +217,16 @@ function SplitSliderCanvas({
     if (!ctx) return;
 
     const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
-    const w = width || raster.naturalWidth || 400;
-    const h = height || raster.naturalHeight || 400;
+    const baseW = width || raster.naturalWidth || 400;
+    const baseH = height || raster.naturalHeight || 400;
 
-    const targetW = Math.round(w * dpr);
-    const targetH = Math.round(h * dpr);
+    const effectiveZoom = Math.max(1, debouncedZoom);
+    const maxDimension = 4096;
+    const maxScale = Math.min(maxDimension / baseW, maxDimension / baseH, 4 * dpr);
+    const scaleFactor = Math.min(Math.max(dpr * effectiveZoom, dpr), maxScale);
+
+    const targetW = Math.round(baseW * scaleFactor);
+    const targetH = Math.round(baseH * scaleFactor);
 
     if (canvas.width !== targetW || canvas.height !== targetH) {
       canvas.width = targetW;
@@ -171,7 +250,7 @@ function SplitSliderCanvas({
       ctx.drawImage(vector, 0, 0, targetW, targetH);
       ctx.restore();
     }
-  }, [width, height, splitPos]);
+  }, [width, height, splitPos, debouncedZoom]);
 
   useEffect(() => {
     let active = true;
@@ -197,8 +276,17 @@ function SplitSliderCanvas({
       draw();
     };
 
+    const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+    const baseW = width || 800;
+    const baseH = height || 800;
+    const effectiveZoom = Math.max(1, debouncedZoom);
+    const scaleFactor = Math.min(Math.max(dpr * effectiveZoom, dpr), 4 * dpr);
+    const targetW = Math.round(baseW * scaleFactor);
+    const targetH = Math.round(baseH * scaleFactor);
+
     if (svg) {
-      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const adaptedSvg = adaptSvgForResolution(svg, targetW, targetH, width, height);
+      const blob = new Blob([adaptedSvg], { type: 'image/svg+xml;charset=utf-8' });
       objectUrl = URL.createObjectURL(blob);
       vImg.src = objectUrl;
     } else if (fallbackUrl) {
@@ -209,7 +297,7 @@ function SplitSliderCanvas({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [svg, fallbackUrl, draw]);
+  }, [svg, fallbackUrl, width, height, debouncedZoom, draw]);
 
   useEffect(() => {
     draw();
@@ -218,8 +306,14 @@ function SplitSliderCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={`select-none pointer-events-none ${className}`}
-      style={style}
+      className={`select-none pointer-events-none block ${className}`}
+      style={{
+        aspectRatio: width && height ? `${width} / ${height}` : undefined,
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+        ...style,
+      }}
     />
   );
 }
@@ -273,6 +367,52 @@ export function Visualizer({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+  const [isExportingRaster, setIsExportingRaster] = useState<string | null>(null);
+  const downloadMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close download menu on click outside
+  useEffect(() => {
+    if (!isDownloadMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) {
+        setIsDownloadMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDownloadMenuOpen]);
+
+  // Handle switching view mode: resets camera zoom & pan to best default view
+  const handleSelectViewMode = (newMode: ViewMode) => {
+    setViewMode(newMode);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  // Export free raster (PNG or WebP) without requiring login or credits
+  const handleDownloadRaster = async (format: 'png' | 'webp') => {
+    if (!originalImage) return;
+    setIsExportingRaster(format);
+    try {
+      await exportRasterImage({
+        svg,
+        fallbackDataUrl: renderedVectorImage,
+        fileName: originalImage.fileName,
+        format,
+        width: originalImage.width,
+        height: originalImage.height,
+        scale: 2,
+      });
+    } catch (err) {
+      console.error('Failed to export raster:', err);
+    } finally {
+      setIsExportingRaster(null);
+      setIsDownloadMenuOpen(false);
+    }
+  };
 
   // Reset zoom & pan when image changes using render-time prop comparison
   const [prevDataUrl, setPrevDataUrl] = useState<string | undefined>(originalImage?.dataUrl);
@@ -285,6 +425,23 @@ export function Visualizer({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageBoxRef = useRef<HTMLDivElement>(null);
+
+  // Smooth mousewheel / pinch-to-zoom on canvas container
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 0.87;
+      setZoom((z) => Math.max(0.1, Math.min(10, +(z * factor).toFixed(2))));
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   // Handle Split bar dragging start (mouse & touch)
   const handleSplitMouseDown = (e: React.MouseEvent) => {
@@ -400,7 +557,7 @@ export function Visualizer({
       onRequestCopyCode();
       return;
     }
-    setViewMode((prev) => (prev === 'code' ? 'vector' : 'code'));
+    handleSelectViewMode(viewMode === 'code' ? 'vector' : 'code');
   };
 
   // SVG Size calculation
@@ -430,7 +587,7 @@ export function Visualizer({
         <div className="flex items-center gap-1 rounded-xl bg-neutral-950/80 p-1 border border-neutral-800">
           <button
             type="button"
-            onClick={() => setViewMode('side-by-side')}
+            onClick={() => handleSelectViewMode('side-by-side')}
             title="Side-by-Side Comparison"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'side-by-side' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
@@ -441,7 +598,7 @@ export function Visualizer({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('vector')}
+            onClick={() => handleSelectViewMode('vector')}
             title="Full Vector View"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'vector' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
@@ -452,7 +609,7 @@ export function Visualizer({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('split')}
+            onClick={() => handleSelectViewMode('split')}
             title="Split-Screen Comparison Slider"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
@@ -463,7 +620,7 @@ export function Visualizer({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('raster')}
+            onClick={() => handleSelectViewMode('raster')}
             title="Original Raster Only"
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'raster' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
@@ -567,29 +724,137 @@ export function Visualizer({
               </span>
             </button>
 
-            <button
-              type="button"
-              disabled={!renderedVectorImage}
-              onClick={onRequestDownload}
-              title={isUnlocked ? 'Download .SVG File' : 'Unlock with credit to download SVG'}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition disabled:opacity-40 ${
-                isUnlocked
-                  ? 'border-emerald-500/30 bg-emerald-600 hover:bg-emerald-500'
-                  : 'border-indigo-500/40 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500'
-              }`}
-            >
-              {isUnlocked ? (
-                <>
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download SVG</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="h-3.5 w-3.5 text-amber-300" />
-                  <span>Download SVG</span>
-                </>
+            {/* Download Button with Free Raster (PNG/WebP) Dropdown */}
+            <div ref={downloadMenuRef} className="relative inline-flex items-center">
+              <button
+                type="button"
+                disabled={!renderedVectorImage}
+                onClick={onRequestDownload}
+                title={isUnlocked ? 'Download lossless .SVG vector file' : 'Unlock with credit to download SVG'}
+                className={`flex items-center gap-1.5 rounded-l-lg border-y border-l px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition disabled:opacity-40 ${
+                  isUnlocked
+                    ? 'border-emerald-500/30 bg-emerald-600 hover:bg-emerald-500'
+                    : 'border-indigo-500/40 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500'
+                }`}
+              >
+                {isUnlocked ? (
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download SVG</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Download SVG</span>
+                  </>
+                )}
+              </button>
+
+              {/* Free Export Dropdown Trigger */}
+              <button
+                type="button"
+                disabled={!renderedVectorImage}
+                onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
+                title="Download options (Free PNG / WebP available)"
+                className={`flex items-center justify-center rounded-r-lg border px-2 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40 ${
+                  isUnlocked
+                    ? 'border-emerald-500/30 bg-emerald-700 hover:bg-emerald-600'
+                    : 'border-indigo-500/40 bg-purple-700 hover:bg-purple-600'
+                }`}
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${isDownloadMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Free Formats Menu Dropdown */}
+              {isDownloadMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 border-b border-neutral-800">
+                    Download Formats
+                  </div>
+
+                  {/* 1. SVG Vector (Lossless, requires unlock/credits) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDownloadMenuOpen(false);
+                      onRequestDownload();
+                    }}
+                    className="flex w-full items-start gap-2.5 rounded-xl p-2.5 text-left hover:bg-neutral-800/80 transition"
+                  >
+                    <div className="mt-0.5 rounded-lg bg-indigo-500/10 p-1.5 text-indigo-400 border border-indigo-500/20">
+                      <Download className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">SVG Vector</span>
+                        <span
+                          className={`rounded px-1.5 py-0.2 text-[9px] font-mono font-semibold ${
+                            isUnlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                          }`}
+                        >
+                          {isUnlocked ? 'Unlocked' : '1 Credit'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">
+                        Lossless infinite resolution math curves
+                      </p>
+                    </div>
+                  </button>
+
+                  <div className="my-1 border-t border-neutral-800/80" />
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400 flex items-center justify-between">
+                    <span>Free Downloads</span>
+                    <span className="text-[9px] text-neutral-500 font-normal">No credits needed</span>
+                  </div>
+
+                  {/* 2. Free PNG */}
+                  <button
+                    type="button"
+                    disabled={Boolean(isExportingRaster)}
+                    onClick={() => handleDownloadRaster('png')}
+                    className="flex w-full items-start gap-2.5 rounded-xl p-2.5 text-left hover:bg-neutral-800/80 transition disabled:opacity-50"
+                  >
+                    <div className="mt-0.5 rounded-lg bg-emerald-500/10 p-1.5 text-emerald-400 border border-emerald-500/20">
+                      <ImageIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">PNG Image</span>
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-mono font-semibold text-emerald-300">
+                          {isExportingRaster === 'png' ? 'Exporting...' : 'Free'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">
+                        High-resolution 2x raster with transparency
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* 3. Free WebP */}
+                  <button
+                    type="button"
+                    disabled={Boolean(isExportingRaster)}
+                    onClick={() => handleDownloadRaster('webp')}
+                    className="flex w-full items-start gap-2.5 rounded-xl p-2.5 text-left hover:bg-neutral-800/80 transition disabled:opacity-50"
+                  >
+                    <div className="mt-0.5 rounded-lg bg-cyan-500/10 p-1.5 text-cyan-400 border border-cyan-500/20">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">WebP Image</span>
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-mono font-semibold text-emerald-300">
+                          {isExportingRaster === 'webp' ? 'Exporting...' : 'Free'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">
+                        Ultra-compact modern web raster format
+                      </p>
+                    </div>
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -635,6 +900,26 @@ export function Visualizer({
                     <span>Copy XML</span>
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(isExportingRaster)}
+                onClick={() => handleDownloadRaster('png')}
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-750 hover:text-white transition disabled:opacity-40"
+                title="Download Free PNG Image"
+              >
+                <ImageIcon className="h-3.5 w-3.5 text-emerald-400" />
+                <span>PNG (Free)</span>
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(isExportingRaster)}
+                onClick={() => handleDownloadRaster('webp')}
+                className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-750 hover:text-white transition disabled:opacity-40"
+                title="Download Free WebP Image"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>WebP (Free)</span>
               </button>
               <button
                 type="button"
@@ -686,28 +971,32 @@ export function Visualizer({
               transformOrigin: 'center center',
             }}
           >
-            {/* Side by Side Mode (DEFAULT) */}
+            {/* Side by Side Mode */}
             {viewMode === 'side-by-side' && (
-              <div className="flex items-center justify-center gap-6 p-4">
+              <div className="flex items-center justify-center gap-4 sm:gap-6 p-2 sm:p-4 max-w-full max-h-full">
                 {/* Original */}
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center shrink-0">
                   <span className="mb-2 text-xs font-semibold text-neutral-400">Original Raster</span>
                   <div
-                    className="overflow-hidden rounded-xl border border-neutral-800 shadow-xl"
-                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
+                    className="rounded-2xl border border-neutral-800 bg-neutral-950/60 shadow-2xl p-1 flex items-center justify-center overflow-hidden"
+                    style={{
+                      width: 'min(42vw, 550px)',
+                      aspectRatio: `${originalImage.width} / ${originalImage.height}`,
+                      maxHeight: '68vh',
+                    }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={originalImage.dataUrl}
                       alt="Original Raster"
                       draggable={false}
-                      className="max-h-[65vh] w-auto object-contain select-none pointer-events-none"
+                      className="w-full h-full object-contain select-none pointer-events-none rounded-xl"
                     />
                   </div>
                 </div>
 
                 {/* Vectorized Result (HTML5 Canvas) */}
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center shrink-0">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
                     <span>Vectorized Result</span>
                     <span className="rounded bg-indigo-500/10 px-1.5 py-0.2 text-[10px] font-medium text-indigo-300 border border-indigo-500/20">
@@ -720,8 +1009,12 @@ export function Visualizer({
                     )}
                   </div>
                   <div
-                    className="overflow-hidden rounded-xl border border-indigo-500/30 bg-neutral-900/50 shadow-xl relative flex items-center justify-center"
-                    style={{ maxWidth: '40vw', maxHeight: '70vh' }}
+                    className="rounded-2xl border border-indigo-500/30 bg-neutral-900/50 shadow-2xl p-1 relative flex items-center justify-center overflow-hidden"
+                    style={{
+                      width: 'min(42vw, 550px)',
+                      aspectRatio: `${originalImage.width} / ${originalImage.height}`,
+                      maxHeight: '68vh',
+                    }}
                   >
                     {renderedVectorImage ? (
                       <VectorCanvas
@@ -729,10 +1022,11 @@ export function Visualizer({
                         fallbackUrl={renderedVectorImage}
                         width={originalImage.width}
                         height={originalImage.height}
-                        className="max-h-[65vh] w-auto object-contain"
+                        zoom={zoom}
+                        className="w-full h-full object-contain rounded-xl"
                       />
                     ) : (
-                      <div className="flex h-64 w-64 items-center justify-center text-xs text-neutral-500">
+                      <div className="flex h-48 w-48 items-center justify-center text-xs text-neutral-500">
                         Pending vectorization...
                       </div>
                     )}
@@ -750,6 +1044,7 @@ export function Visualizer({
                     fallbackUrl={renderedVectorImage}
                     width={originalImage.width}
                     height={originalImage.height}
+                    zoom={zoom}
                     className="max-h-[75vh] max-w-[85vw] object-contain shadow-2xl"
                   />
                 ) : (
@@ -777,6 +1072,7 @@ export function Visualizer({
                   width={originalImage.width}
                   height={originalImage.height}
                   splitPos={splitPos}
+                  zoom={zoom}
                   className="w-full h-full object-contain"
                 />
 

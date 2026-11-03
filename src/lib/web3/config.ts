@@ -1,23 +1,66 @@
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { mainnet, arbitrum, polygon, base, bsc, sepolia, type AppKitNetwork } from '@reown/appkit/networks';
-import { createAppKit } from '@reown/appkit/react';
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import {
+  mainnet,
+  arbitrum,
+  polygon,
+  base,
+  bsc,
+  optimism,
+  avalanche,
+  plasma,
+  sepolia,
+  bscTestnet,
+  polygonAmoy,
+  baseSepolia,
+  arbitrumSepolia,
+  optimismSepolia,
+  avalancheFuji,
+  plasmaTestnet,
+  type AppKitNetwork,
+} from "@reown/appkit/networks";
+import { createAppKit } from "@reown/appkit/react";
+import { APP_CONFIG } from "@/config/app.config";
 
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID as string;
 
-export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [mainnet, bsc, polygon, base, arbitrum, sepolia];
+const isDebugMode = APP_CONFIG.features.debugMode;
+
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = isDebugMode
+  ? [
+      sepolia,
+      bscTestnet,
+      polygonAmoy,
+      baseSepolia,
+      arbitrumSepolia,
+      optimismSepolia,
+      avalancheFuji,
+      plasmaTestnet,
+    ]
+  : [
+      mainnet,
+      bsc,
+      polygon,
+      base,
+      arbitrum,
+      optimism,
+      avalanche,
+      plasma,
+      sepolia,
+    ];
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks,
+  ssr: true,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 export const metadata = {
-  name: 'vectorizerr',
-  description: 'Private in-browser vector graphics studio',
-  url: 'https://vectorizerr.app',
-  icons: ['https://avatars.githubusercontent.com/u/179229932'],
+  name: APP_CONFIG.name,
+  description: APP_CONFIG.description,
+  url: APP_CONFIG.appUrl,
+  icons: [`${APP_CONFIG.appUrl}${APP_CONFIG.iconUrl}`],
 };
 
 // Initialize AppKit with only Web3 wallets enabled (no social media or email logins)
@@ -33,6 +76,6 @@ export const appKit = createAppKit({
     emailShowWallets: true,
     allWallets: true,
   },
-  allWallets: 'SHOW',
+  allWallets: "SHOW",
   enableWallets: true,
 });

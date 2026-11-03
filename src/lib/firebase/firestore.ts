@@ -19,6 +19,7 @@ import { db, isFirebaseConfigured } from './config';
 import { VTracerOptions } from '../vtracer/types';
 import { compressSvgString, decompressSvgString } from '../vtracer/compression';
 import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
+import { isAdminPassEnabled, isLocalAdminPassActive } from '@/config/app.config';
 import {
   requestServerHandshake,
   hasValidSessionTicket,
@@ -130,8 +131,8 @@ export function getImageUnlockStatus(
     return { isUnlocked: false, generationsRemaining: 0, generationsUsed: 0, maxGenerations: 10 };
   }
 
-  // Admins and active subscribers have unlimited generations
-  if (profile.isAdmin || profile.subscription?.status === 'active') {
+  // Admins (if enabled) and active subscribers have unlimited generations
+  if ((isAdminPassEnabled() && profile.isAdmin) || profile.subscription?.status === 'active') {
     return { isUnlocked: true, generationsRemaining: 9999, generationsUsed: 0, maxGenerations: 9999 };
   }
 
@@ -239,7 +240,7 @@ export async function consumeImageGeneration(
   imageHash: string
 ): Promise<number> {
   const profile = await getUserProfile(userId);
-  if (profile.isAdmin || profile.subscription?.status === 'active') {
+  if ((isAdminPassEnabled() && profile.isAdmin) || profile.subscription?.status === 'active') {
     return 9999;
   }
 
@@ -485,7 +486,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
           displayName: data.displayName || null,
           walletAddress: data.walletAddress || null,
           credits: typeof data.credits === 'number' ? data.credits : 0,
-          isAdmin: Boolean(data.isAdmin || safeGetStorage('vtracer_admin_override') === 'true'),
+          isAdmin: isAdminPassEnabled() && Boolean(data.isAdmin || isLocalAdminPassActive()),
           subscription: data.subscription || { status: 'inactive' },
           isPro: Boolean(data.isPro),
           unlockedSvgIds: Array.isArray(data.unlockedSvgIds) ? data.unlockedSvgIds : [],
@@ -504,7 +505,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
       const parsed: UserProfile = JSON.parse(existingRaw);
       return {
         ...parsed,
-        isAdmin: Boolean(parsed.isAdmin || safeGetStorage('vtracer_admin_override') === 'true'),
+        isAdmin: isAdminPassEnabled() && Boolean(parsed.isAdmin || isLocalAdminPassActive()),
         subscription: parsed.subscription || { status: 'inactive' },
         unlockedSvgIds: parsed.unlockedSvgIds || [],
         unlockedImages: parsed.unlockedImages || {},
@@ -515,7 +516,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
   const defaultProfile: UserProfile = {
     uid: userId,
     credits: 0,
-    isAdmin: safeGetStorage('vtracer_admin_override') === 'true',
+    isAdmin: isAdminPassEnabled() && isLocalAdminPassActive(),
     subscription: { status: 'inactive' },
     isPro: false,
     unlockedSvgIds: [],
@@ -629,13 +630,12 @@ export async function createCryptoTransaction(
  * Fetches all transactions for a specific user from Firestore or localStorage.
  */
 export async function fetchUserTransactions(userId: string): Promise<CryptoTransaction[]> {
-  if (isFirebaseConfigured && db) {
+  if (isFirebaseConfigured && db && userId) {
     try {
       const txCollection = collection(db, 'transactions');
       const q = query(
         txCollection,
         where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
         limit(100)
       );
       const snapshot = await getDocs(q);
@@ -664,6 +664,7 @@ export async function fetchUserTransactions(userId: string): Promise<CryptoTrans
           confirmedAt: d.confirmedAt,
         });
       });
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       return items;
     } catch (err) {
       console.warn('Failed to query transactions from Firestore, using local fallback:', err);
@@ -693,7 +694,6 @@ export function listenToUserTransactions(
       const q = query(
         txCollection,
         where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
         limit(100)
       );
 
@@ -725,11 +725,22 @@ export function listenToUserTransactions(
               confirmedAt: d.confirmedAt,
             });
           });
+          items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           onUpdate(items);
         },
         (err) => {
           console.warn('Firestore transactions snapshot error:', err);
-          fetchUserTransactions(userId).then(onUpdate);
+          try {
+            const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
+            if (raw) {
+              const localItems: CryptoTransaction[] = JSON.parse(raw);
+              onUpdate(localItems.filter((t) => t.userId === userId || !userId || userId === 'guest'));
+            } else {
+              onUpdate([]);
+            }
+          } catch {
+            onUpdate([]);
+          }
         }
       );
     } catch (err) {
@@ -738,7 +749,17 @@ export function listenToUserTransactions(
   }
 
   // Fallback to initial local fetch
-  fetchUserTransactions(userId).then(onUpdate);
+  try {
+    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
+    if (raw) {
+      const items: CryptoTransaction[] = JSON.parse(raw);
+      onUpdate(items.filter((t) => t.userId === userId || !userId || userId === 'guest'));
+    } else {
+      onUpdate([]);
+    }
+  } catch {
+    onUpdate([]);
+  }
   return () => {};
 }
 
