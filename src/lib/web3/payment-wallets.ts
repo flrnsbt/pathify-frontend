@@ -1,85 +1,99 @@
-export type SupportedChainKey = 'eth' | 'bsc' | 'pol' | 'base' | 'arbitrum' | 'btc' | 'tron';
+import defaultWalletsData from '@/config/wallets.json';
+
+export type SupportedChainKey = 'bsc' | 'eth' | 'btc' | 'pol' | 'base' | 'arbitrum';
 export type SupportedToken = 'ETH' | 'BTC' | 'USDT' | 'USDC' | 'BNB' | 'POL';
 
 export interface ChainMetadata {
   key: SupportedChainKey;
   name: string;
+  shortName: string;
   badge: string;
   chainId?: number;
   isEvm: boolean;
   tokens: SupportedToken[];
   nativeToken: SupportedToken;
   explorerUrl?: string;
+  color: string;
+  bgGlow: string;
 }
 
 export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> = {
   bsc: {
     key: 'bsc',
     name: 'BNB Smart Chain',
-    badge: 'BSC / BEP-20',
+    shortName: 'BNB Chain',
+    badge: 'BEP-20',
     chainId: 56,
     isEvm: true,
     tokens: ['USDT', 'USDC', 'BNB'],
     nativeToken: 'BNB',
     explorerUrl: 'https://bscscan.com',
+    color: '#F3BA2F',
+    bgGlow: 'rgba(243, 186, 47, 0.12)',
   },
   eth: {
     key: 'eth',
     name: 'Ethereum',
-    badge: 'ETH / ERC-20',
+    shortName: 'Ethereum',
+    badge: 'ERC-20',
     chainId: 1,
     isEvm: true,
     tokens: ['ETH', 'USDT', 'USDC'],
     nativeToken: 'ETH',
     explorerUrl: 'https://etherscan.io',
+    color: '#627EEA',
+    bgGlow: 'rgba(98, 126, 234, 0.12)',
   },
   btc: {
     key: 'btc',
     name: 'Bitcoin Network',
-    badge: 'BTC Mainnet',
+    shortName: 'Bitcoin',
+    badge: 'Mainnet',
     isEvm: false,
     tokens: ['BTC'],
     nativeToken: 'BTC',
     explorerUrl: 'https://mempool.space',
+    color: '#F7931A',
+    bgGlow: 'rgba(247, 147, 26, 0.12)',
   },
   pol: {
     key: 'pol',
     name: 'Polygon',
-    badge: 'POL / Polygon',
+    shortName: 'Polygon',
+    badge: 'PoS',
     chainId: 137,
     isEvm: true,
     tokens: ['USDT', 'USDC', 'POL'],
     nativeToken: 'POL',
     explorerUrl: 'https://polygonscan.com',
+    color: '#8247E5',
+    bgGlow: 'rgba(130, 71, 229, 0.12)',
   },
   base: {
     key: 'base',
     name: 'Base',
-    badge: 'Base L2',
+    shortName: 'Base',
+    badge: 'L2',
     chainId: 8453,
     isEvm: true,
     tokens: ['ETH', 'USDC'],
     nativeToken: 'ETH',
     explorerUrl: 'https://basescan.org',
+    color: '#0052FF',
+    bgGlow: 'rgba(0, 82, 255, 0.12)',
   },
   arbitrum: {
     key: 'arbitrum',
     name: 'Arbitrum One',
-    badge: 'Arbitrum L2',
+    shortName: 'Arbitrum',
+    badge: 'L2',
     chainId: 42161,
     isEvm: true,
     tokens: ['ETH', 'USDT', 'USDC'],
     nativeToken: 'ETH',
     explorerUrl: 'https://arbiscan.io',
-  },
-  tron: {
-    key: 'tron',
-    name: 'TRON Network',
-    badge: 'TRON / TRC-20',
-    isEvm: false,
-    tokens: ['USDT'],
-    nativeToken: 'USDT',
-    explorerUrl: 'https://tronscan.org',
+    color: '#28A0F0',
+    bgGlow: 'rgba(40, 160, 240, 0.12)',
   },
 };
 
@@ -115,6 +129,7 @@ export interface RawWalletConfig {
   address?: string;
   walletAddress?: string;
   recipient?: string;
+  tokens?: string[];
 }
 
 export interface ParsedPaymentWallet {
@@ -137,7 +152,6 @@ export function normalizeChainKey(input?: string | number): SupportedChainKey | 
   if (str === '8453' || str === 'base') return 'base';
   if (str === '42161' || str === 'arbitrum' || str === 'arb' || str === 'arb1') return 'arbitrum';
   if (str === 'btc' || str === 'bitcoin') return 'btc';
-  if (str === 'tron' || str === 'trx' || str === 'trc20') return 'tron';
 
   return null;
 }
@@ -155,11 +169,33 @@ export function normalizeToken(input?: string): SupportedToken | null {
 }
 
 /**
- * Parses JSONL (or JSON Array) formatted PAYMENT_WALLETS environment variable.
+ * Parses payment wallets from:
+ * 1. Explicit rawEnv string
+ * 2. NEXT_PUBLIC_PAYMENT_WALLETS or PAYMENT_WALLETS environment variable
+ * 3. Fallback to src/config/wallets.json
  */
 export function parsePaymentWallets(rawEnv?: string): ParsedPaymentWallet[] {
   const content = rawEnv || process.env.NEXT_PUBLIC_PAYMENT_WALLETS || process.env.PAYMENT_WALLETS || '';
-  if (!content.trim()) return [];
+
+  // If no environment variable is provided, load default wallets from wallets.json
+  if (!content.trim()) {
+    if (defaultWalletsData && Array.isArray(defaultWalletsData.wallets)) {
+      const results: ParsedPaymentWallet[] = [];
+      for (const item of defaultWalletsData.wallets as RawWalletConfig[]) {
+        const chainKey = normalizeChainKey(item.chainId || item.chain);
+        const wallet = item.address || item.wallet;
+        if (chainKey && wallet) {
+          results.push({
+            chainId: typeof item.chainId === 'number' ? item.chainId : undefined,
+            chainKey,
+            wallet: wallet.trim(),
+          });
+        }
+      }
+      return results;
+    }
+    return [];
+  }
 
   const results: ParsedPaymentWallet[] = [];
 
@@ -239,10 +275,7 @@ export function getRecipientWallet(
   if (chainKey === 'btc') {
     return 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
   }
-  if (chainKey === 'tron') {
-    return 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
-  }
-  return '0x000000000000000000000000000000000000dEaD';
+  return '0x0000000000000000000000000000000000000000';
 }
 
 export interface CreditPack {

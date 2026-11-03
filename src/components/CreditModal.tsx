@@ -31,6 +31,7 @@ import {
   parsePaymentWallets,
   ParsedPaymentWallet,
 } from '../lib/web3/payment-wallets';
+import { ChainIcon } from './ChainIcons';
 
 interface CreditModalProps {
   isOpen: boolean;
@@ -262,9 +263,6 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <span>Crypto Credit Packs</span>
-                <span className="text-[11px] font-normal text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-full">
-                  Pay-as-you-go
-                </span>
               </h2>
               <p className="text-xs text-neutral-400">
                 Unlock high-resolution SVG downloads via Web3 or Direct Transfer
@@ -353,12 +351,18 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           </div>
         </div>
 
-        {/* Step 2: Select Chain / Network */}
+        {/* Step 2: Choose Blockchain Network (Cards with Chain Icons) */}
         <div className="mt-5 space-y-2">
-          <label className="text-xs font-semibold text-neutral-300">
-            2. Choose Blockchain Network
-          </label>
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+              <span>2. Choose Blockchain Network</span>
+            </label>
+            <span className="text-[11px] text-neutral-400">
+              Selected: <span className="text-white font-medium">{chainMeta.name}</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {(Object.keys(SUPPORTED_CHAINS) as SupportedChainKey[]).map((key) => {
               const chain = SUPPORTED_CHAINS[key];
               const isSelected = selectedChainKey === key;
@@ -367,16 +371,58 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                   key={key}
                   type="button"
                   onClick={() => setSelectedChainKey(key)}
-                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border text-center transition ${
+                  style={{
+                    backgroundColor: isSelected ? chain.bgGlow : undefined,
+                    borderColor: isSelected ? chain.color : undefined,
+                  }}
+                  className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border text-left transition-all duration-150 ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20'
-                      : 'border-neutral-800 bg-neutral-950/60 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
+                      ? 'shadow-md shadow-black/40 ring-1 ring-white/10'
+                      : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900/80'
                   }`}
                 >
-                  <span className="text-xs font-semibold uppercase">{key}</span>
-                  <span className={`text-[9px] truncate max-w-full ${isSelected ? 'text-indigo-100' : 'text-neutral-500'}`}>
-                    {chain.isEvm ? 'EVM' : key.toUpperCase()}
-                  </span>
+                  {/* Chain Icon with custom network brand style */}
+                  <div
+                    className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl p-1 transition-transform group-hover:scale-105"
+                    style={{
+                      backgroundColor: `${chain.color}15`,
+                    }}
+                  >
+                    <ChainIcon chainKey={key} className="h-5 w-5 object-contain" />
+                  </div>
+
+                  {/* Chain Details */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-white truncate">
+                        {chain.shortName}
+                      </span>
+                      {isSelected && (
+                        <span
+                          className="h-1.5 w-1.5 rounded-full shrink-0 animate-pulse"
+                          style={{ backgroundColor: chain.color }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="rounded bg-neutral-800/80 px-1 py-0.2 text-[9px] font-mono text-neutral-300">
+                        {chain.badge}
+                      </span>
+                      <span className="text-[9px] text-neutral-500 font-mono">
+                        {chain.isEvm ? 'EVM' : 'UTXO'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Active Indicator Checkmark */}
+                  {isSelected && (
+                    <div
+                      className="absolute top-2 right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full text-white shadow-sm"
+                      style={{ backgroundColor: chain.color }}
+                    >
+                      <Check className="h-2 w-2 text-black stroke-[3]" />
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -507,7 +553,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
               </button>
             </div>
           ) : (
-            /* Direct Transfer / QR Code Interface (Supports BTC, TRON, and EVM) */
+            /* Direct Transfer / QR Code Interface (Supports BTC and EVM) */
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-4 items-center">
                 {/* QR Code */}
@@ -614,7 +660,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
 
         {/* Footer info */}
         <div className="mt-4 flex items-center justify-between text-[11px] text-neutral-500">
-          <span>Supported: BSC, ETH, BTC, POL, Base, Arbitrum, TRON</span>
+          <span>Supported: BSC, ETH, BTC, POL, Base, Arbitrum</span>
           {chainMeta.explorerUrl && (
             <a
               href={chainMeta.explorerUrl}

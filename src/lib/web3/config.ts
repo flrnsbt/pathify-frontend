@@ -20,7 +20,7 @@ export const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932'],
 };
 
-// Initialize AppKit at module level so hooks work in SSR and Client
+// Initialize AppKit with only Web3 wallets enabled (no social media or email logins)
 export const appKit = createAppKit({
   adapters: [wagmiAdapter],
   networks,
@@ -28,5 +28,11 @@ export const appKit = createAppKit({
   metadata,
   features: {
     analytics: false,
+    email: false,
+    socials: false,
+    emailShowWallets: true,
+    allWallets: true,
   },
+  allWallets: 'SHOW',
+  enableWallets: true,
 });
