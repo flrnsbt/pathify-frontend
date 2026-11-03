@@ -2,44 +2,88 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User profile: only the authenticated user can read their profile
-    // Safe fields only can be updated by the client
-    // 'credits', 'isAdmin', 'subscription', and 'unlockedImages' can NEVER be altered directly by client writes
+    // =========================================================================
+    // User Profiles (/users/{userId})
+    // =========================================================================
+    // Clients can read their own profile.
+    // Sensitive fields (credits, isAdmin, isPro, subscription, unlocked quotas)
+    // are strictly immutable to client-side writes and can ONLY be altered
+    // server-side using the Firebase Admin SDK / Google Service Account.
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Initial registration: cannot self-grant credits, admin privileges, or active subscription
+      // Initial registration: user can create their own doc, but cannot self-grant
+      // credits, admin privileges, pro status, active subscriptions, or image unlocks.
       allow create: if request.auth != null && request.auth.uid == userId
                     && (!('credits' in request.resource.data) || request.resource.data.credits == 0)
                     && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
-                    && (!('subscription' in request.resource.data) || request.resource.data.subscription.status == 'inactive');
+                    && (!('isPro' in request.resource.data) || request.resource.data.isPro == false)
+                    && (!('subscription' in request.resource.data) || request.resource.data.subscription.status == 'inactive')
+                    && (!('unlockedImages' in request.resource.data) || request.resource.data.unlockedImages.size() == 0)
+                    && (!('unlockedSvgIds' in request.resource.data) || request.resource.data.unlockedSvgIds.size() == 0);
       
-      // Profile updates: clients cannot tamper with credits, privileges, subscriptions, or unlocked image quotas
+      // Profile updates: clients cannot tamper with credits, privileges, subscriptions, or unlocked quotas.
+      // Only non-sensitive profile fields (walletAddress, displayName, photoURL, updatedAt) may be updated.
       allow update: if request.auth != null && request.auth.uid == userId
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['credits', 'isAdmin', 'subscription', 'unlockedImages']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                      'credits',
+                      'isAdmin',
+                      'isPro',
+                      'subscription',
+                      'unlockedImages',
+                      'unlockedSvgIds'
+                    ]);
       
-      // Vectorization history: only the authenticated user can read & write their history records
+      // Deletions are forbidden from client
+      allow delete: if false;
+      
+      // -----------------------------------------------------------------------
+      // Vectorization History (/users/{userId}/history/{historyId})
+      // -----------------------------------------------------------------------
+      // History items are created strictly server-side (/api/save-history)
+      // using service account authorization after verifying paid generation quotas.
+      // Users can view and delete their own history entries.
       match /history/{historyId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if false; // Server-only via /api/save-history
       }
     }
     
-    // Cryptographic Handshake Tickets: read-only for ticket owner, created strictly by server
-    match /handshakes/{ticketId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow write: if false; // Only server (Admin SDK / service account) can create/update tickets
-    }
-    
-    // Crypto Transactions: users can read their own transactions and submit pending orders
+    // =========================================================================
+    // Crypto Transactions (/transactions/{transactionId})
+    // =========================================================================
+    // All writes (create, update, delete) are strictly forbidden from the client SDK.
+    // Transactions are created via /api/create-transaction using Service Account auth,
+    // and finalized/confirmed exclusively by the Cloudflare Worker blockchain verifier.
+    // Users can only read their own transaction history and status.
     match /transactions/{transactionId} {
       allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Clients cannot self-confirm transactions or alter credit amounts
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'credits']);
+      allow write: if false; // Server-only via Admin SDK / Service Account
     }
     
-    // Deny all other access by default
+    // =========================================================================
+    // Support Tickets (/support_tickets/{ticketId})
+    // =========================================================================
+    // Tickets are ingested strictly by the backend worker (/api/support).
+    // Users can read only their own submitted inquiries.
+    match /support_tickets/{ticketId} {
+      allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if false; // Server-only via Admin SDK / Service Account
+    }
+    
+    // =========================================================================
+    // Cryptographic Handshake Tickets (/handshakes/{ticketId})
+    // =========================================================================
+    // Handshake records are created and signed exclusively by the backend worker.
+    match /handshakes/{ticketId} {
+      allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if false; // Server-only via Admin SDK / Service Account
+    }
+    
+    // =========================================================================
+    // Default Deny
+    // =========================================================================
+    // Deny all other collections and wildcard access by default.
     match /{document=**} {
       allow read, write: if false;
     }

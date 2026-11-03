@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured, auth, getAppCheckToken } from './config';
+import { handleAuthExpired } from './auth-context';
 import { VTracerOptions } from '../vtracer/types';
 import { compressSvgString, decompressSvgString } from '../vtracer/compression';
 import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
@@ -319,8 +320,9 @@ export async function unlockSvgWithCredit(
 }
 
 /**
- * Saves a vectorization history item.
- * Compresses the SVG data using gzip before storing in Firestore and localStorage.
+ * Saves a vectorization history item via the backend server endpoint (service account auth).
+ * Compresses the SVG data using gzip before storing.
+ * Client-side Firestore direct writes are removed for security.
  * Only paid generations should be passed to this function.
  */
 export async function saveVectorizationHistory(
@@ -337,32 +339,77 @@ export async function saveVectorizationHistory(
     createdAt: Date.now(),
   };
 
-  // 1. If Firebase is configured and online, save to Firestore users/{userId}/history
-  if (isFirebaseConfigured && db) {
-    try {
-      const historyCollection = collection(db, 'users', userId, 'history');
-      const docRef = await addDoc(historyCollection, {
-        ...itemToStore,
-        serverTimestamp: serverTimestamp(),
-      });
-      return docRef.id;
-    } catch (err) {
-      console.warn('Failed to write to Firestore, falling back to local storage:', err);
+  let savedId = `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  // 1. Post to backend server endpoint (service account writes to users/{userId}/history)
+  const endpoint = APP_CONFIG.api.saveHistoryUrl || '/api/save-history';
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      try {
+        const idToken = await currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${idToken}`;
+      } catch (tokenErr) {
+        console.warn('[History] Token retrieval failed:', tokenErr);
+        await handleAuthExpired();
+      }
     }
+
+    const appCheckToken = await getAppCheckToken();
+    if (appCheckToken) {
+      headers['X-Firebase-AppCheck'] = appCheckToken;
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(itemToStore),
+    });
+
+    if (res.status === 401) {
+      const errData = (await res.clone().json().catch(() => ({}))) as any;
+      if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await currentUser.getIdToken(true);
+            console.warn('[History] Session confirmed active with Google. Skipping disconnect.');
+          } else {
+            await handleAuthExpired();
+          }
+        } catch {
+          await handleAuthExpired();
+        }
+      }
+    }
+
+    if (res.ok) {
+      const resJson = (await res.json().catch(() => ({}))) as any;
+      if (resJson.historyId) {
+        savedId = resJson.historyId;
+      }
+    } else {
+      console.warn('Backend history saving returned error status:', res.status);
+    }
+  } catch (err) {
+    console.warn('Failed to write history to backend, falling back to local storage:', err);
   }
 
-  // 2. Fallback / offline / demo mode via localStorage
+  // 2. Fallback / offline / instant local cache via localStorage
   try {
     const existingRaw = safeGetStorage(LOCAL_STORAGE_HISTORY_KEY);
     const existing: VectorizationHistoryItem[] = existingRaw ? JSON.parse(existingRaw) : [];
-    const id = `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const newItem: VectorizationHistoryItem = { ...itemToStore, id, svg: compressedSvg };
-    const updated = [newItem, ...existing].slice(0, 50); // keep last 50
+    const newItem: VectorizationHistoryItem = { ...itemToStore, id: savedId, svg: compressedSvg };
+    const updated = [newItem, ...existing.filter((h) => h.id !== savedId)].slice(0, 50); // keep last 50
     safeSetStorage(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(updated));
-    return id;
+    return savedId;
   } catch (err) {
     console.error('Error saving to local history:', err);
-    return `local-${Date.now()}`;
+    return savedId;
   }
 }
 
@@ -579,7 +626,9 @@ export async function updateUserCredits(
 }
 
 /**
- * Creates a new crypto transaction record in Firestore (and localStorage fallback).
+ * Creates a new crypto transaction record via the backend server endpoint (service account auth).
+ * Client-side Firestore direct writes are removed for security.
+ * Falls back to localStorage if offline/guest mode.
  */
 export async function createCryptoTransaction(
   data: Omit<CryptoTransaction, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
@@ -598,21 +647,65 @@ export async function createCryptoTransaction(
 
   let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const txCollection = collection(db, 'transactions');
-      const docRef = await addDoc(txCollection, {
-        ...txData,
-        serverCreatedAt: serverTimestamp(),
-        serverUpdatedAt: serverTimestamp(),
-      });
-      createdId = docRef.id;
-    } catch (err) {
-      console.warn('Failed to save transaction to Firestore, storing locally:', err);
+  // 1. Post to backend server endpoint (service account writes to transactions collection)
+  const endpoint = APP_CONFIG.api.createTransactionUrl || '/api/create-transaction';
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      try {
+        const idToken = await currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${idToken}`;
+      } catch (tokenErr) {
+        console.warn('[Transaction] Token retrieval failed:', tokenErr);
+        await handleAuthExpired();
+      }
     }
+
+    const appCheckToken = await getAppCheckToken();
+    if (appCheckToken) {
+      headers['X-Firebase-AppCheck'] = appCheckToken;
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(txData),
+    });
+
+    if (res.status === 401) {
+      const errData = (await res.clone().json().catch(() => ({}))) as any;
+      if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await currentUser.getIdToken(true);
+            console.warn('[History] Session confirmed active with Google. Skipping disconnect.');
+          } else {
+            await handleAuthExpired();
+          }
+        } catch {
+          await handleAuthExpired();
+        }
+      }
+    }
+
+    if (res.ok) {
+      const resJson = (await res.json().catch(() => ({}))) as any;
+      if (resJson.transactionId) {
+        createdId = resJson.transactionId;
+      }
+    } else {
+      console.warn('Backend transaction creation returned error status:', res.status);
+    }
+  } catch (err) {
+    console.warn('Failed to save transaction to backend, storing locally:', err);
   }
 
-  // Also save to localStorage
+  // 2. Also cache to localStorage for offline access & immediate responsiveness
   try {
     const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
     const existing: CryptoTransaction[] = raw ? JSON.parse(raw) : [];
@@ -623,7 +716,7 @@ export async function createCryptoTransaction(
     console.error('Error saving transaction locally:', err);
   }
 
-  // Trigger backend lazy scheduler for transaction verification
+  // 3. Trigger backend lazy scheduler for transaction verification
   if (data.userId) {
     refreshUserCredits(data.userId).catch(() => {});
   }
@@ -904,9 +997,12 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
       const currentUser = auth.currentUser;
       if (currentUser) {
         try {
-          const idToken = await currentUser.getIdToken(false);
+          const idToken = await currentUser.getIdToken();
           headers['Authorization'] = `Bearer ${idToken}`;
-        } catch {}
+        } catch (tokenErr) {
+          console.warn('[Firestore] Failed to obtain valid ID token, session expired:', tokenErr);
+          await handleAuthExpired();
+        }
       }
 
       // 2. Attach App Check token
@@ -930,7 +1026,24 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
           })),
         }),
       });
-      if (res.ok) {
+
+      if (res.status === 401) {
+        const errorData = (await res.clone().json().catch(() => ({}))) as any;
+        if (errorData.error && /expired|invalid.*token/i.test(errorData.error)) {
+          try {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              await currentUser.getIdToken(true);
+              console.warn('[Firestore] Google confirmed session is active. Skipping disconnect.');
+            } else {
+              await handleAuthExpired();
+            }
+          } catch (authErr) {
+            console.warn('[Firestore] Google confirmed session is revoked, signing out:', authErr);
+            await handleAuthExpired();
+          }
+        }
+      } else if (res.ok) {
         cloudFunctionNotified = true;
       }
     } catch (err) {

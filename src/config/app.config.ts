@@ -42,6 +42,8 @@ export const APP_CONFIG = {
     handshakeUrl: "/api/handshake",
     refreshCreditsUrl: "/api/refresh-credits",
     supportUrl: "/api/support",
+    createTransactionUrl: "/api/create-transaction",
+    saveHistoryUrl: "/api/save-history",
   },
 
   // CORS allowed origins for serverless API routes

@@ -19,9 +19,28 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  handleAuthExpired: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * Global handler invoked when the backend or client detects an expired or invalid Firebase auth token.
+ * Immediately unauthenticates the user in Firebase Auth and notifies listeners.
+ */
+export async function handleAuthExpired(): Promise<void> {
+  console.warn('[Auth] Session token expired or invalid. Transitioning user to unauthenticated state.');
+  try {
+    if (isFirebaseConfigured && auth) {
+      await fbSignOut(auth);
+    }
+  } catch (err) {
+    console.warn('[Auth] Error signing out expired session:', err);
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth-token-expired'));
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +55,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(p);
     } catch (err) {
       console.warn('Error fetching profile:', err);
+    }
+  }, []);
+
+  // Listen for global auth-token-expired events
+  useEffect(() => {
+    const onAuthExpired = () => {
+      setUser(null);
+      setProfile(null);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth-token-expired', onAuthExpired);
+      return () => {
+        window.removeEventListener('auth-token-expired', onAuthExpired);
+      };
     }
   }, []);
 
@@ -130,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginWithGoogle,
       logout,
       refreshProfile,
+      handleAuthExpired,
     }),
     [user, profile, loading, loginWithGoogle, logout, refreshProfile]
   );

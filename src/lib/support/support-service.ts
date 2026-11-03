@@ -1,6 +1,7 @@
 import { APP_CONFIG } from '@/config/app.config';
 import { getAppCheckToken } from '../firebase/app-check';
 import { auth } from '../firebase/config';
+import { handleAuthExpired } from '../firebase/auth-context';
 
 export interface SupportTicketInput {
   name?: string;
@@ -51,10 +52,11 @@ export async function submitSupportTicket(
   if (currentUser) {
     try {
       userId = currentUser.uid;
-      const idToken = await currentUser.getIdToken(false);
+      const idToken = await currentUser.getIdToken();
       headers['Authorization'] = `Bearer ${idToken}`;
     } catch (err) {
-      console.warn('[Support] Could not acquire ID token:', err);
+      console.warn('[Support] Could not acquire ID token, session expired:', err);
+      await handleAuthExpired();
     }
   }
 
@@ -71,6 +73,21 @@ export async function submitSupportTicket(
     });
 
     const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      if (data.error && /expired|invalid.*token/i.test(data.error)) {
+        try {
+          if (currentUser) {
+            await currentUser.getIdToken(true);
+            console.warn('[Support] Session confirmed active with Google. Skipping disconnect.');
+          } else {
+            await handleAuthExpired();
+          }
+        } catch {
+          await handleAuthExpired();
+        }
+      }
+    }
 
     if (!response.ok) {
       return {

@@ -227,17 +227,121 @@ async function computeHmacSha256(
   return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Cache for Google Auth JWKS
+let cachedGoogleAuthJwks: {
+  keys: Array<{ kty: string; alg: string; use: string; n: string; e: string; kid: string }>;
+  exp: number;
+} | null = null;
+
+async function getGoogleAuthJwks(): Promise<
+  Array<{ kty: string; alg: string; use: string; n: string; e: string; kid: string }>
+> {
+  const now = Date.now();
+  if (cachedGoogleAuthJwks && cachedGoogleAuthJwks.exp > now) {
+    return cachedGoogleAuthJwks.keys;
+  }
+
+  try {
+    const res = await fetch(
+      'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
+    );
+    if (!res.ok) throw new Error(`Google Auth JWKS fetch failed: ${res.status}`);
+    const data = (await res.json()) as {
+      keys: Array<{ kty: string; alg: string; use: string; n: string; e: string; kid: string }>;
+    };
+    cachedGoogleAuthJwks = { keys: data.keys, exp: now + 3600000 };
+    return data.keys;
+  } catch (err) {
+    console.warn('[Handshake API] Error fetching Google Auth JWKS:', err);
+    return [];
+  }
+}
+
 /**
- * Verifies Firebase Auth ID Token using Google Identity Toolkit REST API
+ * Verifies Firebase Auth ID Token using Web Crypto RS256 JWKS verification
+ * with fallback to Google Identity Toolkit REST API
  */
 async function verifyFirebaseIdToken(
   idToken: string,
 ): Promise<{ uid: string; email?: string } | null> {
+  if (!idToken || typeof idToken !== 'string') return null;
+
+  const parts = idToken.split('.');
+  if (parts.length !== 3) return null;
+
+  // 1. Attempt Cryptographic Web Crypto RS256 Verification against Google JWKS
+  try {
+    const headerStr = new TextDecoder().decode(base64UrlToBuffer(parts[0]));
+    const payloadStr = new TextDecoder().decode(base64UrlToBuffer(parts[1]));
+    const header = JSON.parse(headerStr);
+    const payload = JSON.parse(payloadStr);
+
+    if (header.alg === 'RS256' && header.kid) {
+      let keys = await getGoogleAuthJwks();
+      let key = keys.find((k) => k.kid === header.kid);
+
+      if (!key) {
+        cachedGoogleAuthJwks = null;
+        keys = await getGoogleAuthJwks();
+        key = keys.find((k) => k.kid === header.kid);
+      }
+
+      if (key) {
+        const cryptoKey = await crypto.subtle.importKey(
+          'jwk',
+          key,
+          { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+          false,
+          ['verify']
+        );
+
+        const signedData = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+        const signatureBuf = base64UrlToBuffer(parts[2]);
+
+        const isValid = await crypto.subtle.verify(
+          'RSASSA-PKCS1-v1_5',
+          cryptoKey,
+          signatureBuf,
+          signedData
+        );
+
+        if (isValid) {
+          const now = Math.floor(Date.now() / 1000);
+          const expectedAud = FIREBASE_PROJECT_ID || 'vectorizerr';
+
+          if (payload.exp && payload.exp < now) {
+            console.warn(`[Handshake API] Token expired (exp: ${payload.exp}, now: ${now})`);
+            return null;
+          }
+          if (payload.aud !== expectedAud) {
+            console.warn(`[Handshake API] Audience mismatch: expected ${expectedAud}, got ${payload.aud}`);
+            return null;
+          }
+          if (payload.iss !== `https://securetoken.google.com/${expectedAud}`) {
+            console.warn(`[Handshake API] Issuer mismatch: ${payload.iss}`);
+            return null;
+          }
+
+          const uid = payload.user_id || payload.sub;
+          if (uid) {
+            return { uid, email: payload.email };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Handshake API] JWKS check error, trying REST fallback:', err);
+  }
+
+  // 2. Fallback to Identity Toolkit REST API
   try {
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Referer": "https://vectorizerr.pages.dev",
+      },
       body: JSON.stringify({ idToken }),
     });
 

@@ -2,6 +2,7 @@
 
 import { auth } from '../firebase/config';
 import { getAppCheckToken } from '../firebase/app-check';
+import { handleAuthExpired } from '../firebase/auth-context';
 import { APP_CONFIG } from '@/config/app.config';
 
 export interface HandshakeTicket {
@@ -97,7 +98,17 @@ export async function requestServerHandshake(
 
   try {
     // 1. Obtain Firebase Auth ID token
-    const idToken = await currentUser.getIdToken(false);
+    let idToken: string;
+    try {
+      idToken = await currentUser.getIdToken();
+    } catch (tokenErr) {
+      console.warn('[Handshake] Failed to obtain valid ID token, session expired:', tokenErr);
+      await handleAuthExpired();
+      return {
+        success: false,
+        error: 'Authentication session expired. Please sign in again.',
+      };
+    }
 
     // 2. Obtain Firebase App Check token
     const appCheckToken = await getAppCheckToken();
@@ -124,6 +135,21 @@ export async function requestServerHandshake(
       success: false,
       error: `Server responded with status ${res.status}`,
     }));
+
+    if (res.status === 401) {
+      if (data.error && /expired|invalid.*token/i.test(data.error)) {
+        try {
+          if (currentUser) {
+            await currentUser.getIdToken(true);
+            console.warn('[Handshake] Session confirmed active with Google. Skipping disconnect.');
+          } else {
+            await handleAuthExpired();
+          }
+        } catch {
+          await handleAuthExpired();
+        }
+      }
+    }
 
     if (!res.ok || !data.success || !data.ticket) {
       return {
