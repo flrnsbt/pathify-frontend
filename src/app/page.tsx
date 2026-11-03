@@ -9,6 +9,7 @@ import { HistoryDrawer } from '../components/HistoryDrawer';
 import { CreditModal } from '../components/CreditModal';
 import { AuthModal } from '../components/AuthModal';
 import { UnlockModal } from '../components/UnlockModal';
+import { Footer } from '../components/Footer';
 import { useVTracer } from '../hooks/useVTracer';
 import { useAuth } from '../lib/firebase/auth-context';
 import {
@@ -455,6 +456,8 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      <Footer />
 
       {/* Modals & Drawers */}
       <HistoryDrawer

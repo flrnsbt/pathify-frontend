@@ -2,6 +2,7 @@
 
 import { auth } from '../firebase/config';
 import { getAppCheckToken } from '../firebase/app-check';
+import { APP_CONFIG } from '@/config/app.config';
 
 export interface HandshakeTicket {
   ticketId: string;
@@ -109,6 +110,10 @@ export async function requestServerHandshake(
 
     if (appCheckToken) {
       headers['X-Firebase-AppCheck'] = appCheckToken;
+    }
+
+    if (APP_CONFIG.api.apiSecret) {
+      headers['x-api-secret'] = APP_CONFIG.api.apiSecret;
     }
 
     const endpoint =

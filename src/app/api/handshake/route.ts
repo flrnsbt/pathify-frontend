@@ -14,15 +14,19 @@ const FIREBASE_PROJECT_NUMBER = "717678476656";
 const ALLOWED_ORIGINS = APP_CONFIG.allowedOrigins;
 
 // JWKS cache
-let cachedJwks: { keys: Array<{ n: string; e: string; kid: string }>; exp: number } | null =
-  null;
+let cachedJwks: {
+  keys: Array<{ n: string; e: string; kid: string }>;
+  exp: number;
+} | null = null;
 
 /**
  * Verifies CORS origin and returns CORS headers
  */
 function getCorsHeaders(req: NextRequest): Record<string, string> {
   const origin = req.headers.get("origin") || "";
-  const allowed = (ALLOWED_ORIGINS as readonly string[]).includes(origin) ? origin : "";
+  const allowed = (ALLOWED_ORIGINS as readonly string[]).includes(origin)
+    ? origin
+    : "";
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -44,10 +48,9 @@ async function getAppCheckJwks(): Promise<
   }
 
   try {
-    const res = await fetch(
-      `https://firebaseappcheck.googleapis.com/v1/jwks`,
-      { next: { revalidate: 3600 } },
-    );
+    const res = await fetch(`https://firebaseappcheck.googleapis.com/v1/jwks`, {
+      next: { revalidate: 3600 },
+    });
     if (!res.ok) throw new Error(`JWKS fetch failed: ${res.status}`);
     const data = (await res.json()) as {
       keys: Array<{ n: string; e: string; kid: string }>;
@@ -76,10 +79,7 @@ function base64UrlToBuffer(base64url: string): ArrayBuffer {
 /**
  * Converts DER-encoded RSA public key to SPKI format for Web Crypto
  */
-function derToSpki(
-  nB64: string,
-  eB64: string,
-): Promise<CryptoKey> {
+function derToSpki(nB64: string, eB64: string): Promise<CryptoKey> {
   const nBuf = base64UrlToBuffer(nB64);
   const eBuf = base64UrlToBuffer(eB64);
   const n = new Uint8Array(nBuf);
@@ -112,7 +112,10 @@ function derToSpki(
   intSeq.set(eDer, 2 + nDerLen);
 
   // Algorithm identifier: RSA with SHA-256 (1.2.840.113549.1.1.11)
-  const algId = new Uint8Array([0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00]);
+  const algId = new Uint8Array([
+    0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+    0x0b, 0x05, 0x00,
+  ]);
 
   // Outer sequence
   const totalLen = intSeqLen + algId.length + 2;
@@ -133,7 +136,13 @@ function derToSpki(
     .replace(/=+$/, "");
 
   const fullJwk = `{"kty":"RSA","n":"${nB64}","e":"${eB64}","alg":"RS256","use":"sig"}`;
-  return crypto.subtle.importKey("jwk", JSON.parse(fullJwk), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  return crypto.subtle.importKey(
+    "jwk",
+    JSON.parse(fullJwk),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
 }
 
 /**

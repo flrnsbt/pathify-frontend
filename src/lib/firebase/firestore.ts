@@ -15,11 +15,11 @@ import {
   getDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './config';
+import { db, isFirebaseConfigured, auth, getAppCheckToken } from './config';
 import { VTracerOptions } from '../vtracer/types';
 import { compressSvgString, decompressSvgString } from '../vtracer/compression';
 import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
-import { isAdminPassEnabled, isLocalAdminPassActive } from '@/config/app.config';
+import { isAdminPassEnabled, isLocalAdminPassActive, APP_CONFIG } from '@/config/app.config';
 import {
   requestServerHandshake,
   hasValidSessionTicket,
@@ -893,9 +893,33 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
 
   if (functionUrl && pending.length > 0) {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // 1. Authenticate with Firebase Auth ID token if signed in
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const idToken = await currentUser.getIdToken(false);
+          headers['Authorization'] = `Bearer ${idToken}`;
+        } catch {}
+      }
+
+      // 2. Attach App Check token
+      const appCheckToken = await getAppCheckToken();
+      if (appCheckToken) {
+        headers['X-Firebase-AppCheck'] = appCheckToken;
+      }
+
+      // 3. Attach API Secret
+      if (APP_CONFIG.api.apiSecret) {
+        headers['x-api-secret'] = APP_CONFIG.api.apiSecret;
+      }
+
       const res = await fetch(functionUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           userId,
           pendingTransactions: pending.map((t) => ({

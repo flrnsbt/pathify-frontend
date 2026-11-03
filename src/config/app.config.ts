@@ -35,11 +35,21 @@ export const APP_CONFIG = {
     debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === "true",
   },
 
-  // API Endpoints
+  // API Endpoints & Secrets
   api: {
+    backendUrl:
+      process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.vectorizerr.workers.dev",
     handshakeUrl: process.env.NEXT_PUBLIC_HANDSHAKE_API_URL || "/api/handshake",
     refreshCreditsUrl:
-      process.env.NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL || "",
+      process.env.NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL ||
+      "https://api.vectorizerr.workers.dev/api/refresh-credits",
+    supportUrl:
+      process.env.NEXT_PUBLIC_SUPPORT_API_URL ||
+      (process.env.NEXT_PUBLIC_BACKEND_URL
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/support`
+        : "https://api.vectorizerr.workers.dev/api/support"),
+    // Secret passed in x-api-secret header to authenticate requests to our backend
+    apiSecret: process.env.NEXT_PUBLIC_API_SECRET,
   },
 
   // CORS allowed origins for serverless API routes

@@ -1,75 +1,145 @@
 # vectorizerr
 
-High-performance, private in-browser raster to vector graphics (SVG) converter. Privacy is entirely respected: all image processing runs inside an isolated, client-side private sandbox on your device. Powered by **Next.js**, **Web Workers**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
+High-performance, private in-browser raster to vector graphics (SVG) converter. Privacy is entirely respected: all image processing runs inside an isolated, client-side WebAssembly sandbox on your device. Powered by **Next.js**, **Web Workers**, **VTracer WebAssembly**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
 
 ---
 
-## 🚀 Architecture Blueprint Overview
+## 🚀 Key Features & Architectural Blueprint
 
-### 1. Build & Runtime
-- **Next.js App Router** with TypeScript, Tailwind CSS v4, and ESLint.
-- Multi-target deployment:
-  - Local dev / node runtime with dynamic headers for `.wasm` MIME type (`application/wasm`).
-  - Static export (`output: 'export'`) configured for **Cloudflare Pages** with `public/_headers` and `wrangler.json`.
+### 1. In-Browser Privacy & Local Execution
+- **Zero Server Uploads**: Original images are never uploaded or inspected on remote servers. Image decoding, path tracing, color clustering, and curve optimization occur 100% locally within a dedicated Web Worker running `vtracer.wasm`.
+- **Free Raster Downloads**: Anyone can convert and freely download high-resolution raster files in **PNG** or **WebP** formats without logging in or using credits.
+- **Smart SVG Export & Quota System**: Unlocking full SVG export requires 1 credit per image hash, granting **10 vector re-generations** on that image so you can fine-tune presets, color clustering, and spline tolerances without paying again.
 
-### 2. VTracer WebAssembly & Web Worker
-- **WASM binary (`public/wasm/vtracer.wasm`)**: WebAssembly build of Tsung-Yen Tsai's `visioncortex/vtracer` library.
-- **Web Worker (`src/workers/vtracer.worker.ts`)**: Lazily initialized in a dedicated background thread to keep UI smooth and 60 FPS even on large images.
-- **Custom Hook (`src/hooks/useVTracer.ts`)**: Manages worker lifecycle, progressive state, fallback execution, and termination on unmount.
+### 2. Multi-Chain Web3 Payments & Real-Time Rates
+- **Supported Blockchains**: BNB Smart Chain (BSC), Ethereum (ETH), Polygon (POL), Base, and Arbitrum One.
+- **Tokens**: Native coins (BNB, ETH, POL) plus BEP-20 / ERC-20 stablecoins (USDT, USDC).
+- **Real-Time Conversion Rates**: Live CoinGecko / CryptoCompare price feeds dynamically price credit packs without hardcoding.
+- **Dynamic Chain Filtering**: Supported networks are automatically derived from wallet JSON configuration files; networks without a defined recipient address are safely hidden.
+- **On-Demand Transaction Verification**: Users can monitor confirmations in real-time or click "Refresh Credits" to instantly reconcile on-chain deposits via our edge worker.
 
-### 3. Core UI & Canvas Interface
-- **Drag-and-Drop Uploader**: Accepts `PNG`, `JPG`, `WEBP`, extracting clean `ImageData` arrays using an offscreen `HTMLCanvasElement`. Includes 1-click synthetic test image presets (Geometric Logo, Pixel Art, Emblem Badge).
-- **Controls Panel**:
-  - Color Mode: Full Color vs. Binary (Monochrome)
-  - Layer Hierarchy: Stacked (overlapping) vs. Cutout (holes)
-  - Curve Fitting: Spline curves, Polygon, or Raw Edges
-  - Sliders: Filter Speckle (denoise), Color Precision (clustering), Layer Difference, Corner Angle Threshold, Segment Length, Max Iterations, and Path Decimal Precision.
-  - Presets: Photo, Pixel Art, Line Art, Logo, Custom.
-- **Interactive Visualizer**:
-  - Split-screen comparison slider with drag handle.
-  - Side-by-side comparison mode.
-  - Vector only and Raster only views.
-  - Interactive Zoom & Pan controls (+, -, 100%, pan drag).
-  - Background choices: Transparent Checkerboard, Dark, Light.
-  - Export actions: Download `.svg`, Copy SVG code to clipboard.
+### 3. End-to-End Cryptographic Security & Anti-Abuse
+- **Firebase App Check**: All calls to Firestore, Firebase Auth, and our backend edge worker are attested with App Check (reCAPTCHA Enterprise & v3) verified cryptographically against Google's public JWKS endpoint (`https://firebaseappcheck.googleapis.com/v1/jwks`).
+- **Cryptographic Server Handshake**: Image unlock tickets and generation counters are signed with HMAC-SHA256 (`ticketId:userId:imageHash:generationsRemaining:expiresAt:nonce`), preventing client-side tamper or bypass via browser DevTools.
+- **Backend API Secret (`x-api-secret`)**: Requests to backend worker endpoints must include a valid API secret header matching `env.API_SECRET`.
+- **CORS Protection**: Edge endpoints are strictly restricted to authorized origins: `https://vectorizerr.pages.dev`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
 
-### 4. Firebase Authentication & Firestore History
-- **Auth Provider (`src/lib/firebase/auth-context.tsx`)**: Google Sign-In, Email/Password login & registration, and Anonymous guest sessions.
-- **Firestore History (`src/lib/firebase/firestore.ts`)**: Vectorization history saved to `users/{userId}/history` collection with metadata (node count, execution time, parameters, timestamp).
-- **Security Rules (`firestore.rules`)**: Strict access control enforcing `request.auth.uid == userId`.
-- **Offline / Local Fallback**: Seamless fallback to local storage if Firebase credentials are not yet configured.
+### 4. Legal & Customer Assistance Portal
+- **Privacy Policy (`/privacy` & `/policy`)**: Comprehensive privacy documentation detailing our zero-upload architecture, data retention, and user rights.
+- **Conditions of Use (`/terms` & `/conditions`)**: Transparent terms covering 100% user copyright ownership of generated SVG files, crypto payment irreversibility, and acceptable use policies.
+- **Contact Support (`/support` & `/contact`)**: Confidential customer assistance form with specialized fields for cryptocurrency transaction assistance (Tx Hash, Chain, Wallet Address). Inquiries trigger edge email delivery to `SUPPORT_EMAIL` (`contact@floriansabate.top`) without exposing the address to the browser, while logging an immutable ticket in Firestore.
 
-### 5. Web3 / Reown AppKit Integration
-- **Web3 Provider (`src/lib/web3/web3-provider.tsx`)**: Reown AppKit + Wagmi + Viem supporting Ethereum Mainnet, Base, Polygon, Arbitrum, and Sepolia.
-- **Credit & Pro Tier**: Connect Wallet button, credit balance counter, and native token transfer payment trigger for purchasing credits or unlocking Pro tier.
-- **Wallet Linking**: Automatic syncing of connected wallet address (`0x...`) to the authenticated Firebase user profile in Firestore.
-
-### 6. Testing & Cloudflare Deployment
-- **Performance & 4K Stress Audit Tool**: Built-in benchmark suite to stress-test Web Worker linear memory and processing throughput on 1080p, 2K, and 4K UHD resolutions.
-- **CI/CD Pipeline (`.github/workflows/deploy.yml`)**: Automated GitHub Actions workflow to build and deploy static output to Cloudflare Pages via Wrangler.
+### 5. Configurable Admin Pass Mode
+- Centralized configuration in `src/config/app.config.ts` controls feature flags.
+- Admin pass overrides can be toggled via `NEXT_PUBLIC_ENABLE_ADMIN_PASS=true` or disabled across the board in production.
 
 ---
 
 ## 🛠️ Getting Started
 
-### Installation
+### 1. Prerequisites
+- Node.js 18+ or 20+
+- npm or pnpm
+
+### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### Development Server
+### 3. Environment Variables
+Create a `.env.local` file in the root directory (refer to `.env.example`):
+
+```bash
+# Web3 / Reown AppKit
+NEXT_PUBLIC_REOWN_PROJECT_ID=your-project-id
+
+# Firebase App Check
+NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY=your-recaptcha-key
+# NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN=true # for local development
+
+# Cryptographic Handshake & API Secret
+HANDSHAKE_SECRET=your-32-char-random-secret
+API_SECRET=your-backend-api-secret
+NEXT_PUBLIC_API_SECRET=your-backend-api-secret
+
+# Backend Worker Integration
+NEXT_PUBLIC_BACKEND_URL=https://api.vectorizerr.workers.dev
+NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL=https://api.vectorizerr.workers.dev/api/refresh-credits
+NEXT_PUBLIC_SUPPORT_API_URL=https://api.vectorizerr.workers.dev/api/support
+
+# Application Settings
+NEXT_PUBLIC_APP_URL=https://vectorizerr.pages.dev
+NEXT_PUBLIC_ENABLE_ADMIN_PASS=false
+OUTPUT_MODE=export
+```
+
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Production Static Export
+---
+
+## 🚢 Building & Deployment
+
+### Next.js Production Build
+```bash
+npm run build
+```
+
+### Cloudflare OpenNext Edge Deployment
+```bash
+npm run cloudflare-build
+```
+
+### Static Cloudflare Pages Deployment
 ```bash
 OUTPUT_MODE=export npm run build
-```
-The static site is exported to the `out/` directory, ready to deploy to Cloudflare Pages or any static host.
-
-### Cloudflare Pages Deployment
-```bash
 npx wrangler pages deploy out --project-name=vtracer-studio
+```
+
+---
+
+## 📂 Project Structure
+
+```
+vectorizerr-frontend/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx               # Main Vectorizer Studio with Split-Screen & Controls
+│   │   ├── transactions/          # Crypto Transactions History & On-Demand Reconcile
+│   │   ├── support/               # Customer Assistance & Transaction Inquiries
+│   │   ├── contact/               # Alias for /support
+│   │   ├── privacy/               # Privacy Policy
+│   │   ├── policy/                # Alias for /privacy
+│   │   ├── terms/                 # Conditions of Use & Terms of Service
+│   │   ├── conditions/            # Alias for /terms
+│   │   └── api/
+│   │       ├── handshake/         # Cryptographic ticket validation
+│   │       └── support/           # Next.js API edge proxy for support tickets
+│   ├── components/
+│   │   ├── Header.tsx             # Navigation bar with credit badge & support links
+│   │   ├── Footer.tsx             # Global aesthetic footer with policy links
+│   │   ├── Visualizer.tsx         # Responsive canvas with Zoom, Pan, Split-Screen
+│   │   ├── ControlsPanel.tsx      # Precision sliders, Presets, and Color Clustering
+│   │   ├── Uploader.tsx           # Drag & Drop with local image decoders
+│   │   ├── CreditModal.tsx        # Multi-chain crypto checkout & live rates
+│   │   └── UnlockModal.tsx        # 1-credit image unlock & 10-quota confirmation
+│   ├── config/
+│   │   └── app.config.ts          # Centralized settings & feature flags (Admin Pass)
+│   ├── hooks/
+│   │   ├── useVTracer.ts          # Web Worker lifecycle & progressive vectorization
+│   │   └── useTransactionListener.ts # Real-time Firestore transaction listener
+│   ├── lib/
+│   │   ├── firebase/              # Auth, Firestore REST & App Check JWKS init
+│   │   ├── security/              # Cryptographic handshake client
+│   │   ├── support/               # Support ticket submission service
+│   │   ├── vtracer/               # VTracer WASM bindings & export tools
+│   │   └── web3/                  # Reown AppKit & Multi-chain wallet configs
+│   └── workers/
+│       └── vtracer.worker.ts      # Offscreen background vectorization worker
+└── public/
+    ├── wasm/vtracer.wasm          # VTracer WebAssembly binary
+    └── icon.svg                   # Vectorizerr logo
 ```

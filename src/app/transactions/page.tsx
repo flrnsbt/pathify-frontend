@@ -17,6 +17,7 @@ import {
   Shield,
   Sparkles,
   Search,
+  LifeBuoy,
 } from 'lucide-react';
 import { useAuth } from '../../lib/firebase/auth-context';
 import {
@@ -26,6 +27,7 @@ import {
 import { SUPPORTED_CHAINS, SupportedChainKey } from '../../lib/web3/payment-wallets';
 import { ChainIcon, TokenIcon } from '../../components/ChainIcons';
 import { CreditModal } from '../../components/CreditModal';
+import { Footer } from '../../components/Footer';
 import { useTransactionListener } from '../../hooks/useTransactionListener';
 
 export default function TransactionsPage() {
@@ -132,6 +134,15 @@ export default function TransactionsPage() {
               <span className="font-bold text-white">{profile?.credits ?? 0}</span>
               <span className="text-neutral-400 text-[11px]">Credits</span>
             </div>
+
+            <Link
+              href="/support?category=crypto_transaction"
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white transition"
+              title="Need help with transactions?"
+            >
+              <LifeBuoy className="h-3.5 w-3.5 text-neutral-400" />
+              <span className="hidden sm:inline">Support</span>
+            </Link>
 
             <button
               onClick={() => setIsCreditModalOpen(true)}
@@ -282,20 +293,18 @@ export default function TransactionsPage() {
                 <button
                   key={tab.key}
                   onClick={() => setFilterStatus(tab.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                    isActive
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${isActive
                       ? 'bg-neutral-800 text-white shadow-sm'
                       : 'text-neutral-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
                     <span
-                      className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                        tab.key === 'pending'
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] ${tab.key === 'pending'
                           ? 'bg-amber-500/20 text-amber-300'
                           : 'bg-neutral-700 text-neutral-300'
-                      }`}
+                        }`}
                     >
                       {tab.count}
                     </span>
@@ -466,6 +475,8 @@ export default function TransactionsPage() {
         </div>
       </main>
 
+      <Footer />
+
       {/* Transaction Details Modal */}
       {selectedTx && (
         <TransactionDetailsModal
@@ -617,24 +628,6 @@ function TransactionDetailsModal({
             </span>
           </div>
 
-          {/* Recipient Address */}
-          <div className="py-1 border-b border-neutral-800/50">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-neutral-400">Recipient Address</span>
-              <button
-                type="button"
-                onClick={() => copyToClipboard(tx.toAddress, 'toAddress')}
-                className="text-neutral-400 hover:text-white flex items-center gap-1 text-[10px]"
-              >
-                {copiedField === 'toAddress' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                <span>Copy</span>
-              </button>
-            </div>
-            <div className="font-mono text-[11px] text-neutral-300 break-all select-all rounded bg-neutral-950 p-1.5 border border-neutral-850">
-              {tx.toAddress}
-            </div>
-          </div>
-
           {/* Transaction Hash */}
           {tx.txHash && (
             <div className="py-1 border-b border-neutral-800/50">
@@ -698,6 +691,15 @@ function TransactionDetailsModal({
             <span>{checking ? 'Checking Status...' : 'Check Status / Refresh Now'}</span>
           </button>
         )}
+
+        {/* Contact Support Link */}
+        <Link
+          href={`/support?category=crypto_transaction&txHash=${encodeURIComponent(tx.txHash || '')}&chain=${encodeURIComponent(tx.chainKey)}`}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900/60 py-2.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white transition"
+        >
+          <LifeBuoy className="h-4 w-4 text-indigo-400" />
+          <span>Need Help with this Transaction?</span>
+        </Link>
       </div>
     </div>
   );

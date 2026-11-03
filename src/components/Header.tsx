@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { isAdminPassEnabled } from '@/config/app.config';
 
@@ -70,6 +70,16 @@ export function Header({
           >
             <ReceiptText className="h-4 w-4 text-neutral-400" />
             <span className="hidden md:inline">Transactions</span>
+          </Link>
+
+          {/* Support Link */}
+          <Link
+            href="/support"
+            className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
+            title="Assistance & Support Portal"
+          >
+            <LifeBuoy className="h-4 w-4 text-neutral-400" />
+            <span className="hidden lg:inline">Support</span>
           </Link>
 
           {/* Credits Badge / Buy Credits */}
