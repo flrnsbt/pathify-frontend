@@ -28,14 +28,15 @@ export const APP_CONFIG = {
     debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === "true",
   },
 
-  // API Endpoints (Handled or proxied server-side so no secrets leak to DevTools)
+  // API Endpoints: when BACKEND_URL is set (e.g., static Pages deploy), call backend directly;
+  // otherwise use Next.js API proxy routes (Workers / local dev).
   api: {
     backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "",
-    handshakeUrl: "/api/handshake",
-    refreshCreditsUrl: "/api/refresh-credits",
-    supportUrl: "/api/support",
-    createTransactionUrl: "/api/create-transaction",
-    saveHistoryUrl: "/api/save-history",
+    handshakeUrl: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/handshake`,
+    refreshCreditsUrl: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/refresh-credits`,
+    supportUrl: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/support`,
+    createTransactionUrl: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/create-transaction`,
+    saveHistoryUrl: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/save-history`,
   },
 
   // CORS allowed origins for serverless API routes

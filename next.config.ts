@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 const isStaticExport = process.env.OUTPUT_MODE === "export";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: isStaticExport ? "export" : "standalone",
   cacheComponents: isStaticExport ? undefined : true,
   partialPrefetching: isStaticExport ? undefined : true,
   turbopack: {
