@@ -23,8 +23,10 @@ import {
   listenToTransaction,
 } from '../lib/firebase/firestore';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { useChainId, useSendTransaction, useWriteContract, useSwitchChain } from 'wagmi';
-import { parseEther, parseUnits } from 'viem';
+import { useDisconnect } from '@reown/appkit-controllers/react';
+import { useChainId, useSendTransaction, useWriteContract, useSwitchChain, useBalance, useReadContracts } from 'wagmi';
+import { parseEther, parseUnits, formatUnits, type Address } from 'viem';
+import { CHAIN_KEY_TO_VIEM_CHAIN } from '../lib/web3/config';
 import {
   SUPPORTED_CHAINS,
   ERC20_CONTRACTS,
@@ -50,6 +52,7 @@ interface CreditModalProps {
   isOpen: boolean;
   onClose: () => void;
   requiredReason?: string;
+  onOpenAuth?: () => void;
 }
 
 const ERC20_ABI = [
@@ -65,10 +68,11 @@ const ERC20_ABI = [
   },
 ] as const;
 
-export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProps) {
+export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: CreditModalProps) {
   const { user, refreshProfile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
+  const { disconnect } = useDisconnect();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
@@ -195,6 +199,103 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
     return calculateCryptoAmount(selectedPack.usdPrice, activeToken, tokenPrices);
   }, [selectedPack.usdPrice, activeToken, tokenPrices]);
 
+  // --- Balance hooks (must be after chainMeta is defined) ---
+
+  // Native token balance for the currently connected wallet
+  const { data: nativeBalanceData } = useBalance({
+    address: address as `0x${string}`,
+    chainId: chainMeta.chainId,
+    query: { enabled: isConnected && !!address && !!chainMeta.chainId },
+  });
+
+  // ERC-20 token balances for the selected chain's tokens
+  const erc20BalanceAbi = [{
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  } as const];
+
+  const erc20ContractCalls = useMemo(() => {
+    if (!isConnected || !address || !chainMeta.chainId) return [];
+    return chainMeta.tokens
+      .filter((t) => t !== chainMeta.nativeToken)
+      .map((token) => {
+        const contract = ERC20_CONTRACTS[chainMeta.chainId]?.[token];
+        if (!contract) return null;
+        return {
+          address: contract.address,
+          abi: erc20BalanceAbi,
+          functionName: 'balanceOf' as const,
+          args: [address as `0x${string}`],
+          token,
+          decimals: contract.decimals,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+  }, [isConnected, address, chainMeta.chainId, chainMeta.tokens, chainMeta.nativeToken]);
+
+  const { data: erc20Results } = useReadContracts({
+    contracts: erc20ContractCalls,
+    query: { enabled: erc20ContractCalls.length > 0 },
+  });
+
+  // Build a map of token -> balance string
+  const tokenBalances = useMemo(() => {
+    const balances: Record<string, string> = {};
+    // Native balance
+    if (nativeBalanceData) {
+      balances[chainMeta.nativeToken] = formatUnits(nativeBalanceData.value, nativeBalanceData.decimals);
+    }
+    // ERC-20 balances
+    if (erc20Results) {
+      erc20ContractCalls.forEach((call, idx) => {
+        const result = erc20Results[idx];
+        if (result?.status === 'success' && result.result !== undefined && result.result !== null) {
+          balances[call.token] = formatUnits(result.result as bigint, call.decimals);
+        }
+      });
+    }
+    return balances;
+  }, [nativeBalanceData, erc20Results, erc20ContractCalls, chainMeta.nativeToken]);
+
+  // Track the last chain we attempted to auto-switch to, to prevent infinite loops
+  const lastAutoSwitchChainRef = useRef<string | null>(null);
+
+  // Auto-switch chain only when the selected chain key changes and wallet is connected
+  useEffect(() => {
+    // Reset the ref when modal opens so we can switch on first open
+    if (isOpen && isConnected) {
+      const targetViemChain = CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
+      const addChainParams = targetViemChain ? {
+        chainName: targetViemChain.name,
+        rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
+        blockExplorerUrls: targetViemChain.blockExplorers?.default?.url ? [targetViemChain.blockExplorers.default.url] : undefined,
+        nativeCurrency: targetViemChain.nativeCurrency,
+      } : undefined;
+
+      // Only attempt switch if we're on the wrong chain and haven't already tried this chain
+      if (currentChainId !== chainMeta.chainId && lastAutoSwitchChainRef.current !== selectedChainKey) {
+        lastAutoSwitchChainRef.current = selectedChainKey;
+        let cancelled = false;
+        switchChainAsync({ chainId: chainMeta.chainId, addEthereumChainParameter: addChainParams }).catch((err) => {
+          if (!cancelled) {
+            // Silently ignore user rejections and chain-not-configured errors
+            if (err.code !== 4001) {
+              console.warn('Auto chain switch failed:', err);
+            }
+          }
+        });
+        return () => { cancelled = true; };
+      }
+    }
+    // Clear the ref when modal closes so next open can trigger again
+    if (!isOpen) {
+      lastAutoSwitchChainRef.current = null;
+    }
+  }, [selectedChainKey, isOpen, isConnected, chainMeta.chainId, currentChainId]);
+
   // Reset transient feedback state when modal opens or closes
   useEffect(() => {
     if (!isOpen) {
@@ -217,6 +318,16 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
       activeUnsubscribesRef.current = [];
     };
   }, []);
+
+  // Format balance for display
+  const formatBalance = (balance: string, decimals: number = 4): string => {
+    const num = parseFloat(balance);
+    if (isNaN(num)) return '0';
+    if (num === 0) return '0';
+    if (num < 0.0001) return '< 0.0001';
+    if (num >= 1000) return num.toFixed(2);
+    return num.toFixed(decimals).replace(/\.?0+$/, '');
+  };
 
   // Generate QR code for the recipient wallet
   useEffect(() => {
@@ -258,21 +369,29 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
   const handlePayWithWeb3 = async () => {
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    // Check Google auth first before doing anything
+    if (!user || user.isAnonymous) {
+      if (onOpenAuth) {
+        onClose();
+        onOpenAuth();
+      } else {
+        setErrorMsg('Please sign in with Google first so your credits are saved to your account.');
+      }
+      return;
+    }
+
+    // If wallet not connected, open the wallet connector
+    if (!isConnected) {
+      await open();
+      return;
+    }
+
     setLoading(true);
 
     try {
-      if (!user || user.isAnonymous) {
-        throw new Error('Please sign in with Google first so your credits are saved to your account.');
-      }
-
       if (isInvalidRecipient) {
         throw new Error(`Payment wallet for ${chainMeta.name} is not configured yet. Please choose another chain.`);
-      }
-
-      if (!isConnected) {
-        await open();
-        setLoading(false);
-        return;
       }
 
       const targetChainId = chainMeta.chainId;
@@ -280,12 +399,24 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         throw new Error('Selected chain does not support direct Web3 wallet execution. Please use Direct Transfer / QR code.');
       }
 
-      // 1. Switch network if needed
+      // 1. Switch network if needed (auto-switch effect should have already handled this)
+      // Pass addEthereumChainParameter so wagmi can add the chain to the wallet if it's missing
       if (currentChainId !== targetChainId && switchChainAsync) {
+        const targetViemChain = CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
+        const addChainParams = targetViemChain ? {
+          chainName: targetViemChain.name,
+          rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
+          blockExplorerUrls: targetViemChain.blockExplorers?.default?.url ? [targetViemChain.blockExplorers.default.url] : undefined,
+          nativeCurrency: targetViemChain.nativeCurrency,
+        } : undefined;
         try {
-          await switchChainAsync({ chainId: targetChainId });
-        } catch {
-          throw new Error(`Please switch your wallet network to ${chainMeta.name} to continue.`);
+          await switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams });
+        } catch (switchErr: any) {
+          // If user rejected the chain switch/add, show a clear message
+          if (switchErr?.code === 4001) {
+            throw new Error(`Please switch your wallet to ${chainMeta.name} and try again.`);
+          }
+          throw switchErr;
         }
       }
 
@@ -627,26 +758,39 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
             {chainMeta.tokens.map((token) => {
               const isSelected = activeToken === token;
               const tokenPrice = calculateCryptoAmount(selectedPack.usdPrice, token, tokenPrices);
+              const balance = tokenBalances[token];
+              const tokenContract = ERC20_CONTRACTS[chainMeta.chainId]?.[token];
+              const displayBalance = balance !== undefined
+                ? `${formatBalance(balance, tokenContract?.decimals ?? 18)} ${token}`
+                : null;
               return (
                 <button
                   key={token}
                   type="button"
                   onClick={() => setSelectedToken(token)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                  className={`flex flex-col items-start gap-1 px-3 py-1.5 rounded-xl border text-xs font-medium transition min-w-[100px] ${
                     isSelected
                       ? 'border-indigo-500 bg-indigo-600/20 text-white font-semibold'
                       : 'border-neutral-800 bg-neutral-950/60 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
                   }`}
                 >
-                  <TokenIcon token={token} className="w-4 h-4 shrink-0" />
-                  <span>{token}</span>
-                  <span className="rounded bg-neutral-800/80 px-1.5 py-0.5 text-[10px] text-neutral-300 font-mono">
-                    {tokenPrice} {token}
-                  </span>
+                  <div className="flex items-center gap-2 w-full">
+                    <TokenIcon token={token} className="w-4 h-4 shrink-0" />
+                    <span className="font-semibold">{token}</span>
+                    <span className="ml-auto rounded bg-neutral-800/80 px-1.5 py-0.5 text-[10px] text-neutral-300 font-mono">
+                      {tokenPrice} {token}
+                    </span>
+                  </div>
+                  {displayBalance && (
+                    <div className={`text-[10px] font-mono ${isSelected ? 'text-indigo-300' : 'text-neutral-500'}`}>
+                      Balance: {displayBalance}
+                    </div>
+                  )}
                 </button>
               );
             })}
           </div>
+
         </div>
 
         {/* Step 4: Payment Execution Section */}
@@ -691,6 +835,56 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
           {/* EVM WalletConnect Tab */}
           {isEvm && payMethod === 'wallet' ? (
             <div className="space-y-4">
+              {/* Auth required notice */}
+              {!user || user.isAnonymous ? (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-300 mb-1">Sign in required</p>
+                    <p className="text-amber-200/80 leading-snug">
+                      You need to sign in with Google first so your credits are saved to your account.
+                    </p>
+                    {onOpenAuth && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenAuth();
+                        }}
+                        className="mt-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition"
+                      >
+                        Sign in with Google
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : !isConnected ? (
+                <div className="flex items-start gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-200">
+                  <Wallet className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-indigo-300 mb-1">Wallet not connected</p>
+                    <p className="text-indigo-200/80 leading-snug">
+                      Click the button below to connect your Web3 wallet, then confirm the payment transaction.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-emerald-300 mb-1">Wallet connected</p>
+                    <p className="font-mono text-emerald-200/80">{address?.slice(0, 6)}...{address?.slice(-4)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => disconnect()}
+                    className="shrink-0 rounded-lg bg-neutral-800 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between rounded-xl bg-neutral-900/60 p-3 border border-neutral-800 text-xs">
                 <div>
                   <span className="text-neutral-400 block text-[11px]">Total to Send</span>
@@ -717,14 +911,22 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
                   <span>Loading configuration...</span>
                 ) : isInvalidRecipient ? (
                   <span>Network not configured</span>
+                ) : !user || user.isAnonymous ? (
+                  <>
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Sign in to Pay ({amountToPay} {activeToken})</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                ) : !isConnected ? (
+                  <>
+                    <Wallet className="h-4 w-4" />
+                    <span>Connect Wallet & Pay ({amountToPay} {activeToken})</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
                 ) : (
                   <>
                     <Wallet className="h-4 w-4" />
-                    <span>
-                      {isConnected
-                        ? `Send ${amountToPay} ${activeToken} (${chainMeta.name})`
-                        : `Connect Wallet & Pay (${amountToPay} ${activeToken})`}
-                    </span>
+                    <span>Send {amountToPay} {activeToken} ({chainMeta.name})</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -880,6 +1082,28 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
             </a>
           )}
         </div>
+
+        {/* Error Warning Dialog — fixed overlay on top of the modal */}
+        {errorMsg && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-2xl border border-red-500/30 bg-neutral-900 p-5 shadow-2xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/20">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-red-300">Payment Error</h3>
+              </div>
+              <p className="mb-4 text-xs text-neutral-300 leading-relaxed">{errorMsg}</p>
+              <button
+                type="button"
+                onClick={() => setErrorMsg(null)}
+                className="w-full rounded-xl bg-red-600 py-2.5 text-xs font-semibold text-white hover:bg-red-500 transition"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

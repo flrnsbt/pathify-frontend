@@ -480,6 +480,11 @@ export default function Home() {
             setCreditReason('');
           }}
           requiredReason={creditReason}
+          onOpenAuth={() => {
+            setIsCreditsOpen(false);
+            setCreditReason('');
+            setIsAuthOpen(true);
+          }}
         />
       )}
 

@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
+import { useAppKitAccount } from '@reown/appkit/react';
+import { useDisconnect } from '@reown/appkit/react';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -18,6 +20,10 @@ export function Header({
   historyCount,
 }: HeaderProps) {
   const { user, profile } = useAuth();
+  const { address, isConnected } = useAppKitAccount();
+  const { disconnect } = useDisconnect();
+
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
   const credits = profile?.credits ?? 0;
   const isAdmin = (profile?.isAdmin ?? false);
@@ -111,6 +117,24 @@ export function Header({
               </>
             )}
           </button>
+
+          {/* Wallet Connection Indicator - only shown when a wallet is connected */}
+          {isConnected && (
+            <div className="group relative flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <Wallet className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="font-mono text-emerald-300 hidden lg:inline">{shortAddress}</span>
+              </div>
+              <button
+                onClick={() => disconnect()}
+                className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold text-emerald-400/60 hover:text-red-400 hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100"
+                title="Disconnect wallet"
+              >
+                <LogOut className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
           {/* Google Auth Button */}
           <button

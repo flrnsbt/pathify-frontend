@@ -1,0 +1,34 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1"
+  ],
+  "id": "did:web:vectorizerr.pages.dev",
+  "verificationMethod": [
+    {
+      "id": "did:web:vectorizerr.pages.dev#keys-1",
+      "type": "Ed25519VerificationKey2020",
+      "controller": "did:web:vectorizerr.pages.dev",
+      "publicKeyMultibase": "zGszSDEax4mcaTtUVruQeYpb8yUSDzQg7csMD76HCiYpj"
+    }
+  ],
+  "authentication": [
+    "did:web:vectorizerr.pages.dev#keys-1"
+  ],
+  "assertionMethod": [
+    "did:web:vectorizerr.pages.dev#keys-1"
+  ],
+  "keyAgreement": [],
+  "capabilityInvocation": [
+    "did:web:vectorizerr.pages.dev#keys-1"
+  ],
+  "capabilityDelegation": [
+    "did:web:vectorizerr.pages.dev#keys-1"
+  ],
+  "service": [
+    {
+      "id": "#vectorizerr-studio",
+      "type": "LinkedDomains",
+      "serviceEndpoint": "https://vectorizerr.pages.dev"
+    }
+  ]
+}
