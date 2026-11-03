@@ -29,10 +29,6 @@ High-performance raster to vector graphics (SVG) converter studio. Data is tempo
 - **Conditions of Use (`/terms` & `/conditions`)**: Transparent terms covering 100% user copyright ownership of generated SVG files, crypto payment irreversibility, and acceptable use policies.
 - **Contact Support (`/support` & `/contact`)**: Confidential customer assistance form with specialized fields for cryptocurrency transaction assistance (Tx Hash, Chain, Wallet Address). Inquiries trigger edge email delivery to `SUPPORT_EMAIL` (`contact@floriansabate.top`) without exposing the address to the browser, while logging an immutable ticket in Firestore.
 
-### 5. Configurable Admin Pass Mode
-- Centralized configuration in `src/config/app.config.ts` controls feature flags.
-- Admin pass overrides can be toggled via `NEXT_PUBLIC_ENABLE_ADMIN_PASS=true` or disabled across the board in production.
-
 ---
 
 ## 🛠️ Getting Started
@@ -69,7 +65,6 @@ NEXT_PUBLIC_SUPPORT_API_URL=https://api.vectorizerr.workers.dev/api/support
 
 # Application Settings
 NEXT_PUBLIC_APP_URL=https://vectorizerr.pages.dev
-NEXT_PUBLIC_ENABLE_ADMIN_PASS=false
 OUTPUT_MODE=export
 ```
 
@@ -127,7 +122,7 @@ vectorizerr-frontend/
 │   │   ├── CreditModal.tsx        # Multi-chain crypto checkout & live rates
 │   │   └── UnlockModal.tsx        # 1-credit image unlock & 10-quota confirmation
 │   ├── config/
-│   │   └── app.config.ts          # Centralized settings & feature flags (Admin Pass)
+│   │   └── app.config.ts          # Centralized settings & feature flags
 │   ├── hooks/
 │   │   ├── useVTracer.ts          # Web Worker lifecycle & progressive vectorization
 │   │   └── useTransactionListener.ts # Real-time Firestore transaction listener

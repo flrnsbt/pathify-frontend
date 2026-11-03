@@ -13,11 +13,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
-import {
-  isAdminPassEnabled,
-  isLocalAdminPassActive,
-  setLocalAdminPassOverride,
-} from '@/config/app.config';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -157,36 +152,6 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                   <span className="text-neutral-500">Linked Wallet:</span> {profile.walletAddress}
                 </div>
               )}
-
-              {/* Admin Pass Toggle (governed by APP_CONFIG.features.enableAdminPass) */}
-              {isAdminPassEnabled() && (
-                <div className="flex items-center justify-between rounded-xl border border-purple-500/30 bg-purple-500/10 p-2.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-purple-400 shrink-0" />
-                    <div>
-                      <div className="font-semibold text-purple-200">Admin Pass Mode</div>
-                      <div className="text-[10px] text-neutral-400">Unlimited generations &amp; free unlocks</div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const current = isLocalAdminPassActive();
-                      setLocalAdminPassOverride(!current);
-                      await refreshProfile();
-                    }}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      isLocalAdminPassActive() || isAdmin ? 'bg-purple-600' : 'bg-neutral-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        isLocalAdminPassActive() || isAdmin ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Top up credits action if requested */}
@@ -275,36 +240,6 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
               )}
               <span>{loading ? 'Connecting with Google...' : 'Continue with Google'}</span>
             </button>
-
-            {/* Admin Pass Toggle in Unauthenticated state */}
-            {isAdminPassEnabled() && (
-              <div className="flex items-center justify-between rounded-xl border border-purple-500/20 bg-purple-500/5 p-2.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-purple-400 shrink-0" />
-                  <div>
-                    <div className="font-semibold text-purple-200">Admin Pass Mode</div>
-                    <div className="text-[10px] text-neutral-400">Enable local admin bypass</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const current = isLocalAdminPassActive();
-                    setLocalAdminPassOverride(!current);
-                    await refreshProfile();
-                  }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isLocalAdminPassActive() || isAdmin ? 'bg-purple-600' : 'bg-neutral-800'
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isLocalAdminPassActive() || isAdmin ? 'translate-x-4' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-            )}
 
             {/* Note */}
             <p className="text-center text-[11px] text-neutral-500 leading-normal">

@@ -32,6 +32,7 @@ import {
   CreditPack,
   SupportedChainKey,
   SupportedToken,
+  ChainMetadata,
   ParsedPaymentWallet,
   loadPaymentWallets,
   getCachedPaymentWallets,
@@ -40,6 +41,8 @@ import {
   fetchLiveTokenPrices,
   getCachedTokenPrices,
   calculateCryptoAmount,
+  getSupportedChains,
+  fetchBackendConfig,
 } from '../lib/web3/payment-wallets';
 import { ChainIcon, TokenIcon } from './ChainIcons';
 
@@ -87,9 +90,16 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
   // Keep track of active Firestore listener unsubscribers to prevent memory leaks
   const activeUnsubscribesRef = useRef<Array<() => void>>([]);
 
-  // Wallets loaded asynchronously once from wallets.json or dev.wallets.json
+  // Wallets loaded asynchronously from backend
   const [wallets, setWallets] = useState<ParsedPaymentWallet[]>(() => getCachedPaymentWallets() || []);
   const [isLoadingWallets, setIsLoadingWallets] = useState<boolean>(() => !getCachedPaymentWallets());
+
+  // Chains loaded asynchronously from backend
+  const [supportedChains, setSupportedChains] = useState<Record<SupportedChainKey, ChainMetadata>>(SUPPORTED_CHAINS);
+  const [isLoadingChains, setIsLoadingChains] = useState<boolean>(false);
+
+  // Testnet mode from backend config
+  const [isTestnet, setIsTestnet] = useState<boolean>(false);
 
   // Real-time token prices
   const [tokenPrices, setTokenPrices] = useState<Record<SupportedToken, number>>(() => getCachedTokenPrices());
@@ -109,12 +119,32 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         if (mounted) setIsLoadingWallets(false);
       });
 
+    getSupportedChains()
+      .then((chains) => {
+        if (mounted) {
+          setSupportedChains(chains);
+          setIsLoadingChains(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load supported chains:', err);
+        if (mounted) setIsLoadingChains(false);
+      });
+
     fetchLiveTokenPrices()
       .then((prices) => {
         if (mounted) setTokenPrices(prices);
       })
       .catch((err) => {
         console.warn('Failed to fetch live token prices:', err);
+      });
+
+    fetchBackendConfig()
+      .then((config) => {
+        if (mounted) setIsTestnet(config.isTestnet);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch backend config:', err);
       });
 
     return () => {
@@ -136,7 +166,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
   }, [availableChains, selectedChainKey]);
 
   const chainMeta =
-    SUPPORTED_CHAINS[selectedChainKey] ||
+    supportedChains[selectedChainKey] ||
     availableChains[0] ||
     SUPPORTED_CHAINS['bsc'];
   const isEvm = chainMeta?.isEvm ?? true;
@@ -305,6 +335,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         txHash,
         status: 'pending',
         statusMessage: `Submitted on ${chainMeta.name}. Awaiting blockchain confirmation.`,
+        isTestnet,
       });
 
       // Listen for transaction confirmation in real-time
@@ -365,6 +396,7 @@ export function CreditModal({ isOpen, onClose, requiredReason }: CreditModalProp
         txHash: txHashInput.trim() || undefined,
         status: 'pending',
         statusMessage: 'Direct network transfer submitted. Awaiting verification.',
+        isTestnet,
       });
 
       // Listen for transaction confirmation

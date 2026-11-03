@@ -17,13 +17,6 @@ export const APP_CONFIG = {
   // Feature Flags
   features: {
     /**
-     * Flag to enable or disable the Admin Pass mode.
-     * When false, admin pass privileges and overrides are completely disabled across the application.
-     * Can be configured via NEXT_PUBLIC_ENABLE_ADMIN_PASS env variable (default: false).
-     */
-    enableAdminPass: process.env.NEXT_PUBLIC_ENABLE_ADMIN_PASS === "true",
-
-    /**
      * Free download formats: PNG and WebP can be downloaded client-side
      * without requiring user login or credit consumption.
      */
@@ -37,8 +30,7 @@ export const APP_CONFIG = {
 
   // API Endpoints (Handled or proxied server-side so no secrets leak to DevTools)
   api: {
-    backendUrl:
-      process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.vectorizerr.workers.dev",
+    backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "",
     handshakeUrl: "/api/handshake",
     refreshCreditsUrl: "/api/refresh-credits",
     supportUrl: "/api/support",
@@ -53,38 +45,3 @@ export const APP_CONFIG = {
     "http://127.0.0.1:3000",
   ],
 } as const;
-
-/**
- * Checks whether Admin Pass mode is currently active and allowed by configuration.
- */
-export function isAdminPassEnabled(): boolean {
-  return APP_CONFIG.features.enableAdminPass;
-}
-
-/**
- * Toggles or sets the client-side Admin Pass override flag in localStorage.
- * Only takes effect if APP_CONFIG.features.enableAdminPass is true.
- */
-export function setLocalAdminPassOverride(enabled: boolean): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (enabled && APP_CONFIG.features.enableAdminPass) {
-      localStorage.setItem("vtracer_admin_override", "true");
-    } else {
-      localStorage.removeItem("vtracer_admin_override");
-    }
-  } catch {}
-}
-
-/**
- * Checks if local admin pass override is set in client storage.
- */
-export function isLocalAdminPassActive(): boolean {
-  if (typeof window === "undefined") return false;
-  if (!APP_CONFIG.features.enableAdminPass) return false;
-  try {
-    return localStorage.getItem("vtracer_admin_override") === "true";
-  } catch {
-    return false;
-  }
-}

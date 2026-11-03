@@ -1,10 +1,8 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
-import { isAdminPassEnabled } from '@/config/app.config';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -22,7 +20,7 @@ export function Header({
   const { user, profile } = useAuth();
 
   const credits = profile?.credits ?? 0;
-  const isAdmin = isAdminPassEnabled() && (profile?.isAdmin ?? false);
+  const isAdmin = (profile?.isAdmin ?? false);
   const isSubscribed = profile?.subscription?.status === 'active';
 
   return (
@@ -85,13 +83,12 @@ export function Header({
           {/* Credits Badge / Buy Credits */}
           <button
             onClick={onOpenCredits}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-              isAdmin
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${isAdmin
                 ? 'border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
                 : isSubscribed
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50'
-            }`}
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50'
+              }`}
           >
             {isAdmin ? (
               <>

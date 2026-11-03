@@ -14,18 +14,18 @@ import {
   setDoc,
   getDoc,
   serverTimestamp,
-} from 'firebase/firestore';
-import { db, isFirebaseConfigured, auth, getAppCheckToken } from './config';
-import { handleAuthExpired } from './auth-context';
-import { VTracerOptions } from '../vtracer/types';
-import { compressSvgString, decompressSvgString } from '../vtracer/compression';
-import { SupportedChainKey, SupportedToken } from '../web3/payment-wallets';
-import { isAdminPassEnabled, isLocalAdminPassActive, APP_CONFIG } from '@/config/app.config';
+} from "firebase/firestore";
+import { db, isFirebaseConfigured, auth, getAppCheckToken } from "./config";
+import { handleAuthExpired } from "./auth-context";
+import { VTracerOptions } from "../vtracer/types";
+import { compressSvgString, decompressSvgString } from "../vtracer/compression";
+import { SupportedChainKey, SupportedToken } from "../web3/payment-wallets";
 import {
   requestServerHandshake,
   hasValidSessionTicket,
   getSessionTicket,
-} from '../security/handshake';
+} from "../security/handshake";
+import { APP_CONFIG } from "@/config/app.config";
 
 export interface VectorizationHistoryItem {
   id: string;
@@ -44,8 +44,8 @@ export interface VectorizationHistoryItem {
 }
 
 export interface SubscriptionInfo {
-  status: 'inactive' | 'active' | 'canceled';
-  plan?: 'monthly' | 'yearly';
+  status: "inactive" | "active" | "canceled";
+  plan?: "monthly" | "yearly";
   validUntil?: number;
 }
 
@@ -70,8 +70,12 @@ export interface UserProfile {
   updatedAt: number;
 }
 
-export type TransactionStatus = 'pending' | 'confirmed' | 'failed' | 'cancelled';
-export type PaymentMethod = 'web3' | 'direct';
+export type TransactionStatus =
+  | "pending"
+  | "confirmed"
+  | "failed"
+  | "cancelled";
+export type PaymentMethod = "web3" | "direct";
 
 export interface CryptoTransaction {
   id: string;
@@ -93,14 +97,15 @@ export interface CryptoTransaction {
   createdAt: number;
   updatedAt: number;
   confirmedAt?: number;
+  isTestnet?: boolean;
 }
 
-const LOCAL_STORAGE_HISTORY_KEY = 'vtracer_local_history';
-const LOCAL_STORAGE_PROFILE_KEY = 'vtracer_local_profile';
-const LOCAL_STORAGE_TRANSACTIONS_KEY = 'vtracer_local_transactions';
+const LOCAL_STORAGE_HISTORY_KEY = "vtracer_local_history";
+const LOCAL_STORAGE_PROFILE_KEY = "vtracer_local_profile";
+const LOCAL_STORAGE_TRANSACTIONS_KEY = "vtracer_local_transactions";
 
 function safeGetStorage(key: string): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(key);
   } catch {
@@ -109,7 +114,7 @@ function safeGetStorage(key: string): string | null {
 }
 
 function safeSetStorage(key: string, val: string): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(key, val);
   } catch {}
@@ -121,7 +126,7 @@ function safeSetStorage(key: string, val: string): void {
  */
 export function getImageUnlockStatus(
   profile: UserProfile | null,
-  imageHash?: string
+  imageHash?: string,
 ): {
   isUnlocked: boolean;
   generationsRemaining: number;
@@ -129,12 +134,22 @@ export function getImageUnlockStatus(
   maxGenerations: number;
 } {
   if (!profile || !imageHash) {
-    return { isUnlocked: false, generationsRemaining: 0, generationsUsed: 0, maxGenerations: 10 };
+    return {
+      isUnlocked: false,
+      generationsRemaining: 0,
+      generationsUsed: 0,
+      maxGenerations: 10,
+    };
   }
 
   // Admins (if enabled) and active subscribers have unlimited generations
-  if ((isAdminPassEnabled() && profile.isAdmin) || profile.subscription?.status === 'active') {
-    return { isUnlocked: true, generationsRemaining: 9999, generationsUsed: 0, maxGenerations: 9999 };
+  if (profile.isAdmin || profile.subscription?.status === "active") {
+    return {
+      isUnlocked: true,
+      generationsRemaining: 9999,
+      generationsUsed: 0,
+      maxGenerations: 9999,
+    };
   }
 
   // Check active cryptographic session ticket
@@ -152,7 +167,12 @@ export function getImageUnlockStatus(
 
   const info = profile.unlockedImages?.[imageHash];
   if (!info) {
-    return { isUnlocked: false, generationsRemaining: 0, generationsUsed: 0, maxGenerations: 10 };
+    return {
+      isUnlocked: false,
+      generationsRemaining: 0,
+      generationsUsed: 0,
+      maxGenerations: 10,
+    };
   }
 
   const maxGen = info.maxGenerations || 10;
@@ -167,10 +187,14 @@ export function getImageUnlockStatus(
   };
 }
 
-export function canAccessSvg(profile: UserProfile | null, svgId?: string, imageHash?: string): boolean {
+export function canAccessSvg(
+  profile: UserProfile | null,
+  svgId?: string,
+  imageHash?: string,
+): boolean {
   if (!profile) return false;
   if (profile.isAdmin) return true;
-  if (profile.subscription?.status === 'active') return true;
+  if (profile.subscription?.status === "active") return true;
   if (imageHash) {
     const status = getImageUnlockStatus(profile, imageHash);
     if (status.isUnlocked) return true;
@@ -188,7 +212,7 @@ export function canAccessSvg(profile: UserProfile | null, svgId?: string, imageH
 export async function unlockImageWithCredit(
   userId: string,
   imageHash: string,
-  currentSvgId?: string
+  currentSvgId?: string,
 ): Promise<boolean> {
   const profile = await getUserProfile(userId);
   const status = getImageUnlockStatus(profile, imageHash);
@@ -200,13 +224,13 @@ export async function unlockImageWithCredit(
 
   // Perform Cryptographic Server Handshake
   const handshake = await requestServerHandshake({
-    action: 'unlock_image',
+    action: "unlock_image",
     imageHash,
   });
 
   if (handshake.success && handshake.ticket) {
     // Re-sync local profile state
-    if (typeof handshake.creditsRemaining === 'number') {
+    if (typeof handshake.creditsRemaining === "number") {
       profile.credits = handshake.creditsRemaining;
     }
     profile.unlockedImages = {
@@ -220,7 +244,7 @@ export async function unlockImageWithCredit(
     };
     if (currentSvgId) {
       profile.unlockedSvgIds = Array.from(
-        new Set([...(profile.unlockedSvgIds || []), currentSvgId])
+        new Set([...(profile.unlockedSvgIds || []), currentSvgId]),
       );
     }
     profile.updatedAt = Date.now();
@@ -228,7 +252,7 @@ export async function unlockImageWithCredit(
     return true;
   }
 
-  console.warn('[Handshake] Server handshake rejected:', handshake.error);
+  console.warn("[Handshake] Server handshake rejected:", handshake.error);
   return false;
 }
 
@@ -238,23 +262,24 @@ export async function unlockImageWithCredit(
  */
 export async function consumeImageGeneration(
   userId: string,
-  imageHash: string
+  imageHash: string,
 ): Promise<number> {
   const profile = await getUserProfile(userId);
-  if ((isAdminPassEnabled() && profile.isAdmin) || profile.subscription?.status === 'active') {
+  if (profile.isAdmin || profile.subscription?.status === "active") {
     return 9999;
   }
 
   // Request server to consume 1 generation from quota and re-sign ticket
   const handshake = await requestServerHandshake({
-    action: 'consume_generation',
+    action: "consume_generation",
     imageHash,
   });
 
   if (handshake.success && handshake.ticket) {
     const remaining = handshake.ticket.generationsRemaining;
     if (profile.unlockedImages?.[imageHash]) {
-      profile.unlockedImages[imageHash].generationsUsed = handshake.ticket.generationsUsed;
+      profile.unlockedImages[imageHash].generationsUsed =
+        handshake.ticket.generationsUsed;
       profile.updatedAt = Date.now();
       safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
     }
@@ -278,7 +303,7 @@ export async function consumeImageGeneration(
 export async function unlockSvgWithCredit(
   userId: string,
   svgId: string,
-  imageHash?: string
+  imageHash?: string,
 ): Promise<boolean> {
   if (imageHash) {
     return unlockImageWithCredit(userId, imageHash, svgId);
@@ -293,11 +318,13 @@ export async function unlockSvgWithCredit(
   }
 
   const newCredits = profile.credits - 1;
-  const newUnlocked = Array.from(new Set([...(profile.unlockedSvgIds || []), svgId]));
+  const newUnlocked = Array.from(
+    new Set([...(profile.unlockedSvgIds || []), svgId]),
+  );
 
   if (isFirebaseConfigured && db) {
     try {
-      const userRef = doc(db, 'users', userId);
+      const userRef = doc(db, "users", userId);
       await setDoc(
         userRef,
         {
@@ -305,10 +332,10 @@ export async function unlockSvgWithCredit(
           unlockedSvgIds: newUnlocked,
           updatedAt: serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
     } catch (err) {
-      console.warn('Failed to unlock in Firestore:', err);
+      console.warn("Failed to unlock in Firestore:", err);
     }
   }
 
@@ -327,7 +354,7 @@ export async function unlockSvgWithCredit(
  */
 export async function saveVectorizationHistory(
   userId: string,
-  data: Omit<VectorizationHistoryItem, 'id' | 'userId' | 'createdAt'>
+  data: Omit<VectorizationHistoryItem, "id" | "userId" | "createdAt">,
 ): Promise<string> {
   // Gzip-compress SVG for compact storage
   const compressedSvg = await compressSvgString(data.svg);
@@ -341,43 +368,47 @@ export async function saveVectorizationHistory(
 
   let savedId = `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  // 1. Post to backend server endpoint (service account writes to users/{userId}/history)
-  const endpoint = APP_CONFIG.api.saveHistoryUrl || '/api/save-history';
+  const endpoint = APP_CONFIG.api.saveHistoryUrl || "/api/save-history";
   try {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     const currentUser = auth.currentUser;
     if (currentUser) {
       try {
         const idToken = await currentUser.getIdToken();
-        headers['Authorization'] = `Bearer ${idToken}`;
+        headers["Authorization"] = `Bearer ${idToken}`;
       } catch (tokenErr) {
-        console.warn('[History] Token retrieval failed:', tokenErr);
+        console.warn("[History] Token retrieval failed:", tokenErr);
         await handleAuthExpired();
       }
     }
 
     const appCheckToken = await getAppCheckToken();
     if (appCheckToken) {
-      headers['X-Firebase-AppCheck'] = appCheckToken;
+      headers["X-Firebase-AppCheck"] = appCheckToken;
     }
 
     const res = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify(itemToStore),
     });
 
     if (res.status === 401) {
-      const errData = (await res.clone().json().catch(() => ({}))) as any;
+      const errData = (await res
+        .clone()
+        .json()
+        .catch(() => ({}))) as any;
       if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
         try {
           const currentUser = auth.currentUser;
           if (currentUser) {
             await currentUser.getIdToken(true);
-            console.warn('[History] Session confirmed active with Google. Skipping disconnect.');
+            console.warn(
+              "[History] Session confirmed active with Google. Skipping disconnect.",
+            );
           } else {
             await handleAuthExpired();
           }
@@ -393,45 +424,44 @@ export async function saveVectorizationHistory(
         savedId = resJson.historyId;
       }
     } else {
-      console.warn('Backend history saving returned error status:', res.status);
+      console.warn("Backend history saving returned error status:", res.status);
     }
+    // Backend history saving returned an error; no local fallback
   } catch (err) {
-    console.warn('Failed to write history to backend, falling back to local storage:', err);
+    console.warn("Failed to write history to backend:", err);
   }
 
-  // 2. Fallback / offline / instant local cache via localStorage
-  try {
-    const existingRaw = safeGetStorage(LOCAL_STORAGE_HISTORY_KEY);
-    const existing: VectorizationHistoryItem[] = existingRaw ? JSON.parse(existingRaw) : [];
-    const newItem: VectorizationHistoryItem = { ...itemToStore, id: savedId, svg: compressedSvg };
-    const updated = [newItem, ...existing.filter((h) => h.id !== savedId)].slice(0, 50); // keep last 50
-    safeSetStorage(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(updated));
-    return savedId;
-  } catch (err) {
-    console.error('Error saving to local history:', err);
-    return savedId;
-  }
+  return savedId;
 }
 
 /**
  * Fetches user history and automatically decompresses stored gzip SVGs.
  */
-export async function fetchUserHistory(userId: string): Promise<VectorizationHistoryItem[]> {
+export async function fetchUserHistory(
+  userId: string,
+): Promise<VectorizationHistoryItem[]> {
   if (isFirebaseConfigured && db) {
     try {
-      const historyCollection = collection(db, 'users', userId, 'history');
-      const q = query(historyCollection, orderBy('createdAt', 'desc'), limit(50));
+      const historyCollection = collection(db, "users", userId, "history");
+      const q = query(
+        historyCollection,
+        orderBy("createdAt", "desc"),
+        limit(50),
+      );
       const snapshot = await getDocs(q);
       const items: VectorizationHistoryItem[] = [];
 
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
-        const decompressedSvg = await decompressSvgString(data.svg || '');
+        const decompressedSvg = await decompressSvgString(data.svg || "");
         items.push({
           id: docSnap.id,
           userId,
-          fileName: data.fileName || 'traced-vector.svg',
-          originalDimensions: data.originalDimensions || { width: 0, height: 0 },
+          fileName: data.fileName || "traced-vector.svg",
+          originalDimensions: data.originalDimensions || {
+            width: 0,
+            height: 0,
+          },
           originalSize: data.originalSize || 0,
           originalBase64: data.originalBase64,
           imageHash: data.imageHash,
@@ -445,7 +475,10 @@ export async function fetchUserHistory(userId: string): Promise<VectorizationHis
       }
       return items;
     } catch (err) {
-      console.warn('Failed to fetch from Firestore, falling back to localStorage:', err);
+      console.warn(
+        "Failed to fetch from Firestore, falling back to localStorage:",
+        err,
+      );
     }
   }
 
@@ -454,12 +487,14 @@ export async function fetchUserHistory(userId: string): Promise<VectorizationHis
     const existingRaw = safeGetStorage(LOCAL_STORAGE_HISTORY_KEY);
     if (!existingRaw) return [];
     const list: VectorizationHistoryItem[] = JSON.parse(existingRaw);
-    const filtered = list.filter((i) => i.userId === userId || !userId || userId === 'guest');
+    const filtered = list.filter(
+      (i) => i.userId === userId || !userId || userId === "guest",
+    );
     const decompressedList = await Promise.all(
       filtered.map(async (i) => ({
         ...i,
         svg: await decompressSvgString(i.svg),
-      }))
+      })),
     );
     return decompressedList;
   } catch {
@@ -467,13 +502,19 @@ export async function fetchUserHistory(userId: string): Promise<VectorizationHis
   }
 }
 
-export async function deleteHistoryItem(userId: string, itemId: string): Promise<void> {
+export async function deleteHistoryItem(
+  userId: string,
+  itemId: string,
+): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = doc(db, 'users', userId, 'history', itemId);
+      const docRef = doc(db, "users", userId, "history", itemId);
       await deleteDoc(docRef);
     } catch (err) {
-      console.warn('Failed to delete from Firestore, falling back to local storage:', err);
+      console.warn(
+        "Failed to delete from Firestore, falling back to local storage:",
+        err,
+      );
     }
   }
 
@@ -485,17 +526,24 @@ export async function deleteHistoryItem(userId: string, itemId: string): Promise
       safeSetStorage(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(updated));
     }
   } catch (err) {
-    console.error('Error deleting from local history:', err);
+    console.error("Error deleting from local history:", err);
   }
 }
 
-export async function linkWalletToUser(userId: string, walletAddress: string): Promise<void> {
+export async function linkWalletToUser(
+  userId: string,
+  walletAddress: string,
+): Promise<void> {
   if (isFirebaseConfigured && db) {
     try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, { walletAddress, updatedAt: serverTimestamp() }, { merge: true });
+      const userRef = doc(db, "users", userId);
+      await setDoc(
+        userRef,
+        { walletAddress, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
     } catch (err) {
-      console.warn('Failed to link wallet in Firestore:', err);
+      console.warn("Failed to link wallet in Firestore:", err);
     }
   }
 
@@ -507,7 +555,7 @@ export async function linkWalletToUser(userId: string, walletAddress: string): P
           uid: userId,
           credits: 0,
           isAdmin: false,
-          subscription: { status: 'inactive' },
+          subscription: { status: "inactive" },
           isPro: false,
           unlockedSvgIds: [],
           updatedAt: Date.now(),
@@ -516,14 +564,14 @@ export async function linkWalletToUser(userId: string, walletAddress: string): P
     profile.updatedAt = Date.now();
     safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
   } catch (err) {
-    console.error('Error linking wallet locally:', err);
+    console.error("Error linking wallet locally:", err);
   }
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   if (isFirebaseConfigured && db) {
     try {
-      const userRef = doc(db, 'users', userId);
+      const userRef = doc(db, "users", userId);
       const docSnap = await getDoc(userRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -532,17 +580,24 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
           email: data.email || null,
           displayName: data.displayName || null,
           walletAddress: data.walletAddress || null,
-          credits: typeof data.credits === 'number' ? data.credits : 0,
-          isAdmin: isAdminPassEnabled() && Boolean(data.isAdmin || isLocalAdminPassActive()),
-          subscription: data.subscription || { status: 'inactive' },
+          credits: typeof data.credits === "number" ? data.credits : 0,
+          isAdmin: Boolean(data.isAdmin),
+          subscription: data.subscription || { status: "inactive" },
           isPro: Boolean(data.isPro),
-          unlockedSvgIds: Array.isArray(data.unlockedSvgIds) ? data.unlockedSvgIds : [],
+          unlockedSvgIds: Array.isArray(data.unlockedSvgIds)
+            ? data.unlockedSvgIds
+            : [],
           unlockedImages: data.unlockedImages || {},
-          updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : Date.now(),
+          updatedAt: data.updatedAt?.toMillis
+            ? data.updatedAt.toMillis()
+            : Date.now(),
         };
       }
     } catch (err) {
-      console.warn('Failed to get Firestore profile, using local fallback:', err);
+      console.warn(
+        "Failed to get Firestore profile, using local fallback:",
+        err,
+      );
     }
   }
 
@@ -552,8 +607,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
       const parsed: UserProfile = JSON.parse(existingRaw);
       return {
         ...parsed,
-        isAdmin: isAdminPassEnabled() && Boolean(parsed.isAdmin || isLocalAdminPassActive()),
-        subscription: parsed.subscription || { status: 'inactive' },
+        isAdmin: Boolean(parsed.isAdmin),
+        subscription: parsed.subscription || { status: "inactive" },
         unlockedSvgIds: parsed.unlockedSvgIds || [],
         unlockedImages: parsed.unlockedImages || {},
       };
@@ -563,8 +618,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
   const defaultProfile: UserProfile = {
     uid: userId,
     credits: 0,
-    isAdmin: isAdminPassEnabled() && isLocalAdminPassActive(),
-    subscription: { status: 'inactive' },
+    isAdmin: false,
+    subscription: { status: "inactive" },
     isPro: false,
     unlockedSvgIds: [],
     unlockedImages: {},
@@ -573,117 +628,72 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
   return defaultProfile;
 }
 
-export async function updateUserCredits(
-  userId: string,
-  newCredits: number,
-  isPro?: boolean,
-  isAdmin?: boolean
-): Promise<void> {
-  if (isFirebaseConfigured && db) {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(
-        userRef,
-        {
-          credits: newCredits,
-          ...(typeof isPro === 'boolean' ? { isPro } : {}),
-          ...(typeof isAdmin === 'boolean' ? { isAdmin } : {}),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    } catch (err) {
-      console.warn('Failed to update credits in Firestore:', err);
-    }
-  }
-
-  try {
-    const existingRaw = safeGetStorage(LOCAL_STORAGE_PROFILE_KEY);
-    const profile: UserProfile = existingRaw
-      ? JSON.parse(existingRaw)
-      : {
-          uid: userId,
-          credits: 0,
-          isAdmin: false,
-          subscription: { status: 'inactive' },
-          isPro: false,
-          unlockedSvgIds: [],
-          unlockedImages: {},
-          updatedAt: Date.now(),
-        };
-    profile.credits = newCredits;
-    if (typeof isPro === 'boolean') {
-      profile.isPro = isPro;
-    }
-    if (typeof isAdmin === 'boolean') {
-      profile.isAdmin = isAdmin;
-    }
-    profile.updatedAt = Date.now();
-    safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
-  } catch (err) {
-    console.error('Error saving updated profile locally:', err);
-  }
-}
-
 /**
  * Creates a new crypto transaction record via the backend server endpoint (service account auth).
  * Client-side Firestore direct writes are removed for security.
  * Falls back to localStorage if offline/guest mode.
  */
 export async function createCryptoTransaction(
-  data: Omit<CryptoTransaction, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+  data: Omit<CryptoTransaction, "id" | "createdAt" | "updatedAt" | "status"> & {
     status?: TransactionStatus;
-  }
+  },
 ): Promise<string> {
   const now = Date.now();
-  const status: TransactionStatus = data.status || 'pending';
+  const status: TransactionStatus = data.status || "pending";
 
   const txData = {
     ...data,
     status,
     createdAt: now,
     updatedAt: now,
+    isTestnet: data.isTestnet || false,
   };
 
   let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
 
   // 1. Post to backend server endpoint (service account writes to transactions collection)
-  const endpoint = APP_CONFIG.api.createTransactionUrl || '/api/create-transaction';
+  const endpoint =
+    APP_CONFIG.api.createTransactionUrl || "/api/create-transaction";
   try {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     const currentUser = auth.currentUser;
     if (currentUser) {
       try {
         const idToken = await currentUser.getIdToken();
-        headers['Authorization'] = `Bearer ${idToken}`;
+        headers["Authorization"] = `Bearer ${idToken}`;
       } catch (tokenErr) {
-        console.warn('[Transaction] Token retrieval failed:', tokenErr);
+        console.warn("[Transaction] Token retrieval failed:", tokenErr);
         await handleAuthExpired();
       }
     }
 
     const appCheckToken = await getAppCheckToken();
     if (appCheckToken) {
-      headers['X-Firebase-AppCheck'] = appCheckToken;
+      headers["X-Firebase-AppCheck"] = appCheckToken;
     }
 
     const res = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify(txData),
     });
 
     if (res.status === 401) {
-      const errData = (await res.clone().json().catch(() => ({}))) as any;
+      const errData = (await res
+        .clone()
+        .json()
+        .catch(() => ({}))) as any;
       if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
         try {
           const currentUser = auth.currentUser;
           if (currentUser) {
             await currentUser.getIdToken(true);
-            console.warn('[History] Session confirmed active with Google. Skipping disconnect.');
+            console.warn(
+              "[History] Session confirmed active with Google. Skipping disconnect.",
+            );
           } else {
             await handleAuthExpired();
           }
@@ -699,21 +709,13 @@ export async function createCryptoTransaction(
         createdId = resJson.transactionId;
       }
     } else {
-      console.warn('Backend transaction creation returned error status:', res.status);
+      console.warn(
+        "Backend transaction creation returned error status:",
+        res.status,
+      );
     }
   } catch (err) {
-    console.warn('Failed to save transaction to backend, storing locally:', err);
-  }
-
-  // 2. Also cache to localStorage for offline access & immediate responsiveness
-  try {
-    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
-    const existing: CryptoTransaction[] = raw ? JSON.parse(raw) : [];
-    const item: CryptoTransaction = { ...txData, id: createdId };
-    const updated = [item, ...existing.filter((t) => t.id !== createdId)].slice(0, 100);
-    safeSetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY, JSON.stringify(updated));
-  } catch (err) {
-    console.error('Error saving transaction locally:', err);
+    console.warn("Failed to save transaction to backend:", err);
   }
 
   // 3. Trigger backend lazy scheduler for transaction verification
@@ -727,15 +729,13 @@ export async function createCryptoTransaction(
 /**
  * Fetches all transactions for a specific user from Firestore or localStorage.
  */
-export async function fetchUserTransactions(userId: string): Promise<CryptoTransaction[]> {
+export async function fetchUserTransactions(
+  userId: string,
+): Promise<CryptoTransaction[]> {
   if (isFirebaseConfigured && db && userId) {
     try {
-      const txCollection = collection(db, 'transactions');
-      const q = query(
-        txCollection,
-        where('userId', '==', userId),
-        limit(100)
-      );
+      const txCollection = collection(db, "transactions");
+      const q = query(txCollection, where("userId", "==", userId), limit(100));
       const snapshot = await getDocs(q);
       const items: CryptoTransaction[] = [];
       snapshot.forEach((docSnap) => {
@@ -747,25 +747,29 @@ export async function fetchUserTransactions(userId: string): Promise<CryptoTrans
           packId: d.packId,
           credits: d.credits || 0,
           usdPrice: d.usdPrice || 0,
-          cryptoAmount: d.cryptoAmount || '0',
+          cryptoAmount: d.cryptoAmount || "0",
           cryptoToken: d.cryptoToken,
           chainKey: d.chainKey,
           chainId: d.chainId,
-          paymentMethod: d.paymentMethod || 'web3',
+          paymentMethod: d.paymentMethod || "web3",
           fromAddress: d.fromAddress,
           toAddress: d.toAddress,
           txHash: d.txHash,
-          status: d.status || 'pending',
+          status: d.status || "pending",
           statusMessage: d.statusMessage,
           createdAt: d.createdAt || Date.now(),
           updatedAt: d.updatedAt || Date.now(),
           confirmedAt: d.confirmedAt,
+          isTestnet: Boolean(d.isTestnet),
         });
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       return items;
     } catch (err) {
-      console.warn('Failed to query transactions from Firestore, using local fallback:', err);
+      console.warn(
+        "Failed to query transactions from Firestore, using local fallback:",
+        err,
+      );
     }
   }
 
@@ -773,7 +777,9 @@ export async function fetchUserTransactions(userId: string): Promise<CryptoTrans
     const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
     if (!raw) return [];
     const items: CryptoTransaction[] = JSON.parse(raw);
-    return items.filter((t) => t.userId === userId || !userId || userId === 'guest');
+    return items.filter(
+      (t) => t.userId === userId || !userId || userId === "guest",
+    );
   } catch {
     return [];
   }
@@ -784,16 +790,12 @@ export async function fetchUserTransactions(userId: string): Promise<CryptoTrans
  */
 export function listenToUserTransactions(
   userId: string,
-  onUpdate: (transactions: CryptoTransaction[]) => void
+  onUpdate: (transactions: CryptoTransaction[]) => void,
 ): Unsubscribe {
   if (isFirebaseConfigured && db && userId) {
     try {
-      const txCollection = collection(db, 'transactions');
-      const q = query(
-        txCollection,
-        where('userId', '==', userId),
-        limit(100)
-      );
+      const txCollection = collection(db, "transactions");
+      const q = query(txCollection, where("userId", "==", userId), limit(100));
 
       return onSnapshot(
         q,
@@ -808,41 +810,46 @@ export function listenToUserTransactions(
               packId: d.packId,
               credits: d.credits || 0,
               usdPrice: d.usdPrice || 0,
-              cryptoAmount: d.cryptoAmount || '0',
+              cryptoAmount: d.cryptoAmount || "0",
               cryptoToken: d.cryptoToken,
               chainKey: d.chainKey,
               chainId: d.chainId,
-              paymentMethod: d.paymentMethod || 'web3',
+              paymentMethod: d.paymentMethod || "web3",
               fromAddress: d.fromAddress,
               toAddress: d.toAddress,
               txHash: d.txHash,
-              status: d.status || 'pending',
+              status: d.status || "pending",
               statusMessage: d.statusMessage,
               createdAt: d.createdAt || Date.now(),
               updatedAt: d.updatedAt || Date.now(),
               confirmedAt: d.confirmedAt,
+              isTestnet: Boolean(d.isTestnet),
             });
           });
           items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           onUpdate(items);
         },
         (err) => {
-          console.warn('Firestore transactions snapshot error:', err);
+          console.warn("Firestore transactions snapshot error:", err);
           try {
             const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
             if (raw) {
               const localItems: CryptoTransaction[] = JSON.parse(raw);
-              onUpdate(localItems.filter((t) => t.userId === userId || !userId || userId === 'guest'));
+              onUpdate(
+                localItems.filter(
+                  (t) => t.userId === userId || !userId || userId === "guest",
+                ),
+              );
             } else {
               onUpdate([]);
             }
           } catch {
             onUpdate([]);
           }
-        }
+        },
       );
     } catch (err) {
-      console.warn('Error setting up transaction snapshot listener:', err);
+      console.warn("Error setting up transaction snapshot listener:", err);
     }
   }
 
@@ -851,7 +858,11 @@ export function listenToUserTransactions(
     const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
     if (raw) {
       const items: CryptoTransaction[] = JSON.parse(raw);
-      onUpdate(items.filter((t) => t.userId === userId || !userId || userId === 'guest'));
+      onUpdate(
+        items.filter(
+          (t) => t.userId === userId || !userId || userId === "guest",
+        ),
+      );
     } else {
       onUpdate([]);
     }
@@ -866,11 +877,11 @@ export function listenToUserTransactions(
  */
 export function listenToTransaction(
   transactionId: string,
-  onUpdate: (tx: CryptoTransaction | null) => void
+  onUpdate: (tx: CryptoTransaction | null) => void,
 ): Unsubscribe {
   if (isFirebaseConfigured && db && transactionId) {
     try {
-      const txDocRef = doc(db, 'transactions', transactionId);
+      const txDocRef = doc(db, "transactions", transactionId);
       return onSnapshot(
         txDocRef,
         (docSnap) => {
@@ -886,27 +897,28 @@ export function listenToTransaction(
             packId: d.packId,
             credits: d.credits || 0,
             usdPrice: d.usdPrice || 0,
-            cryptoAmount: d.cryptoAmount || '0',
+            cryptoAmount: d.cryptoAmount || "0",
             cryptoToken: d.cryptoToken,
             chainKey: d.chainKey,
             chainId: d.chainId,
-            paymentMethod: d.paymentMethod || 'web3',
+            paymentMethod: d.paymentMethod || "web3",
             fromAddress: d.fromAddress,
             toAddress: d.toAddress,
             txHash: d.txHash,
-            status: d.status || 'pending',
+            status: d.status || "pending",
             statusMessage: d.statusMessage,
             createdAt: d.createdAt || Date.now(),
             updatedAt: d.updatedAt || Date.now(),
             confirmedAt: d.confirmedAt,
+            isTestnet: Boolean(d.isTestnet),
           });
         },
         (err) => {
-          console.warn('Error listening to single transaction:', err);
-        }
+          console.warn("Error listening to single transaction:", err);
+        },
       );
     } catch (err) {
-      console.warn('Error setting up single transaction listener:', err);
+      console.warn("Error setting up single transaction listener:", err);
     }
   }
 
@@ -923,45 +935,26 @@ export async function updateTransactionStatus(
     txHash?: string;
     statusMessage?: string;
     confirmedAt?: number;
-  }
+  },
 ): Promise<void> {
   const now = Date.now();
   if (isFirebaseConfigured && db) {
     try {
-      const txDocRef = doc(db, 'transactions', transactionId);
+      const txDocRef = doc(db, "transactions", transactionId);
       await updateDoc(txDocRef, {
         status,
         ...(options?.txHash ? { txHash: options.txHash } : {}),
-        ...(options?.statusMessage ? { statusMessage: options.statusMessage } : {}),
+        ...(options?.statusMessage
+          ? { statusMessage: options.statusMessage }
+          : {}),
         ...(options?.confirmedAt ? { confirmedAt: options.confirmedAt } : {}),
         updatedAt: now,
         serverUpdatedAt: serverTimestamp(),
       });
     } catch (err) {
-      console.warn('Failed to update transaction in Firestore:', err);
+      console.warn("Failed to update transaction in Firestore:", err);
     }
   }
-
-  // Update in localStorage
-  try {
-    const raw = safeGetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY);
-    if (raw) {
-      const items: CryptoTransaction[] = JSON.parse(raw);
-      const updated = items.map((item) =>
-        item.id === transactionId
-          ? {
-              ...item,
-              status,
-              ...(options?.txHash ? { txHash: options.txHash } : {}),
-              ...(options?.statusMessage ? { statusMessage: options.statusMessage } : {}),
-              ...(options?.confirmedAt ? { confirmedAt: options.confirmedAt } : {}),
-              updatedAt: now,
-            }
-          : item
-      );
-      safeSetStorage(LOCAL_STORAGE_TRANSACTIONS_KEY, JSON.stringify(updated));
-    }
-  } catch {}
 }
 
 export interface RefreshCreditsResult {
@@ -977,20 +970,23 @@ export interface RefreshCreditsResult {
  * If a Cloud Function URL is configured (NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL),
  * it triggers the function to verify blockchain receipts and finalize pending transactions.
  */
-export async function refreshUserCredits(userId: string): Promise<RefreshCreditsResult> {
+export async function refreshUserCredits(
+  userId: string,
+): Promise<RefreshCreditsResult> {
   const transactions = await fetchUserTransactions(userId);
-  const pending = transactions.filter((t) => t.status === 'pending');
-  const confirmed = transactions.filter((t) => t.status === 'confirmed');
+  const pending = transactions.filter((t) => t.status === "pending");
+  const confirmed = transactions.filter((t) => t.status === "confirmed");
 
   let cloudFunctionNotified = false;
 
   // Server endpoint trigger (proxied server-side so no secret is exposed to client)
-  const functionUrl = APP_CONFIG.api.refreshCreditsUrl || '/api/refresh-credits';
+  const functionUrl =
+    APP_CONFIG.api.refreshCreditsUrl || "/api/refresh-credits";
 
   if (functionUrl && pending.length > 0) {
     try {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       };
 
       // 1. Authenticate with Firebase Auth ID token if signed in
@@ -998,9 +994,12 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
       if (currentUser) {
         try {
           const idToken = await currentUser.getIdToken();
-          headers['Authorization'] = `Bearer ${idToken}`;
+          headers["Authorization"] = `Bearer ${idToken}`;
         } catch (tokenErr) {
-          console.warn('[Firestore] Failed to obtain valid ID token, session expired:', tokenErr);
+          console.warn(
+            "[Firestore] Failed to obtain valid ID token, session expired:",
+            tokenErr,
+          );
           await handleAuthExpired();
         }
       }
@@ -1008,11 +1007,11 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
       // 2. Attach App Check token
       const appCheckToken = await getAppCheckToken();
       if (appCheckToken) {
-        headers['X-Firebase-AppCheck'] = appCheckToken;
+        headers["X-Firebase-AppCheck"] = appCheckToken;
       }
 
       const res = await fetch(functionUrl, {
-        method: 'POST',
+        method: "POST",
         headers,
         body: JSON.stringify({
           userId,
@@ -1028,18 +1027,29 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
       });
 
       if (res.status === 401) {
-        const errorData = (await res.clone().json().catch(() => ({}))) as any;
-        if (errorData.error && /expired|invalid.*token/i.test(errorData.error)) {
+        const errorData = (await res
+          .clone()
+          .json()
+          .catch(() => ({}))) as any;
+        if (
+          errorData.error &&
+          /expired|invalid.*token/i.test(errorData.error)
+        ) {
           try {
             const currentUser = auth.currentUser;
             if (currentUser) {
               await currentUser.getIdToken(true);
-              console.warn('[Firestore] Google confirmed session is active. Skipping disconnect.');
+              console.warn(
+                "[Firestore] Google confirmed session is active. Skipping disconnect.",
+              );
             } else {
               await handleAuthExpired();
             }
           } catch (authErr) {
-            console.warn('[Firestore] Google confirmed session is revoked, signing out:', authErr);
+            console.warn(
+              "[Firestore] Google confirmed session is revoked, signing out:",
+              authErr,
+            );
             await handleAuthExpired();
           }
         }
@@ -1047,7 +1057,7 @@ export async function refreshUserCredits(userId: string): Promise<RefreshCredits
         cloudFunctionNotified = true;
       }
     } catch (err) {
-      console.warn('Cloud Function refresh invocation error:', err);
+      console.warn("Cloud Function refresh invocation error:", err);
     }
   }
 

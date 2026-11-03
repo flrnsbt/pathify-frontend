@@ -23,6 +23,12 @@ export async function POST(request: NextRequest) {
       headers['x-api-secret'] = serverSecret;
     }
 
+    // 1b. Inject TESTNET_SECRET server-side for testnet transaction validation
+    const testnetSecret = process.env.TESTNET_SECRET;
+    if (testnetSecret && (body.isTestnet === true || body.isTestnet === 'true')) {
+      headers['x-testnet-secret'] = testnetSecret;
+    }
+
     // 2. Forward App Check token
     const appCheck = request.headers.get('X-Firebase-AppCheck');
     if (appCheck) {

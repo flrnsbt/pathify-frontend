@@ -3,7 +3,65 @@
  * Modular, multi-chain configuration for EVM networks.
  */
 
-export const isDebugMode = process.env.NEXT_PUBLIC_DEBUG_MODE === "true";
+import { APP_CONFIG } from "@/config/app.config";
+
+export const isDebugMode = APP_CONFIG.features.debugMode;
+
+export interface BackendChainConfig {
+  key: string;
+  name: string;
+  chainId?: number;
+  isEvm: boolean;
+  rpcUrls: string[];
+  nativeToken: string;
+  tokens: string[];
+  explorerUrl: string;
+}
+
+export interface BackendWalletConfig {
+  chainKey: string;
+  chainId?: number;
+  token?: string;
+  address: string;
+}
+
+export interface BackendConfigResponse {
+  chains: Record<string, BackendChainConfig>;
+  wallets: BackendWalletConfig[];
+  isTestnet: boolean;
+}
+
+let backendConfigCache: BackendConfigResponse | null = null;
+let backendConfigPromise: Promise<BackendConfigResponse> | null = null;
+
+/**
+ * Fetches chain and wallet configuration from backend
+ * The backend handles mainnet/testnet mode switching via TESTNET_SECRET
+ */
+export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
+  if (backendConfigCache) {
+    return backendConfigCache;
+  }
+
+  if (!backendConfigPromise) {
+    backendConfigPromise = (async () => {
+      try {
+        const response = await fetch(`${APP_CONFIG.api.backendUrl}/api/config`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch config: ${response.status}`);
+        }
+        const config = await response.json() as BackendConfigResponse;
+        backendConfigCache = config;
+        return config;
+      } catch (err) {
+        console.error('Failed to fetch backend config:', err);
+        throw err;
+      }
+    })();
+  }
+
+  return backendConfigPromise;
+}
 
 export type SupportedChainKey =
   | "bsc"
@@ -38,7 +96,8 @@ export interface ChainMetadata {
   bgGlow: string;
 }
 
-const MAINNET_CHAINS: Record<SupportedChainKey, ChainMetadata> = {
+// Default chain metadata with UI colors/badges - will be merged with backend config
+const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   bsc: {
     key: "bsc",
     name: "BNB Smart Chain",
@@ -145,115 +204,42 @@ const MAINNET_CHAINS: Record<SupportedChainKey, ChainMetadata> = {
   },
 };
 
-const TESTNET_CHAINS: Record<SupportedChainKey, ChainMetadata> = {
-  bsc: {
-    key: "bsc",
-    name: "BNB Smart Chain Testnet",
-    shortName: "BNB Testnet",
-    badge: "BEP-20",
-    chainId: 97,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "BNB"],
-    nativeToken: "BNB",
-    explorerUrl: "https://testnet.bscscan.com",
-    color: "#F3BA2F",
-    bgGlow: "rgba(243, 186, 47, 0.12)",
-  },
-  eth: {
-    key: "eth",
-    name: "Ethereum Sepolia",
-    shortName: "Sepolia",
-    badge: "ERC-20",
-    chainId: 11155111,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.etherscan.io",
-    color: "#627EEA",
-    bgGlow: "rgba(98, 126, 234, 0.12)",
-  },
-  pol: {
-    key: "pol",
-    name: "Polygon Amoy",
-    shortName: "Amoy",
-    badge: "PoS",
-    chainId: 80002,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "POL"],
-    nativeToken: "POL",
-    explorerUrl: "https://amoy.polygonscan.com",
-    color: "#8247E5",
-    bgGlow: "rgba(130, 71, 229, 0.12)",
-  },
-  base: {
-    key: "base",
-    name: "Base Sepolia",
-    shortName: "Base Sepolia",
-    badge: "L2",
-    chainId: 84532,
-    isEvm: true,
-    tokens: ["ETH", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.basescan.org",
-    color: "#0052FF",
-    bgGlow: "rgba(0, 82, 255, 0.12)",
-  },
-  arbitrum: {
-    key: "arbitrum",
-    name: "Arbitrum Sepolia",
-    shortName: "Arb Sepolia",
-    badge: "L2",
-    chainId: 421614,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.arbiscan.io",
-    color: "#28A0F0",
-    bgGlow: "rgba(40, 160, 240, 0.12)",
-  },
-  op: {
-    key: "op",
-    name: "Optimism Sepolia",
-    shortName: "OP Sepolia",
-    badge: "L2",
-    chainId: 11155420,
-    isEvm: true,
-    tokens: ["ETH", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://optimism-sepolia.blockscout.com",
-    color: "#FF0420",
-    bgGlow: "rgba(255, 4, 32, 0.12)",
-  },
-  avax: {
-    key: "avax",
-    name: "Avalanche Fuji",
-    shortName: "Fuji",
-    badge: "C-Chain",
-    chainId: 43113,
-    isEvm: true,
-    tokens: ["AVAX", "USDT", "USDC"],
-    nativeToken: "AVAX",
-    explorerUrl: "https://testnet.snowtrace.io",
-    color: "#E84142",
-    bgGlow: "rgba(232, 65, 66, 0.12)",
-  },
-  plasma: {
-    key: "plasma",
-    name: "Plasma Testnet",
-    shortName: "Plasma",
-    badge: "L2",
-    chainId: 9746,
-    isEvm: true,
-    tokens: ["XPL"],
-    nativeToken: "XPL",
-    explorerUrl: "https://testnet.plasmascan.to",
-    color: "#7C3AED",
-    bgGlow: "rgba(124, 58, 237, 0.12)",
-  },
-};
+let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null = null;
 
-export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> =
-  isDebugMode ? TESTNET_CHAINS : MAINNET_CHAINS;
+/**
+ * Get supported chains by merging backend config with UI metadata
+ */
+export async function getSupportedChains(): Promise<Record<SupportedChainKey, ChainMetadata>> {
+  if (supportedChainsCache) {
+    return supportedChainsCache;
+  }
+
+  const backendConfig = await fetchBackendConfig();
+  const chains: Record<SupportedChainKey, ChainMetadata> = {};
+
+  for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
+    const chainKey = key as SupportedChainKey;
+    const defaultMeta = DEFAULT_CHAIN_METADATA[chainKey];
+
+    if (defaultMeta) {
+      chains[chainKey] = {
+        ...defaultMeta,
+        name: backendChain.name,
+        chainId: backendChain.chainId || defaultMeta.chainId,
+        isEvm: backendChain.isEvm,
+        tokens: backendChain.tokens as SupportedToken[],
+        nativeToken: backendChain.nativeToken as SupportedToken,
+        explorerUrl: backendChain.explorerUrl,
+      };
+    }
+  }
+
+  supportedChainsCache = chains;
+  return chains;
+}
+
+// Fallback to static chains if backend config fails
+export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> = DEFAULT_CHAIN_METADATA;
 
 const MAINNET_ERC20_CONTRACTS: Record<
   number,
@@ -534,9 +520,8 @@ export function parseWalletList(
 }
 
 /**
- * Asynchronously loads payment wallets once from:
- * - "@/config/dev.wallets.json" if debug mode is active
- * - "@/config/wallets.json" otherwise
+ * Asynchronously loads payment wallets from backend
+ * The backend handles mainnet/testnet mode switching via TESTNET_SECRET
  * Caches the in-flight Promise and the parsed result so subsequent calls resolve immediately.
  */
 export async function loadPaymentWallets(): Promise<ParsedPaymentWallet[]> {
@@ -547,30 +532,23 @@ export async function loadPaymentWallets(): Promise<ParsedPaymentWallet[]> {
   if (!cachedWalletsPromise) {
     cachedWalletsPromise = (async () => {
       try {
-        const mod = isDebugMode
-          ? await import("@/config/dev.wallets.json")
-          : await import("@/config/wallets.json");
-        const data = mod.default || mod;
-        const rawList = Array.isArray(data?.wallets)
-          ? data.wallets
-          : Array.isArray(data)
-            ? data
-            : [];
-        const parsed = parseWalletList(rawList);
+        const backendConfig = await fetchBackendConfig();
+        const parsed = parseWalletList(backendConfig.wallets);
         cachedWallets = parsed;
         return parsed;
       } catch (err) {
         console.warn(
-          "Failed to load wallets json asynchronously, falling back to default:",
+          "Failed to load wallets from backend, falling back to local JSON:",
           err,
         );
+        // Fallback to local JSON if backend fails
         try {
-          const fallbackMod = await import("@/config/wallets.json");
-          const fallbackData = fallbackMod.default || fallbackMod;
-          const rawList = Array.isArray(fallbackData?.wallets)
-            ? fallbackData.wallets
-            : Array.isArray(fallbackData)
-              ? fallbackData
+          const mod = await import("@/config/wallets.json");
+          const data = mod.default || mod;
+          const rawList = Array.isArray(data?.wallets)
+            ? data.wallets
+            : Array.isArray(data)
+              ? data
               : [];
           const parsed = parseWalletList(rawList);
           cachedWallets = parsed;
