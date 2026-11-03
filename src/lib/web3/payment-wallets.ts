@@ -50,11 +50,11 @@ export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
         if (!response.ok) {
           throw new Error(`Failed to fetch config: ${response.status}`);
         }
-        const config = await response.json() as BackendConfigResponse;
+        const config = (await response.json()) as BackendConfigResponse;
         backendConfigCache = config;
         return config;
       } catch (err) {
-        console.error('Failed to fetch backend config:', err);
+        console.error("Failed to fetch backend config:", err);
         throw err;
       }
     })();
@@ -204,18 +204,21 @@ const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   },
 };
 
-let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null = null;
+let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null =
+  null;
 
 /**
  * Get supported chains by merging backend config with UI metadata
  */
-export async function getSupportedChains(): Promise<Record<SupportedChainKey, ChainMetadata>> {
+export async function getSupportedChains(): Promise<
+  Record<SupportedChainKey, ChainMetadata>
+> {
   if (supportedChainsCache) {
     return supportedChainsCache;
   }
 
   const backendConfig = await fetchBackendConfig();
-  const chains: Record<SupportedChainKey, ChainMetadata> = {};
+  let chains = {} as any;
 
   for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
     const chainKey = key as SupportedChainKey;
@@ -235,11 +238,12 @@ export async function getSupportedChains(): Promise<Record<SupportedChainKey, Ch
   }
 
   supportedChainsCache = chains;
-  return chains;
+  return chains as Record<SupportedChainKey, ChainMetadata>;
 }
 
 // Fallback to static chains if backend config fails
-export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> = DEFAULT_CHAIN_METADATA;
+export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> =
+  DEFAULT_CHAIN_METADATA;
 
 const MAINNET_ERC20_CONTRACTS: Record<
   number,
@@ -541,21 +545,7 @@ export async function loadPaymentWallets(): Promise<ParsedPaymentWallet[]> {
           "Failed to load wallets from backend, falling back to local JSON:",
           err,
         );
-        // Fallback to local JSON if backend fails
-        try {
-          const mod = await import("@/config/wallets.json");
-          const data = mod.default || mod;
-          const rawList = Array.isArray(data?.wallets)
-            ? data.wallets
-            : Array.isArray(data)
-              ? data
-              : [];
-          const parsed = parseWalletList(rawList);
-          cachedWallets = parsed;
-          return parsed;
-        } catch {
-          return [];
-        }
+        throw err;
       }
     })();
   }
