@@ -623,6 +623,11 @@ export async function createCryptoTransaction(
     console.error('Error saving transaction locally:', err);
   }
 
+  // Trigger backend lazy scheduler for transaction verification
+  if (data.userId) {
+    refreshUserCredits(data.userId).catch(() => {});
+  }
+
   return createdId;
 }
 

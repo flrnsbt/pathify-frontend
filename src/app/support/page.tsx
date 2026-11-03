@@ -224,11 +224,10 @@ function SupportContent() {
                 <button
                   type="button"
                   onClick={() => setCategory('crypto_transaction')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${
-                    category === 'crypto_transaction'
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${category === 'crypto_transaction'
                       ? 'border-indigo-500 bg-indigo-600/20 text-white shadow-md'
                       : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:bg-neutral-800'
-                  }`}
+                    }`}
                 >
                   <Coins className="h-4 w-4 text-amber-400" />
                   <span className="text-center">Crypto Tx</span>
@@ -237,11 +236,10 @@ function SupportContent() {
                 <button
                   type="button"
                   onClick={() => setCategory('credits_billing')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${
-                    category === 'credits_billing'
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${category === 'credits_billing'
                       ? 'border-indigo-500 bg-indigo-600/20 text-white shadow-md'
                       : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:bg-neutral-800'
-                  }`}
+                    }`}
                 >
                   <ReceiptText className="h-4 w-4 text-emerald-400" />
                   <span className="text-center">Credits & Plans</span>
@@ -250,11 +248,10 @@ function SupportContent() {
                 <button
                   type="button"
                   onClick={() => setCategory('technical')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${
-                    category === 'technical'
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${category === 'technical'
                       ? 'border-indigo-500 bg-indigo-600/20 text-white shadow-md'
                       : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:bg-neutral-800'
-                  }`}
+                    }`}
                 >
                   <Wrench className="h-4 w-4 text-indigo-400" />
                   <span className="text-center">Technical Issue</span>
@@ -263,11 +260,10 @@ function SupportContent() {
                 <button
                   type="button"
                   onClick={() => setCategory('general')}
-                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${
-                    category === 'general'
+                  className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border text-xs font-medium transition ${category === 'general'
                       ? 'border-indigo-500 bg-indigo-600/20 text-white shadow-md'
                       : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:bg-neutral-800'
-                  }`}
+                    }`}
                 >
                   <MessageSquare className="h-4 w-4 text-neutral-400" />
                   <span className="text-center">General Inquiry</span>
@@ -399,14 +395,6 @@ function SupportContent() {
                 placeholder="Please describe what happened, any transaction details or error notices you encountered..."
                 className="w-full rounded-xl border border-neutral-800 bg-neutral-950 p-3.5 text-xs text-white placeholder-neutral-600 focus:border-indigo-500 focus:outline-none transition"
               />
-            </div>
-
-            {/* Security Attestation Note */}
-            <div className="flex items-center gap-2 rounded-xl bg-neutral-950/60 p-3 text-[11px] text-neutral-400 border border-neutral-850">
-              <Shield className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>
-                Protected by Firebase App Check and End-to-End Cryptographic Attestation.
-              </span>
             </div>
 
             {/* Submit Button */}
