@@ -24,7 +24,7 @@ import {
 } from '../lib/firebase/firestore';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit-controllers/react';
-import { useChainId, useSendTransaction, useWriteContract, useSwitchChain, useBalance, useReadContracts } from 'wagmi';
+import { useChainId, useSendTransaction, useWriteContract, useSwitchChain, useBalance, useReadContracts, usePublicClient } from 'wagmi';
 import { getAccount } from '@wagmi/core';
 import { parseEther, parseUnits, formatUnits, type Address } from 'viem';
 import { CHAIN_ID_TO_VIEM_CHAIN, CHAIN_KEY_TO_VIEM_CHAIN, getWagmiConfig } from '../lib/web3/config';
@@ -90,12 +90,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   const { switchChainAsync, chains } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
   // State
   const [selectedPack, setSelectedPack] = useState<CreditPack>(CREDIT_PACKS[1]); // default to 100 pack
   const [selectedChainKey, setSelectedChainKey] = useState<SupportedChainKey>('bsc');
   const [selectedToken, setSelectedToken] = useState<SupportedToken>('USDT');
   const [payMethod, setPayMethod] = useState<'wallet' | 'qr'>('wallet');
+
+  // Network switching states
+  const [switchFailedChainId, setSwitchFailedChainId] = useState<number | null>(null);
+  const [isSwitchingChain, setIsSwitchingChain] = useState<boolean>(false);
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -194,6 +199,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     }
     if (!isOpen) {
       hasInitializedChainRef.current = false;
+      setSwitchFailedChainId(null);
+      setIsSwitchingChain(false);
     }
   }, [isOpen, isConnected, currentChainId, availableChains]);
 
@@ -202,6 +209,56 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     availableChains[0] ||
     SUPPORTED_CHAINS['bsc'];
   const isEvm = chainMeta?.isEvm ?? true;
+
+  // Clear failed switch notice if wallet successfully switches to selected chain
+  useEffect(() => {
+    if (currentChainId === chainMeta.chainId) {
+      setSwitchFailedChainId(null);
+    }
+  }, [currentChainId, chainMeta.chainId]);
+
+  // Handle network card selection with automatic seamless chain switching
+  const handleSelectChain = async (key: SupportedChainKey) => {
+    setSelectedChainKey(key);
+    setErrorMsg(null);
+    setSwitchFailedChainId(null);
+
+    const targetChain = supportedChains[key] || availableChains.find((c) => c.key === key);
+    if (!targetChain || !targetChain.chainId) return;
+
+    // If wallet is connected and on a different network, automatically switch to it
+    if (isConnected && currentChainId && currentChainId !== targetChain.chainId) {
+      const targetViemChain =
+        CHAIN_ID_TO_VIEM_CHAIN[targetChain.chainId] || CHAIN_KEY_TO_VIEM_CHAIN[key];
+      const addChainParams = targetViemChain
+        ? {
+            chainName: targetViemChain.name,
+            rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
+            blockExplorerUrls: targetViemChain.blockExplorers?.default?.url
+              ? [targetViemChain.blockExplorers.default.url]
+              : undefined,
+            nativeCurrency: targetViemChain.nativeCurrency,
+          }
+        : undefined;
+
+      setIsSwitchingChain(true);
+      try {
+        if (switchChainAsync) {
+          await switchChainAsync({
+            chainId: targetChain.chainId,
+            addEthereumChainParameter: addChainParams,
+          });
+          setSwitchFailedChainId(null);
+        }
+      } catch (err) {
+        console.warn('[CreditModal] Auto chain switch failed or was rejected:', err);
+        // Record failure so manual switch banner is only shown when auto switch fails
+        setSwitchFailedChainId(targetChain.chainId);
+      } finally {
+        setIsSwitchingChain(false);
+      }
+    }
+  };
 
   // Active token for the selected chain
   const activeToken: SupportedToken = chainMeta.tokens.includes(selectedToken)
@@ -422,7 +479,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         }
       }
 
-      // 2. Perform transaction
+      // 2. Fetch current gas fees to ensure we respect the block base fee
+      if (!publicClient) {
+        throw new Error('Unable to connect to the network. Please try again.');
+      }
+      const block = await publicClient.getBlock();
+      const baseFee = block.baseFeePerGas ?? BigInt(0);
+      // Use a minimal priority fee (1 Gwei) and set maxFeePerGas just above base fee
+      const maxPriorityFeePerGas = BigInt(1000000000); // 1 Gwei
+      const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+
+      // 3. Perform transaction
       let txHash = '';
 
       if (activeToken === chainMeta.nativeToken) {
@@ -430,6 +497,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         const tx = await sendTransactionAsync({
           to: recipientWallet as `0x${string}`,
           value: parseEther(amountToPay),
+          maxFeePerGas,
+          maxPriorityFeePerGas,
         });
         txHash = tx;
       } else {
@@ -447,11 +516,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           abi: ERC20_ABI,
           functionName: 'transfer',
           args: [recipientWallet as `0x${string}`, parsedAmount],
+          maxFeePerGas,
+          maxPriorityFeePerGas,
         });
         txHash = tx;
       }
 
-      // 3. Record transaction in Firestore with status 'pending'
+      // 4. Record transaction in Firestore with status 'pending'
       const txId = await createCryptoTransaction({
         userId: user.uid,
         userEmail: user.email,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APP_CONFIG } from '@/config/app.config';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Next.js Edge / Serverless Proxy for Support endpoint
  * Forwards requests to the backend worker with security headers if configured.
@@ -8,9 +10,7 @@ import { APP_CONFIG } from '@/config/app.config';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const workerEndpoint = APP_CONFIG.api.backendUrl
-      ? `${APP_CONFIG.api.backendUrl}/api/support`
-      : 'https://api.vectorizerr.workers.dev/api/support';
+    const workerEndpoint = APP_CONFIG.api.supportUrl;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
     if (authHeader) {
       headers['Authorization'] = authHeader;
+    }
+
+    const userAgent = request.headers.get('user-agent');
+    if (userAgent) {
+      headers['user-agent'] = userAgent;
     }
 
     const workerRes = await fetch(workerEndpoint, {

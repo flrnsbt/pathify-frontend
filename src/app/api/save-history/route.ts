@@ -1,52 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APP_CONFIG } from '@/config/app.config';
 
+export const dynamic = 'force-dynamic';
+
 /**
- * Next.js Edge / Serverless Proxy for Save History endpoint.
- * Injects private API_SECRET server-side so secrets never reach the browser client,
- * and forwards App Check and Firebase Auth tokens to the Cloudflare Worker backend.
+ * Proxy for save-history. Injects API_SECRET server-side.
+ * Body: { imageHash, svg }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const workerEndpoint = APP_CONFIG.api.backendUrl
-      ? `${APP_CONFIG.api.backendUrl}/api/save-history`
-      : 'https://api.vectorizerr.workers.dev/api/save-history';
+    const workerEndpoint = APP_CONFIG.api.saveHistoryUrl;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    // 1. Inject private server-side secret (never seen by browser DevTools)
     const serverSecret = process.env.API_SECRET;
-    if (serverSecret) {
-      headers['x-api-secret'] = serverSecret;
-    }
+    if (serverSecret) headers['x-api-secret'] = serverSecret;
 
-    // 2. Forward App Check token
     const appCheck = request.headers.get('X-Firebase-AppCheck');
-    if (appCheck) {
-      headers['X-Firebase-AppCheck'] = appCheck;
-    }
+    if (appCheck) headers['X-Firebase-AppCheck'] = appCheck;
 
-    // 3. Forward Authorization token
     const authHeader = request.headers.get('Authorization');
-    if (authHeader) {
-      headers['Authorization'] = authHeader;
-    }
+    if (authHeader) headers['Authorization'] = authHeader;
+
+    // Send only imageHash and svg to backend
+    const minimalBody = { imageHash: body.imageHash, svg: body.svg };
 
     const workerRes = await fetch(workerEndpoint, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(minimalBody),
     });
 
     const data = await workerRes.json().catch(() => ({}));
     return NextResponse.json(data, { status: workerRes.status });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || 'Internal proxy error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal proxy error' }, { status: 500 });
   }
 }

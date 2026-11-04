@@ -5,8 +5,6 @@
 
 import { APP_CONFIG } from "@/config/app.config";
 
-export const isDebugMode = APP_CONFIG.features.debugMode;
-
 export interface BackendChainConfig {
   key: string;
   name: string;
@@ -34,11 +32,9 @@ export interface BackendConfigResponse {
 let backendConfigCache: BackendConfigResponse | null = null;
 let backendConfigPromise: Promise<BackendConfigResponse> | null = null;
 
-const isTestnet = isDebugMode && APP_CONFIG.testnetSecret;
-
 /**
- * Fetches chain and wallet configuration from backend
- * The backend handles mainnet/testnet mode switching via TESTNET_SECRET
+ * Fetches chain and wallet configuration from backend via Next.js proxy.
+ * The proxy injects API_SECRET and forwards App Check server-side.
  */
 export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
   if (backendConfigCache) {
@@ -48,18 +44,8 @@ export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
   if (!backendConfigPromise) {
     backendConfigPromise = (async () => {
       try {
-        const testnetSecret = APP_CONFIG.testnetSecret;
-        const url =
-          `${APP_CONFIG.api.backendUrl}/api/config`;
-        const headers: Record<string, string> = {};
-
-        if (isDebugMode && testnetSecret) {
-          headers["x-testnet-secret"] = testnetSecret;
-        }
-
-        const response = await fetch(url, {
-          headers: Object.keys(headers).length > 0 ? headers : undefined,
-        });
+        const url = APP_CONFIG.api.configUrl;
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch config: ${response.status}`);
         }
@@ -325,7 +311,7 @@ const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
 };
 
 const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
-  isDebugMode ? DEFAULT_TESTNET_CHAIN_METADATA : DEFAULT_MAINNET_CHAIN_METADATA;
+  DEFAULT_MAINNET_CHAIN_METADATA;
 
 let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null =
   null;
@@ -349,17 +335,14 @@ export async function getSupportedChains(): Promise<
       const defaultMeta = DEFAULT_CHAIN_METADATA[chainKey];
 
       if (defaultMeta) {
-        // If debugMode is on but backend returned mainnet chains (i.e. isTestnet is false),
-        // keep the testnet default chain metadata so chain IDs and contracts match debugMode
-        const isMismatchedTestnet = isDebugMode && !backendConfig.isTestnet;
         chains[chainKey] = {
           ...defaultMeta,
-          name: isMismatchedTestnet ? defaultMeta.name : (backendChain.name || defaultMeta.name),
-          chainId: isMismatchedTestnet ? defaultMeta.chainId : (backendChain.chainId || defaultMeta.chainId),
-          isEvm: isMismatchedTestnet ? defaultMeta.isEvm : (backendChain.isEvm ?? defaultMeta.isEvm),
-          tokens: isMismatchedTestnet ? defaultMeta.tokens : ((backendChain.tokens as SupportedToken[]) || defaultMeta.tokens),
-          nativeToken: isMismatchedTestnet ? defaultMeta.nativeToken : ((backendChain.nativeToken as SupportedToken) || defaultMeta.nativeToken),
-          explorerUrl: isMismatchedTestnet ? defaultMeta.explorerUrl : (backendChain.explorerUrl || defaultMeta.explorerUrl),
+          name: backendChain.name || defaultMeta.name,
+          chainId: backendChain.chainId || defaultMeta.chainId,
+          isEvm: backendChain.isEvm ?? defaultMeta.isEvm,
+          tokens: (backendChain.tokens as SupportedToken[]) || defaultMeta.tokens,
+          nativeToken: (backendChain.nativeToken as SupportedToken) || defaultMeta.nativeToken,
+          explorerUrl: backendChain.explorerUrl || defaultMeta.explorerUrl,
         };
       }
     }

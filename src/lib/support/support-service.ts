@@ -63,7 +63,7 @@ export async function submitSupportTicket(
   const endpoint = APP_CONFIG.api.supportUrl || '/api/support';
 
   try {
-    const response = await fetch(endpoint, {
+    let response = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -72,7 +72,29 @@ export async function submitSupportTicket(
       }),
     });
 
-    const data = await response.json().catch(() => ({}));
+    let data = await response.json().catch(() => ({}));
+
+    // If a direct backend endpoint rejected the request due to missing x-api-secret,
+    // automatically fallback to the local server proxy route which injects the private secret.
+    if (
+      response.status === 401 &&
+      endpoint !== '/api/support' &&
+      data.error &&
+      /x-api-secret/i.test(data.error)
+    ) {
+      console.warn(
+        '[Support] Direct endpoint rejected missing x-api-secret. Retrying via /api/support proxy...'
+      );
+      response = await fetch('/api/support', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ...input,
+          userId,
+        }),
+      });
+      data = await response.json().catch(() => ({}));
+    }
 
     if (response.status === 401) {
       if (data.error && /expired|invalid.*token/i.test(data.error)) {

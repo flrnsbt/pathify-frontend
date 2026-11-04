@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APP_CONFIG } from '@/config/app.config';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Next.js Server-Side Proxy for Refresh Credits endpoint.
  * Secures requests by injecting the private API_SECRET server-side,
@@ -9,9 +11,7 @@ import { APP_CONFIG } from '@/config/app.config';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const workerEndpoint = APP_CONFIG.api.backendUrl
-      ? `${APP_CONFIG.api.backendUrl}/api/refresh-credits`
-      : 'https://api.vectorizerr.workers.dev/api/refresh-credits';
+    const workerEndpoint = APP_CONFIG.api.refreshCreditsUrl;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

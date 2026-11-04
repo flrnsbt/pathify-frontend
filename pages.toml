@@ -1,6 +1,3 @@
 [build]
-command = "OUTPUT_MODE=export npm run build"
-output_directory = "out"
-
-[build.environment]
-OUTPUT_MODE = "export"
+command = "npm run cloudflare-build"
+output_directory = ".open-next"

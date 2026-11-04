@@ -2,6 +2,8 @@ import { firebaseConfig } from "@/lib/firebase/config";
 import { APP_CONFIG } from "@/config/app.config";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const HANDSHAKE_SECRET = process.env.HANDSHAKE_SECRET as string;
 
 const FIREBASE_API_KEY = firebaseConfig.apiKey;
@@ -307,7 +309,7 @@ async function verifyFirebaseIdToken(
 
         if (isValid) {
           const now = Math.floor(Date.now() / 1000);
-          const expectedAud = FIREBASE_PROJECT_ID || 'vectorizerr';
+          const expectedAud = FIREBASE_PROJECT_ID as string;
 
           if (payload.exp && payload.exp < now) {
             console.warn(`[Handshake API] Token expired (exp: ${payload.exp}, now: ${now})`);
@@ -511,7 +513,7 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get("Authorization") || "";
 
     // If Cloudflare Worker backend is configured, forward securely with server-side API_SECRET
-    const backendUrl = process.env.BACKEND_URL || APP_CONFIG.api.backendUrl;
+    const backendUrl = APP_CONFIG.api.backendUrl;
     if (backendUrl && !backendUrl.includes('localhost:3000')) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',

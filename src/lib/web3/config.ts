@@ -26,8 +26,6 @@ import type { Config } from "wagmi";
 
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID as string;
 
-const isDebugMode = APP_CONFIG.features.debugMode;
-
 // Mapping from chain keys to viem chain objects for addEthereumChainParameter
 import type { Chain } from 'viem';
 
@@ -50,43 +48,24 @@ export const CHAIN_ID_TO_VIEM_CHAIN: Record<number, Chain> = {
   9746: plasmaTestnet,
 };
 
-export const CHAIN_KEY_TO_VIEM_CHAIN: Record<string, Chain> = isDebugMode
-  ? {
-      bsc: bscTestnet,
-      eth: sepolia,
-      pol: polygonAmoy,
-      base: baseSepolia,
-      arbitrum: arbitrumSepolia,
-      op: optimismSepolia,
-      avax: avalancheFuji,
-      plasma: plasmaTestnet,
-      sepolia: sepolia,
-      bscTestnet: bscTestnet,
-      polygonAmoy: polygonAmoy,
-      baseSepolia: baseSepolia,
-      arbitrumSepolia: arbitrumSepolia,
-      optimismSepolia: optimismSepolia,
-      avalancheFuji: avalancheFuji,
-      plasmaTestnet: plasmaTestnet,
-    }
-  : {
-      bsc: bsc,
-      eth: mainnet,
-      pol: polygon,
-      base: base,
-      arbitrum: arbitrum,
-      op: optimism,
-      avax: avalanche,
-      plasma: plasma,
-      sepolia: sepolia,
-      bscTestnet: bscTestnet,
-      polygonAmoy: polygonAmoy,
-      baseSepolia: baseSepolia,
-      arbitrumSepolia: arbitrumSepolia,
-      optimismSepolia: optimismSepolia,
-      avalancheFuji: avalancheFuji,
-      plasmaTestnet: plasmaTestnet,
-    };
+export const CHAIN_KEY_TO_VIEM_CHAIN: Record<string, Chain> = {
+    bsc: bsc,
+    eth: mainnet,
+    pol: polygon,
+    base: base,
+    arbitrum: arbitrum,
+    op: optimism,
+    avax: avalanche,
+    plasma: plasma,
+    sepolia: sepolia,
+    bscTestnet: bscTestnet,
+    polygonAmoy: polygonAmoy,
+    baseSepolia: baseSepolia,
+    arbitrumSepolia: arbitrumSepolia,
+    optimismSepolia: optimismSepolia,
+    avalancheFuji: avalancheFuji,
+    plasmaTestnet: plasmaTestnet,
+  };
 
 export function getViemChain(chainIdOrKey?: number | string): Chain | undefined {
   if (typeof chainIdOrKey === 'number') {
@@ -141,9 +120,7 @@ export const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   plasmaTestnet,
 ];
 
-export const networks: [AppKitNetwork, ...AppKitNetwork[]] = isDebugMode
-  ? testnetNetworks
-  : mainnetNetworks;
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = mainnetNetworks;
 
 export const metadata = {
   name: APP_CONFIG.name,

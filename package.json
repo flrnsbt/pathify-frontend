@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "cloudflare-build": "opennextjs-cloudflare build",
+    "cloudflare-build": "opennextjs-cloudflare build && mv .open-next/worker.js .open-next/_worker.js && node -e \"require('fs').writeFileSync('.open-next/_routes.json', JSON.stringify({version:1,include:['/*'],exclude:['/_next/static/','/favicon.ico','/robots.txt','/sitemap.xml','/404.html']},null,2))\"",
     "preview": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && wrangler deploy"
   },

@@ -8,7 +8,7 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "main": ".open-next/worker.js",
+  "main": ".open-next/_worker.js",
   "name": "vectorizer",
   "observability": {
     "logs": {
