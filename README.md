@@ -51,21 +51,15 @@ NEXT_PUBLIC_REOWN_PROJECT_ID=your-project-id
 
 # Firebase App Check
 NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY=your-recaptcha-key
-# NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN=true # for local development
 
-# Cryptographic Handshake & API Secret
+# Cloudflare Functions Secrets (injected server-side, never exposed to browser)
 HANDSHAKE_SECRET=your-32-char-random-secret
 API_SECRET=your-backend-api-secret
-NEXT_PUBLIC_API_SECRET=your-backend-api-secret
-
-# Backend Worker Integration
-NEXT_PUBLIC_BACKEND_URL=https://api.vectorizerr.workers.dev
-NEXT_PUBLIC_REFRESH_CREDITS_FUNCTION_URL=https://api.vectorizerr.workers.dev/api/refresh-credits
-NEXT_PUBLIC_SUPPORT_API_URL=https://api.vectorizerr.workers.dev/api/support
+BACKEND_URL=https://api.vectorizerr.workers.dev
+TESTNET_SECRET=your-localhost-only-secret
 
 # Application Settings
 NEXT_PUBLIC_APP_URL=https://vectorizerr.pages.dev
-OUTPUT_MODE=export
 ```
 
 ### 4. Run Development Server
@@ -78,21 +72,22 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🚢 Building & Deployment
 
-### Next.js Production Build
+### Next.js Static Build
 ```bash
 npm run build
 ```
+Produces a static site in the `out/` directory.
 
-### Cloudflare OpenNext Edge Deployment
+### Cloudflare Pages Deployment
 ```bash
-npm run cloudflare-build
+npm run deploy
 ```
+Deploys the static output and Cloudflare Functions to Cloudflare Pages. The Functions handle all `/api/*` routes by proxying to the backend Worker with injected secrets.
 
-### Static Cloudflare Pages Deployment
-```bash
-OUTPUT_MODE=export npm run build
-npx wrangler pages deploy out --project-name=vtracer-studio
-```
+### Architecture
+- **Frontend**: Static Next.js app served by Cloudflare Pages (`.pages.dev` domain)
+- **API Routes**: Cloudflare Functions (`_functions/api/*`) inject `API_SECRET`, `App Check`, and `TESTNET_SECRET` server-side, then forward to the backend Worker
+- **Backend**: Cloudflare Worker (`api.vectorizerr.workers.dev`) handles all business logic, auth, and Firestore operations
 
 ---
 
@@ -100,6 +95,14 @@ npx wrangler pages deploy out --project-name=vtracer-studio
 
 ```
 vectorizerr-frontend/
+├── _functions/
+│   └── api/                       # Cloudflare Functions for API proxying
+│       ├── config/                # Proxies to backend /api/config
+│       ├── handshake/             # Proxies to backend /api/handshake
+│       ├── create-transaction/    # Proxies to backend /api/create-transaction
+│       ├── refresh-credits/       # Proxies to backend /api/refresh-credits
+│       ├── save-history/          # Proxies to backend /api/save-history
+│       └── support/               # Proxies to backend /api/support
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx               # Main Vectorizer Studio with Split-Screen & Controls
@@ -109,10 +112,7 @@ vectorizerr-frontend/
 │   │   ├── privacy/               # Privacy Policy
 │   │   ├── policy/                # Alias for /privacy
 │   │   ├── terms/                 # Conditions of Use & Terms of Service
-│   │   ├── conditions/            # Alias for /terms
-│   │   └── api/
-│   │       ├── handshake/         # Cryptographic ticket validation
-│   │       └── support/           # Next.js API edge proxy for support tickets
+│   │   └── conditions/            # Alias for /terms
 │   ├── components/
 │   │   ├── Header.tsx             # Navigation bar with credit badge & support links
 │   │   ├── Footer.tsx             # Global aesthetic footer with policy links

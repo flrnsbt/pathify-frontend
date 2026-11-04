@@ -1,20 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "pages_build_output_dir": ".open-next",
-  "assets": {
-    "directory": ".open-next/assets",
-    "not_found_handling": "404-page"
-  },
-  "compatibility_date": "2026-11-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "main": ".open-next/_worker.js",
   "name": "vectorizer",
-  "observability": {
-    "logs": {
-      "enabled": false,
-      "invocation_logs": true
-    }
-  }
+  "compatibility_date": "2026-11-01",
+  "pages_build_output_dir": "out"
 }
