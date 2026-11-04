@@ -325,7 +325,7 @@ const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
 };
 
 const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
-  isTestnet ? DEFAULT_TESTNET_CHAIN_METADATA : DEFAULT_MAINNET_CHAIN_METADATA;
+  isDebugMode ? DEFAULT_TESTNET_CHAIN_METADATA : DEFAULT_MAINNET_CHAIN_METADATA;
 
 let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null =
   null;
@@ -474,6 +474,10 @@ const TESTNET_ERC20_CONTRACTS: Record<
       address: "0xf4B41a53b67652E83f59df082F3CA342252b7E20",
       decimals: 18,
     },
+    USDC: {
+      address: "0x64544969ed7EBf5f083679233325356EbE738930",
+      decimals: 18,
+    },
   },
   80002: {
     USDT: {
@@ -527,12 +531,25 @@ const TESTNET_ERC20_CONTRACTS: Record<
       decimals: 6,
     },
   },
+  9746: {
+    USDT: {
+      address: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
+      decimals: 6,
+    },
+    USDC: {
+      address: "0xE67Fb267022cBA8064Dd388CC2FED724F3120D9D",
+      decimals: 6,
+    },
+  },
 };
 
 export const ERC20_CONTRACTS: Record<
   number,
   Partial<Record<SupportedToken, { address: `0x${string}`; decimals: number }>>
-> = isDebugMode ? TESTNET_ERC20_CONTRACTS : MAINNET_ERC20_CONTRACTS;
+> = {
+  ...MAINNET_ERC20_CONTRACTS,
+  ...TESTNET_ERC20_CONTRACTS,
+};
 
 export interface RawWalletConfig {
   chainId?: number | string;

@@ -22,11 +22,12 @@ import {
   createCryptoTransaction,
   listenToTransaction,
 } from '../lib/firebase/firestore';
-import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit-controllers/react';
 import { useChainId, useSendTransaction, useWriteContract, useSwitchChain, useBalance, useReadContracts } from 'wagmi';
+import { getAccount } from '@wagmi/core';
 import { parseEther, parseUnits, formatUnits, type Address } from 'viem';
-import { CHAIN_ID_TO_VIEM_CHAIN, CHAIN_KEY_TO_VIEM_CHAIN } from '../lib/web3/config';
+import { CHAIN_ID_TO_VIEM_CHAIN, CHAIN_KEY_TO_VIEM_CHAIN, getWagmiConfig } from '../lib/web3/config';
 import {
   SUPPORTED_CHAINS,
   ERC20_CONTRACTS,
@@ -68,12 +69,24 @@ const ERC20_ABI = [
   },
 ] as const;
 
+const ERC20_BALANCE_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const;
+
 export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: CreditModalProps) {
   const { user, refreshProfile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
+  const { chainId: appKitChainId } = useAppKitNetwork();
+  const wagmiChainId = useChainId();
+  const currentChainId = Number(appKitChainId) || wagmiChainId;
   const { disconnect } = useDisconnect();
-  const currentChainId = useChainId();
   const { switchChainAsync, chains } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
   const { writeContractAsync } = useWriteContract();
@@ -169,6 +182,21 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     }
   }, [availableChains, selectedChainKey]);
 
+  // Pre-select the chain matching the user's connected wallet on open
+  const hasInitializedChainRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && isConnected && currentChainId && !hasInitializedChainRef.current && availableChains.length > 0) {
+      const matchingChain = availableChains.find((c) => c.chainId === currentChainId);
+      if (matchingChain) {
+        setSelectedChainKey(matchingChain.key);
+        hasInitializedChainRef.current = true;
+      }
+    }
+    if (!isOpen) {
+      hasInitializedChainRef.current = false;
+    }
+  }, [isOpen, isConnected, currentChainId, availableChains]);
+
   const chainMeta =
     supportedChains[selectedChainKey] ||
     availableChains[0] ||
@@ -202,20 +230,14 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   // --- Balance hooks (must be after chainMeta is defined) ---
 
   // Native token balance for the currently connected wallet
-  const { data: nativeBalanceData } = useBalance({
+  const { data: nativeBalanceData, isLoading: isLoadingNativeBalance } = useBalance({
     address: address as `0x${string}`,
     chainId: chainMeta.chainId,
-    query: { enabled: isConnected && !!address && !!chainMeta.chainId },
+    query: {
+      enabled: isConnected && !!address && !!chainMeta.chainId,
+      staleTime: 10_000,
+    },
   });
-
-  // ERC-20 token balances for the selected chain's tokens
-  const erc20BalanceAbi = [{
-    name: 'balanceOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  } as const];
 
   const erc20ContractCalls = useMemo(() => {
     if (!isConnected || !address || !chainMeta.chainId) return [];
@@ -226,9 +248,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         if (!contract) return null;
         return {
           address: contract.address,
-          abi: erc20BalanceAbi,
+          abi: ERC20_BALANCE_ABI,
           functionName: 'balanceOf' as const,
           args: [address as `0x${string}`],
+          chainId: chainMeta.chainId,
           token,
           decimals: contract.decimals,
         };
@@ -236,9 +259,12 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
       .filter((c): c is NonNullable<typeof c> => c !== null);
   }, [isConnected, address, chainMeta.chainId, chainMeta.tokens, chainMeta.nativeToken]);
 
-  const { data: erc20Results } = useReadContracts({
+  const { data: erc20Results, isLoading: isLoadingErc20 } = useReadContracts({
     contracts: erc20ContractCalls,
-    query: { enabled: erc20ContractCalls.length > 0 },
+    query: {
+      enabled: erc20ContractCalls.length > 0,
+      staleTime: 10_000,
+    },
   });
 
   // Build a map of token -> balance string
@@ -254,56 +280,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         const result = erc20Results[idx];
         if (result?.status === 'success' && result.result !== undefined && result.result !== null) {
           balances[call.token] = formatUnits(result.result as bigint, call.decimals);
+        } else if (result?.status === 'failure') {
+          balances[call.token] = '0';
         }
       });
     }
     return balances;
   }, [nativeBalanceData, erc20Results, erc20ContractCalls, chainMeta.nativeToken]);
-
-  // Track the last chain we attempted to auto-switch to, to prevent infinite loops
-  const lastAutoSwitchChainRef = useRef<string | null>(null);
-
-  // Auto-switch chain only when the selected chain key changes and wallet is connected
-  useEffect(() => {
-    // Reset the ref when modal opens so we can switch on first open
-    if (isOpen && isConnected && chainMeta.chainId) {
-      const targetChainId = chainMeta.chainId;
-      const targetViemChain = CHAIN_ID_TO_VIEM_CHAIN[targetChainId] || CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
-      const addChainParams = targetViemChain ? {
-        chainName: targetViemChain.name,
-        rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
-        blockExplorerUrls: targetViemChain.blockExplorers?.default?.url ? [targetViemChain.blockExplorers.default.url] : undefined,
-        nativeCurrency: targetViemChain.nativeCurrency,
-      } : undefined;
-
-      // Only attempt switch if we're on the wrong chain, wagmi supports this chain, and haven't already tried this chain
-      const isConfiguredInWagmi = chains.some((c) => c.id === targetChainId);
-      if (currentChainId !== targetChainId && lastAutoSwitchChainRef.current !== selectedChainKey) {
-        lastAutoSwitchChainRef.current = selectedChainKey;
-        if (!isConfiguredInWagmi) {
-          return;
-        }
-
-        let cancelled = false;
-        switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams }).catch((err: unknown) => {
-          if (!cancelled) {
-            // Silently ignore user rejections, wallet-busy errors, and chain-not-configured errors
-            const errorObj = err as { code?: number; name?: string; message?: string; cause?: { code?: number; name?: string } } | undefined;
-            const isUserRejection = errorObj?.code === 4001 || errorObj?.cause?.code === 4001 || errorObj?.name === 'UserRejectedRequestError';
-            const isNotConfigured = errorObj?.name === 'ChainNotConfiguredError' || errorObj?.cause?.name === 'ChainNotConfiguredError' || errorObj?.message?.includes('Chain not configured');
-            if (!isUserRejection && !isNotConfigured) {
-              console.warn('Auto chain switch failed:', err);
-            }
-          }
-        });
-        return () => { cancelled = true; };
-      }
-    }
-    // Clear the ref when modal closes so next open can trigger again
-    if (!isOpen) {
-      lastAutoSwitchChainRef.current = null;
-    }
-  }, [selectedChainKey, isOpen, isConnected, chainMeta.chainId, currentChainId, chains, switchChainAsync]);
 
   // Reset transient feedback state when modal opens or closes
   useEffect(() => {
@@ -408,9 +391,11 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         throw new Error('Selected chain does not support direct Web3 wallet execution. Please use Direct Transfer / QR code.');
       }
 
-      // 1. Switch network if needed (auto-switch effect should have already handled this)
-      // Pass addEthereumChainParameter so wagmi can add the chain to the wallet if it's missing
-      if (currentChainId !== targetChainId && switchChainAsync) {
+      // 1. Switch network if needed
+      const liveAccount = getAccount(getWagmiConfig());
+      const activeChainId = liveAccount.chainId || Number(appKitChainId) || currentChainId;
+
+      if (activeChainId !== targetChainId) {
         const targetViemChain = CHAIN_ID_TO_VIEM_CHAIN[targetChainId] || CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
         const addChainParams = targetViemChain ? {
           chainName: targetViemChain.name,
@@ -419,19 +404,21 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           nativeCurrency: targetViemChain.nativeCurrency,
         } : undefined;
         try {
-          await switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams });
+          if (switchChainAsync) {
+            await switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams });
+          } else {
+            throw new Error('switchChainAsync not available');
+          }
         } catch (switchErr: unknown) {
-          // If user rejected the chain switch/add, show a clear message
           const errorObj = switchErr as { code?: number; name?: string; message?: string; cause?: { code?: number; name?: string } } | undefined;
           const isUserRejection = errorObj?.code === 4001 || errorObj?.cause?.code === 4001 || errorObj?.name === 'UserRejectedRequestError';
           if (isUserRejection) {
             throw new Error(`Please switch your wallet to ${chainMeta.name} and try again.`);
           }
-          const isNotConfigured = errorObj?.name === 'ChainNotConfiguredError' || errorObj?.cause?.name === 'ChainNotConfiguredError' || errorObj?.message?.includes('Chain not configured');
-          if (isNotConfigured) {
-            throw new Error(`Chain ${chainMeta.name} is not configured in your Web3 wallet provider. Please switch to this network manually in your wallet.`);
-          }
-          throw switchErr;
+          // If programmatic switch fails (e.g. not configured in wallet or mobile wallet), open Reown's network modal
+          console.warn('Programmatic switch failed, opening Reown network dialog:', switchErr);
+          open({ view: 'Networks' });
+          throw new Error(`Please select ${chainMeta.name} in the network dialog and try again.`);
         }
       }
 
@@ -774,10 +761,14 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
               const isSelected = activeToken === token;
               const tokenPrice = calculateCryptoAmount(selectedPack.usdPrice, token, tokenPrices);
               const balance = tokenBalances[token];
-              const tokenContract = ERC20_CONTRACTS[chainMeta.chainId]?.[token];
+              const isBalanceLoading = isConnected && (isLoadingNativeBalance || isLoadingErc20) && balance === undefined;
               const displayBalance = balance !== undefined
-                ? `${formatBalance(balance, tokenContract?.decimals ?? 18)} ${token}`
-                : null;
+                ? `${formatBalance(balance, 4)} ${token}`
+                : isBalanceLoading
+                  ? 'loading...'
+                  : isConnected
+                    ? `0 ${token}`
+                    : null;
               return (
                 <button
                   key={token}
@@ -896,6 +887,42 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     className="shrink-0 rounded-lg bg-neutral-800 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
                   >
                     Disconnect
+                  </button>
+                </div>
+              )}
+
+              {/* Network mismatch notice & manual switch button */}
+              {isConnected && currentChainId && currentChainId !== chainMeta.chainId && (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>
+                      Wallet on different network. Switch to <strong>{chainMeta.name}</strong> to pay.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const targetViemChain = CHAIN_ID_TO_VIEM_CHAIN[chainMeta.chainId] || CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
+                      const addChainParams = targetViemChain ? {
+                        chainName: targetViemChain.name,
+                        rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
+                        blockExplorerUrls: targetViemChain.blockExplorers?.default?.url ? [targetViemChain.blockExplorers.default.url] : undefined,
+                        nativeCurrency: targetViemChain.nativeCurrency,
+                      } : undefined;
+                      try {
+                        if (switchChainAsync) {
+                          await switchChainAsync({ chainId: chainMeta.chainId, addEthereumChainParameter: addChainParams });
+                        } else {
+                          open({ view: 'Networks' });
+                        }
+                      } catch {
+                        open({ view: 'Networks' });
+                      }
+                    }}
+                    className="shrink-0 rounded-lg bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
+                  >
+                    Switch Network
                   </button>
                 </div>
               )}
