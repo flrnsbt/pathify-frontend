@@ -26,7 +26,7 @@ import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit-controllers/react';
 import { useChainId, useSendTransaction, useWriteContract, useSwitchChain, useBalance, useReadContracts } from 'wagmi';
 import { parseEther, parseUnits, formatUnits, type Address } from 'viem';
-import { CHAIN_KEY_TO_VIEM_CHAIN } from '../lib/web3/config';
+import { CHAIN_ID_TO_VIEM_CHAIN, CHAIN_KEY_TO_VIEM_CHAIN } from '../lib/web3/config';
 import {
   SUPPORTED_CHAINS,
   ERC20_CONTRACTS,
@@ -74,7 +74,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const currentChainId = useChainId();
-  const { switchChainAsync } = useSwitchChain();
+  const { switchChainAsync, chains } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
   const { writeContractAsync } = useWriteContract();
 
@@ -266,8 +266,9 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   // Auto-switch chain only when the selected chain key changes and wallet is connected
   useEffect(() => {
     // Reset the ref when modal opens so we can switch on first open
-    if (isOpen && isConnected) {
-      const targetViemChain = CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
+    if (isOpen && isConnected && chainMeta.chainId) {
+      const targetChainId = chainMeta.chainId;
+      const targetViemChain = CHAIN_ID_TO_VIEM_CHAIN[targetChainId] || CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
       const addChainParams = targetViemChain ? {
         chainName: targetViemChain.name,
         rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
@@ -275,14 +276,22 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         nativeCurrency: targetViemChain.nativeCurrency,
       } : undefined;
 
-      // Only attempt switch if we're on the wrong chain and haven't already tried this chain
-      if (currentChainId !== chainMeta.chainId && lastAutoSwitchChainRef.current !== selectedChainKey) {
+      // Only attempt switch if we're on the wrong chain, wagmi supports this chain, and haven't already tried this chain
+      const isConfiguredInWagmi = chains.some((c) => c.id === targetChainId);
+      if (currentChainId !== targetChainId && lastAutoSwitchChainRef.current !== selectedChainKey) {
         lastAutoSwitchChainRef.current = selectedChainKey;
+        if (!isConfiguredInWagmi) {
+          return;
+        }
+
         let cancelled = false;
-        switchChainAsync({ chainId: chainMeta.chainId, addEthereumChainParameter: addChainParams }).catch((err) => {
+        switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams }).catch((err: unknown) => {
           if (!cancelled) {
-            // Silently ignore user rejections and chain-not-configured errors
-            if (err.code !== 4001) {
+            // Silently ignore user rejections, wallet-busy errors, and chain-not-configured errors
+            const errorObj = err as { code?: number; name?: string; message?: string; cause?: { code?: number; name?: string } } | undefined;
+            const isUserRejection = errorObj?.code === 4001 || errorObj?.cause?.code === 4001 || errorObj?.name === 'UserRejectedRequestError';
+            const isNotConfigured = errorObj?.name === 'ChainNotConfiguredError' || errorObj?.cause?.name === 'ChainNotConfiguredError' || errorObj?.message?.includes('Chain not configured');
+            if (!isUserRejection && !isNotConfigured) {
               console.warn('Auto chain switch failed:', err);
             }
           }
@@ -294,7 +303,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     if (!isOpen) {
       lastAutoSwitchChainRef.current = null;
     }
-  }, [selectedChainKey, isOpen, isConnected, chainMeta.chainId, currentChainId]);
+  }, [selectedChainKey, isOpen, isConnected, chainMeta.chainId, currentChainId, chains, switchChainAsync]);
 
   // Reset transient feedback state when modal opens or closes
   useEffect(() => {
@@ -402,7 +411,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
       // 1. Switch network if needed (auto-switch effect should have already handled this)
       // Pass addEthereumChainParameter so wagmi can add the chain to the wallet if it's missing
       if (currentChainId !== targetChainId && switchChainAsync) {
-        const targetViemChain = CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
+        const targetViemChain = CHAIN_ID_TO_VIEM_CHAIN[targetChainId] || CHAIN_KEY_TO_VIEM_CHAIN[selectedChainKey];
         const addChainParams = targetViemChain ? {
           chainName: targetViemChain.name,
           rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
@@ -411,10 +420,16 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         } : undefined;
         try {
           await switchChainAsync({ chainId: targetChainId, addEthereumChainParameter: addChainParams });
-        } catch (switchErr: any) {
+        } catch (switchErr: unknown) {
           // If user rejected the chain switch/add, show a clear message
-          if (switchErr?.code === 4001) {
+          const errorObj = switchErr as { code?: number; name?: string; message?: string; cause?: { code?: number; name?: string } } | undefined;
+          const isUserRejection = errorObj?.code === 4001 || errorObj?.cause?.code === 4001 || errorObj?.name === 'UserRejectedRequestError';
+          if (isUserRejection) {
             throw new Error(`Please switch your wallet to ${chainMeta.name} and try again.`);
+          }
+          const isNotConfigured = errorObj?.name === 'ChainNotConfiguredError' || errorObj?.cause?.name === 'ChainNotConfiguredError' || errorObj?.message?.includes('Chain not configured');
+          if (isNotConfigured) {
+            throw new Error(`Chain ${chainMeta.name} is not configured in your Web3 wallet provider. Please switch to this network manually in your wallet.`);
           }
           throw switchErr;
         }

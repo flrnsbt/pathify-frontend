@@ -14,6 +14,10 @@ export const APP_CONFIG = {
   // Icon and assets
   iconUrl: "/icon.svg",
 
+  // Testnet secret for debug mode (used to fetch testnet configurations and wallets)
+  testnetSecret:
+    process.env.TESTNET_SECRET,
+
   // Feature Flags
   features: {
     /**

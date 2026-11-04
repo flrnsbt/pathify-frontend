@@ -31,47 +31,119 @@ const isDebugMode = APP_CONFIG.features.debugMode;
 // Mapping from chain keys to viem chain objects for addEthereumChainParameter
 import type { Chain } from 'viem';
 
-export const CHAIN_KEY_TO_VIEM_CHAIN: Record<string, Chain> = {
-  bsc: bsc,
-  eth: mainnet,
-  pol: polygon,
-  base: base,
-  arbitrum: arbitrum,
-  op: optimism,
-  avax: avalanche,
-  plasma: plasma,
-  sepolia: sepolia,
-  bscTestnet: bscTestnet,
-  polygonAmoy: polygonAmoy,
-  baseSepolia: baseSepolia,
-  arbitrumSepolia: arbitrumSepolia,
-  optimismSepolia: optimismSepolia,
-  avalancheFuji: avalancheFuji,
-  plasmaTestnet: plasmaTestnet,
+export const CHAIN_ID_TO_VIEM_CHAIN: Record<number, Chain> = {
+  1: mainnet,
+  56: bsc,
+  137: polygon,
+  8453: base,
+  42161: arbitrum,
+  10: optimism,
+  43114: avalanche,
+  9745: plasma,
+  11155111: sepolia,
+  97: bscTestnet,
+  80002: polygonAmoy,
+  84532: baseSepolia,
+  421614: arbitrumSepolia,
+  11155420: optimismSepolia,
+  43113: avalancheFuji,
+  9746: plasmaTestnet,
 };
 
+export const CHAIN_KEY_TO_VIEM_CHAIN: Record<string, Chain> = isDebugMode
+  ? {
+      bsc: bscTestnet,
+      eth: sepolia,
+      pol: polygonAmoy,
+      base: baseSepolia,
+      arbitrum: arbitrumSepolia,
+      op: optimismSepolia,
+      avax: avalancheFuji,
+      plasma: plasmaTestnet,
+      sepolia: sepolia,
+      bscTestnet: bscTestnet,
+      polygonAmoy: polygonAmoy,
+      baseSepolia: baseSepolia,
+      arbitrumSepolia: arbitrumSepolia,
+      optimismSepolia: optimismSepolia,
+      avalancheFuji: avalancheFuji,
+      plasmaTestnet: plasmaTestnet,
+    }
+  : {
+      bsc: bsc,
+      eth: mainnet,
+      pol: polygon,
+      base: base,
+      arbitrum: arbitrum,
+      op: optimism,
+      avax: avalanche,
+      plasma: plasma,
+      sepolia: sepolia,
+      bscTestnet: bscTestnet,
+      polygonAmoy: polygonAmoy,
+      baseSepolia: baseSepolia,
+      arbitrumSepolia: arbitrumSepolia,
+      optimismSepolia: optimismSepolia,
+      avalancheFuji: avalancheFuji,
+      plasmaTestnet: plasmaTestnet,
+    };
+
+export function getViemChain(chainIdOrKey?: number | string): Chain | undefined {
+  if (typeof chainIdOrKey === 'number') {
+    return CHAIN_ID_TO_VIEM_CHAIN[chainIdOrKey];
+  }
+  if (typeof chainIdOrKey === 'string') {
+    return CHAIN_KEY_TO_VIEM_CHAIN[chainIdOrKey];
+  }
+  return undefined;
+}
+
+export const testnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  sepolia,
+  bscTestnet,
+  polygonAmoy,
+  baseSepolia,
+  arbitrumSepolia,
+  optimismSepolia,
+  avalancheFuji,
+  plasmaTestnet,
+];
+
+export const mainnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  mainnet,
+  bsc,
+  polygon,
+  base,
+  arbitrum,
+  optimism,
+  avalanche,
+  plasma,
+  sepolia,
+];
+
+// All supported networks combined so Wagmi config has full visibility of every supported chain
+export const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  mainnet,
+  bsc,
+  polygon,
+  base,
+  arbitrum,
+  optimism,
+  avalanche,
+  plasma,
+  sepolia,
+  bscTestnet,
+  polygonAmoy,
+  baseSepolia,
+  arbitrumSepolia,
+  optimismSepolia,
+  avalancheFuji,
+  plasmaTestnet,
+];
+
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = isDebugMode
-  ? [
-      sepolia,
-      bscTestnet,
-      polygonAmoy,
-      baseSepolia,
-      arbitrumSepolia,
-      optimismSepolia,
-      avalancheFuji,
-      plasmaTestnet,
-    ]
-  : [
-      mainnet,
-      bsc,
-      polygon,
-      base,
-      arbitrum,
-      optimism,
-      avalanche,
-      plasma,
-      sepolia,
-    ];
+  ? testnetNetworks
+  : mainnetNetworks;
 
 export const metadata = {
   name: APP_CONFIG.name,
@@ -88,7 +160,7 @@ export function getWagmiConfig(): Config {
   if (!wagmiAdapterInstance) {
     wagmiAdapterInstance = new WagmiAdapter({
       projectId,
-      networks,
+      networks: allNetworks,
       ssr: true,
     });
   }
@@ -100,7 +172,7 @@ export function getAppKit(): ReturnType<typeof createAppKit> {
     if (!wagmiAdapterInstance) {
       wagmiAdapterInstance = new WagmiAdapter({
         projectId,
-        networks,
+        networks: allNetworks,
         ssr: true,
       });
     }

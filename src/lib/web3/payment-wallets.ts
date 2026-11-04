@@ -34,6 +34,8 @@ export interface BackendConfigResponse {
 let backendConfigCache: BackendConfigResponse | null = null;
 let backendConfigPromise: Promise<BackendConfigResponse> | null = null;
 
+const isTestnet = isDebugMode && APP_CONFIG.testnetSecret;
+
 /**
  * Fetches chain and wallet configuration from backend
  * The backend handles mainnet/testnet mode switching via TESTNET_SECRET
@@ -46,7 +48,18 @@ export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
   if (!backendConfigPromise) {
     backendConfigPromise = (async () => {
       try {
-        const response = await fetch(`${APP_CONFIG.api.backendUrl}/api/config`);
+        const testnetSecret = APP_CONFIG.testnetSecret;
+        const url =
+          `${APP_CONFIG.api.backendUrl}/api/config`;
+        const headers: Record<string, string> = {};
+
+        if (isDebugMode && testnetSecret) {
+          headers["x-testnet-secret"] = testnetSecret;
+        }
+
+        const response = await fetch(url, {
+          headers: Object.keys(headers).length > 0 ? headers : undefined,
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch config: ${response.status}`);
         }
@@ -97,7 +110,7 @@ export interface ChainMetadata {
 }
 
 // Default chain metadata with UI colors/badges - will be merged with backend config
-const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
+const DEFAULT_MAINNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   bsc: {
     key: "bsc",
     name: "BNB Smart Chain",
@@ -204,6 +217,116 @@ const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   },
 };
 
+const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
+  bsc: {
+    key: "bsc",
+    name: "BNB Smart Chain Testnet",
+    shortName: "BSC Testnet",
+    badge: "BEP-20",
+    chainId: 97,
+    isEvm: true,
+    tokens: ["USDT", "USDC", "BNB"],
+    nativeToken: "BNB",
+    explorerUrl: "https://testnet.bscscan.com",
+    color: "#F3BA2F",
+    bgGlow: "rgba(243, 186, 47, 0.12)",
+  },
+  eth: {
+    key: "eth",
+    name: "Ethereum Sepolia",
+    shortName: "Sepolia",
+    badge: "ERC-20",
+    chainId: 11155111,
+    isEvm: true,
+    tokens: ["ETH", "USDT", "USDC"],
+    nativeToken: "ETH",
+    explorerUrl: "https://sepolia.etherscan.io",
+    color: "#627EEA",
+    bgGlow: "rgba(98, 126, 234, 0.12)",
+  },
+  pol: {
+    key: "pol",
+    name: "Polygon Amoy",
+    shortName: "Amoy",
+    badge: "PoS",
+    chainId: 80002,
+    isEvm: true,
+    tokens: ["USDT", "USDC", "POL"],
+    nativeToken: "POL",
+    explorerUrl: "https://amoy.polygonscan.com",
+    color: "#8247E5",
+    bgGlow: "rgba(130, 71, 229, 0.12)",
+  },
+  base: {
+    key: "base",
+    name: "Base Sepolia",
+    shortName: "Base Sepolia",
+    badge: "L2",
+    chainId: 84532,
+    isEvm: true,
+    tokens: ["ETH", "USDC"],
+    nativeToken: "ETH",
+    explorerUrl: "https://sepolia.basescan.org",
+    color: "#0052FF",
+    bgGlow: "rgba(0, 82, 255, 0.12)",
+  },
+  arbitrum: {
+    key: "arbitrum",
+    name: "Arbitrum Sepolia",
+    shortName: "Arb Sepolia",
+    badge: "L2",
+    chainId: 421614,
+    isEvm: true,
+    tokens: ["ETH", "USDT", "USDC"],
+    nativeToken: "ETH",
+    explorerUrl: "https://sepolia.arbiscan.io",
+    color: "#28A0F0",
+    bgGlow: "rgba(40, 160, 240, 0.12)",
+  },
+  op: {
+    key: "op",
+    name: "Optimism Sepolia",
+    shortName: "OP Sepolia",
+    badge: "L2",
+    chainId: 11155420,
+    isEvm: true,
+    tokens: ["ETH", "USDC"],
+    nativeToken: "ETH",
+    explorerUrl: "https://optimism-sepolia.blockscout.com",
+    color: "#FF0420",
+    bgGlow: "rgba(255, 4, 32, 0.12)",
+  },
+  avax: {
+    key: "avax",
+    name: "Avalanche Fuji",
+    shortName: "Fuji",
+    badge: "C-Chain",
+    chainId: 43113,
+    isEvm: true,
+    tokens: ["AVAX", "USDT", "USDC"],
+    nativeToken: "AVAX",
+    explorerUrl: "https://testnet.snowtrace.io",
+    color: "#E84142",
+    bgGlow: "rgba(232, 65, 66, 0.12)",
+  },
+  plasma: {
+    key: "plasma",
+    name: "Plasma Testnet",
+    shortName: "Plasma Testnet",
+    badge: "L2",
+    chainId: 9746,
+    isEvm: true,
+    tokens: ["XPL", "USDC"],
+    nativeToken: "XPL",
+    explorerUrl: "https://testnet.plasmascan.to",
+    color: "#7C3AED",
+    bgGlow: "rgba(124, 58, 237, 0.12)",
+  },
+};
+
+const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
+  isTestnet ? DEFAULT_TESTNET_CHAIN_METADATA : DEFAULT_MAINNET_CHAIN_METADATA;
+
 let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null =
   null;
 
@@ -217,28 +340,37 @@ export async function getSupportedChains(): Promise<
     return supportedChainsCache;
   }
 
-  const backendConfig = await fetchBackendConfig();
-  let chains = {} as any;
+  try {
+    const backendConfig = await fetchBackendConfig();
+    const chains: Record<SupportedChainKey, ChainMetadata> = { ...DEFAULT_CHAIN_METADATA };
 
-  for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
-    const chainKey = key as SupportedChainKey;
-    const defaultMeta = DEFAULT_CHAIN_METADATA[chainKey];
+    for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
+      const chainKey = key as SupportedChainKey;
+      const defaultMeta = DEFAULT_CHAIN_METADATA[chainKey];
 
-    if (defaultMeta) {
-      chains[chainKey] = {
-        ...defaultMeta,
-        name: backendChain.name,
-        chainId: backendChain.chainId || defaultMeta.chainId,
-        isEvm: backendChain.isEvm,
-        tokens: backendChain.tokens as SupportedToken[],
-        nativeToken: backendChain.nativeToken as SupportedToken,
-        explorerUrl: backendChain.explorerUrl,
-      };
+      if (defaultMeta) {
+        // If debugMode is on but backend returned mainnet chains (i.e. isTestnet is false),
+        // keep the testnet default chain metadata so chain IDs and contracts match debugMode
+        const isMismatchedTestnet = isDebugMode && !backendConfig.isTestnet;
+        chains[chainKey] = {
+          ...defaultMeta,
+          name: isMismatchedTestnet ? defaultMeta.name : (backendChain.name || defaultMeta.name),
+          chainId: isMismatchedTestnet ? defaultMeta.chainId : (backendChain.chainId || defaultMeta.chainId),
+          isEvm: isMismatchedTestnet ? defaultMeta.isEvm : (backendChain.isEvm ?? defaultMeta.isEvm),
+          tokens: isMismatchedTestnet ? defaultMeta.tokens : ((backendChain.tokens as SupportedToken[]) || defaultMeta.tokens),
+          nativeToken: isMismatchedTestnet ? defaultMeta.nativeToken : ((backendChain.nativeToken as SupportedToken) || defaultMeta.nativeToken),
+          explorerUrl: isMismatchedTestnet ? defaultMeta.explorerUrl : (backendChain.explorerUrl || defaultMeta.explorerUrl),
+        };
+      }
     }
-  }
 
-  supportedChainsCache = chains;
-  return chains as Record<SupportedChainKey, ChainMetadata>;
+    supportedChainsCache = chains;
+    return chains as Record<SupportedChainKey, ChainMetadata>;
+  } catch (err) {
+    console.warn("Using fallback default chain metadata:", err);
+    supportedChainsCache = DEFAULT_CHAIN_METADATA;
+    return DEFAULT_CHAIN_METADATA;
+  }
 }
 
 // Fallback to static chains if backend config fails
