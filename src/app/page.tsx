@@ -26,16 +26,21 @@ import {
 } from '../lib/vtracer';
 import {
   saveVectorizationHistory,
-  fetchUserHistory,
-  deleteHistoryItem,
-  deleteAllHistoryItems,
-  VectorizationHistoryItem,
+  fetchHistoryEntries,
+  fetchHistoryCount,
+  deleteHistoryEntry,
+  deleteHistoryGeneration,
+  deleteAllHistoryEntries,
+  historyGenerationExists,
+  HistoryEntry,
+  HistoryGeneration,
   canAccessSvg,
   unlockImageWithCredit,
   getImageUnlockStatus,
   consumeImageGeneration,
   getUserProfile,
 } from '../lib/firebase/firestore';
+import type { DocumentSnapshot } from 'firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
 import { upscaleImageData, isEnhancementCached, UpscaleModelId } from '../lib/upscale';
 
@@ -98,16 +103,42 @@ export default function Home() {
   const [isUnlockOpen, setIsUnlockOpen] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  // History list
-  const [historyItems, setHistoryItems] = useState<VectorizationHistoryItem[]>([]);
+  // History list (paginated — one entry per source image)
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<DocumentSnapshot | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
-  // Load history when user changes
+  const loadHistory = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const [page, count] = await Promise.all([
+        fetchHistoryEntries(user.uid),
+        fetchHistoryCount(user.uid),
+      ]);
+      setHistoryEntries(page.items);
+      setHistoryCursor(page.lastCursor);
+      setHistoryHasMore(page.hasMore);
+      setHistoryTotal(count);
+    } catch (err) {
+      console.warn('Could not load history:', err);
+    }
+  }, [user]);
+
+  // Load first page of history when user changes
   useEffect(() => {
     let active = true;
     if (user?.uid) {
-      fetchUserHistory(user.uid).then((items) => {
+      Promise.all([
+        fetchHistoryEntries(user.uid),
+        fetchHistoryCount(user.uid),
+      ]).then(([page, count]) => {
         if (active) {
-          setHistoryItems(items);
+          setHistoryEntries(page.items);
+          setHistoryCursor(page.lastCursor);
+          setHistoryHasMore(page.hasMore);
+          setHistoryTotal(count);
         }
       });
     }
@@ -116,15 +147,20 @@ export default function Home() {
     };
   }, [user]);
 
-  const loadHistory = useCallback(async () => {
-    if (!user?.uid) return;
+  const loadMoreHistory = useCallback(async () => {
+    if (!user?.uid || !historyCursor || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
     try {
-      const items = await fetchUserHistory(user.uid);
-      setHistoryItems(items);
+      const page = await fetchHistoryEntries(user.uid, historyCursor);
+      setHistoryEntries((prev) => [...prev, ...page.items]);
+      setHistoryCursor(page.lastCursor);
+      setHistoryHasMore(page.hasMore);
     } catch (err) {
-      console.warn('Could not load history:', err);
+      console.warn('Could not load more history:', err);
+    } finally {
+      setHistoryLoadingMore(false);
     }
-  }, [user]);
+  }, [user, historyCursor, historyLoadingMore]);
 
   // Persist the source image locally (browser-only) so history items can be
   // re-edited later without storing raw image data in Firestore.
@@ -134,7 +170,8 @@ export default function Home() {
     }
   }, [currentImage]);
 
-  // Generations already counted this session (dedupe across repeated exports)
+  // Generations already counted this session, keyed `${imageHash}:${svgHash}`
+  // (dedupe across repeated exports, scoped per source image)
   const validatedGenerationsRef = useRef<Set<string>>(new Set());
 
   // Hash of the currently displayed SVG — identifies whether this exact
@@ -156,10 +193,54 @@ export default function Home() {
 
   // True when the SVG on screen is already a validated (paid) generation —
   // re-exporting it is always free, even if the image quota is exhausted.
+  // Checks the session cache first, then the generations subcollection.
+  // `remoteOwnedGeneration` stores the {imageHash, svgHash} pair confirmed
+  // owned remotely, so identical SVGs under different source images don't
+  // produce false positives.
+  const [remoteOwnedGeneration, setRemoteOwnedGeneration] = useState<{
+    imageHash: string;
+    svgHash: string;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      if (
+        !user?.uid ||
+        user.isAnonymous ||
+        !currentImage?.imageHash ||
+        !currentSvgHash
+      ) {
+        return;
+      }
+      const sessionKey = `${currentImage.imageHash}:${currentSvgHash}`;
+      const owned =
+        validatedGenerationsRef.current.has(sessionKey) ||
+        (await historyGenerationExists(
+          user.uid,
+          currentImage.imageHash,
+          currentSvgHash,
+        ));
+      if (!cancelled && owned) {
+        setRemoteOwnedGeneration({
+          imageHash: currentImage.imageHash,
+          svgHash: currentSvgHash,
+        });
+      }
+    };
+    void check().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, currentImage?.imageHash, currentSvgHash]);
+
   const isCurrentGenerationOwned = Boolean(
     currentSvgHash &&
-    (validatedGenerationsRef.current.has(currentSvgHash) ||
-      historyItems.some((i) => i.generationId === currentSvgHash))
+    currentImage?.imageHash &&
+    (validatedGenerationsRef.current.has(
+      `${currentImage?.imageHash}:${currentSvgHash}`
+    ) ||
+      (remoteOwnedGeneration?.imageHash === currentImage.imageHash &&
+        remoteOwnedGeneration.svgHash === currentSvgHash))
   );
 
   // A generation is "validated" when the user exports it (download SVG / copy SVG code).
@@ -171,9 +252,14 @@ export default function Home() {
       // Dedupe key = hash of the SVG content itself. An already-validated
       // generation is always re-exportable, even with exhausted quota.
       const svgHash = await hashSvgContent(svg);
+      const sessionKey = `${currentImage.imageHash}:${svgHash}`;
       const alreadyCounted =
-        validatedGenerationsRef.current.has(svgHash) ||
-        historyItems.some((i) => i.generationId === svgHash);
+        validatedGenerationsRef.current.has(sessionKey) ||
+        (await historyGenerationExists(
+          user.uid,
+          currentImage.imageHash,
+          svgHash,
+        ));
       if (alreadyCounted) return true;
 
       const freshProfile = await getUserProfile(user.uid);
@@ -186,7 +272,7 @@ export default function Home() {
       // Fail closed: only proceed when the server confirms the quota consumption
       const remaining = await consumeImageGeneration(user.uid, currentImage.imageHash);
       if (remaining === null) return false;
-      validatedGenerationsRef.current.add(svgHash);
+      validatedGenerationsRef.current.add(sessionKey);
       await refreshProfile();
 
       await saveVectorizationHistory(user.uid, {
@@ -207,7 +293,7 @@ export default function Home() {
       console.warn('Failed to record validated generation:', err);
       return false;
     }
-  }, [user, currentImage, svg, historyItems, options, refreshProfile, loadHistory]);
+  }, [user, currentImage, svg, options, refreshProfile, loadHistory]);
 
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
@@ -482,12 +568,11 @@ export default function Home() {
 
   // Load history item into viewer: restores parameters + SVG, and the source
   // image from browser-local storage when available.
-  const handleSelectHistoryItem = async (item: VectorizationHistoryItem) => {
+  const handleSelectHistoryItem = async (item: HistoryGeneration) => {
     setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
 
-    // Source image: browser-local store first, legacy embedded copy as fallback
-    const sourceDataUrl =
-      getSourceImage(item.imageHash) || item.originalBase64 || '';
+    // Source image: browser-local store keyed by imageHash
+    const sourceDataUrl = getSourceImage(item.imageHash) || '';
 
     if (sourceDataUrl) {
       setSourceNotice(null);
@@ -532,16 +617,28 @@ export default function Home() {
     loadResult(item.svg, item.nodeCount, item.executionTimeMs);
   };
 
-  const handleDeleteHistoryItem = async (id: string) => {
+  const handleDeleteHistoryEntry = async (entryId: string) => {
     if (!user) return;
-    await deleteHistoryItem(user.uid, id);
-    setHistoryItems((prev) => prev.filter((i) => i.id !== id));
+    await deleteHistoryEntry(user.uid, entryId);
+    setHistoryEntries((prev) => prev.filter((e) => e.id !== entryId));
+    setHistoryTotal((t) => Math.max(0, t - 1));
+  };
+
+  const handleDeleteHistoryGeneration = async (
+    entryId: string,
+    generationId: string,
+  ) => {
+    if (!user) return;
+    await deleteHistoryGeneration(user.uid, entryId, generationId);
   };
 
   const handleDeleteAllHistory = async () => {
     if (!user) return;
-    await deleteAllHistoryItems(user.uid);
-    setHistoryItems([]);
+    await deleteAllHistoryEntries(user.uid);
+    setHistoryEntries([]);
+    setHistoryCursor(null);
+    setHistoryHasMore(false);
+    setHistoryTotal(0);
   };
 
   return (
@@ -555,7 +652,7 @@ export default function Home() {
             setCreditReason('');
             setIsCreditsOpen(true);
           }}
-          historyCount={historyItems.length}
+          historyCount={historyTotal}
         />
       </div>
 
@@ -583,7 +680,9 @@ export default function Home() {
               autoTrace={autoTrace}
               onToggleAutoTrace={setAutoTrace}
               onCropToContent={handleCropToContent}
-              generationsRemaining={unlockStatus.generationsRemaining}
+              generationsRemaining={
+                unlockStatus.isUnlocked ? unlockStatus.generationsRemaining : undefined
+              }
               generationsMax={unlockStatus.maxGenerations}
               locked={paramsLocked}
             />
@@ -611,7 +710,9 @@ export default function Home() {
               nodeCount={nodeCount}
               executionTimeMs={executionTimeMs}
               isUnlocked={isCurrentUnlocked || isCurrentGenerationOwned}
-              generationsRemaining={unlockStatus.generationsRemaining}
+              generationsRemaining={
+                unlockStatus.isUnlocked ? unlockStatus.generationsRemaining : undefined
+              }
               generationsMax={unlockStatus.maxGenerations}
               isProcessing={isProcessing || enhanceProgress !== null}
               statusText={
@@ -632,9 +733,15 @@ export default function Home() {
       <HistoryDrawer
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        items={historyItems}
+        userId={user?.uid}
+        entries={historyEntries}
+        totalCount={historyTotal}
+        hasMore={historyHasMore}
+        isLoadingMore={historyLoadingMore}
+        onLoadMore={loadMoreHistory}
         onSelect={handleSelectHistoryItem}
-        onDelete={handleDeleteHistoryItem}
+        onDeleteEntry={handleDeleteHistoryEntry}
+        onDeleteGeneration={handleDeleteHistoryGeneration}
         onDeleteAll={handleDeleteAllHistory}
         isAdmin={Boolean(profile?.isAdmin)}
         profile={profile}
