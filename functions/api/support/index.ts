@@ -42,6 +42,9 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   const userAgent = context.request.headers.get('User-Agent');
   if (userAgent) headers.set('User-Agent', userAgent);
 
+  const testnetSecret = context.request.headers.get('X-Testnet-Secret');
+  if (testnetSecret) headers.set('X-Testnet-Secret', testnetSecret);
+
   const body = await context.request.text();
 
   const res = await fetch(`${backendUrl}/api/support`, {

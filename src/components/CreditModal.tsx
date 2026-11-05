@@ -152,7 +152,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         if (mounted) setIsLoadingChains(false);
       });
 
-    fetchLiveTokenPrices()
+    fetchLiveTokenPrices(true)
       .then((prices) => {
         if (mounted) setTokenPrices(prices);
       })
@@ -174,7 +174,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   }, [isOpen]);
 
   // Dynamically derive available chains that have valid non-zero wallet addresses
-  const availableChains = useMemo(() => getAvailableChains(wallets), [wallets]);
+  const availableChains = useMemo(
+    () => getAvailableChains(wallets, supportedChains),
+    [wallets, supportedChains]
+  );
 
   // Ensure selected chain stays valid whenever available chains load or update
   useEffect(() => {
@@ -205,7 +208,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
   const chainMeta =
     supportedChains?.[selectedChainKey] ||
-    availableChains[0];
+    availableChains[0] || {} as ChainMetadata;
   const isEvm = chainMeta?.isEvm ?? true;
 
   // React to wallet-initiated chain changes (e.g., user switches network in MetaMask)
@@ -226,11 +229,19 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     }
   }, [currentChainId, chainMeta.chainId]);
 
+  // Refresh live token prices on user interaction (rates fluctuate)
+  const refreshTokenPrices = () => {
+    fetchLiveTokenPrices(true)
+      .then((prices) => setTokenPrices(prices))
+      .catch((err) => console.warn('Failed to refresh token prices:', err));
+  };
+
   // Handle network card selection with automatic seamless chain switching
   const handleSelectChain = async (key: SupportedChainKey) => {
     setSelectedChainKey(key);
     setErrorMsg(null);
     setSwitchFailedChainId(null);
+    refreshTokenPrices();
 
     const targetChain = supportedChains?.[key] || availableChains.find((c) => c.key === key);
     if (!targetChain || !targetChain.chainId) return;
@@ -270,9 +281,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   };
 
   // Active token for the selected chain
-  const activeToken: SupportedToken = chainMeta.tokens.includes(selectedToken)
+  const chainTokens = chainMeta.tokens ?? [];
+  const activeToken: SupportedToken = chainTokens.includes(selectedToken)
     ? selectedToken
-    : chainMeta.tokens[0];
+    : chainTokens[0];
 
   // Recipient wallet address and amount resolved from loaded wallets
   const recipientWallet = useMemo(() => {
@@ -307,7 +319,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
   const erc20ContractCalls = useMemo(() => {
     if (!isConnected || !address || !chainMeta.chainId) return [];
-    return chainMeta.tokens
+    return chainTokens
       .filter((t) => t !== chainMeta.nativeToken)
       .map((token) => {
         const contract = getERC20Contracts()[chainMeta.chainId]?.[token];
@@ -323,7 +335,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
-  }, [isConnected, address, chainMeta.chainId, chainMeta.tokens, chainMeta.nativeToken]);
+  }, [isConnected, address, chainMeta.chainId, chainTokens, chainMeta.nativeToken]);
 
   const { data: erc20Results, isLoading: isLoadingErc20 } = useReadContracts({
     contracts: erc20ContractCalls,
@@ -715,7 +727,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <button
                   key={pack.id}
                   type="button"
-                  onClick={() => setSelectedPack(pack)}
+                  onClick={() => {
+                    setSelectedPack(pack);
+                    refreshTokenPrices();
+                  }}
                   className={`relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition text-center ${isSelected
                       ? 'border-indigo-500 bg-indigo-600/15 shadow-md shadow-indigo-500/10'
                       : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900'
@@ -831,7 +846,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
             3. Choose Payment Token ({chainMeta.name})
           </label>
           <div className="flex flex-wrap gap-2">
-            {chainMeta.tokens.map((token) => {
+            {chainTokens.map((token) => {
               const isSelected = activeToken === token;
               const tokenPrice = calculateCryptoAmount(selectedPack.usdPrice, token, tokenPrices);
               const balance = tokenBalances[token];
@@ -847,7 +862,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <button
                   key={token}
                   type="button"
-                  onClick={() => setSelectedToken(token)}
+                  onClick={() => {
+                    setSelectedToken(token);
+                    refreshTokenPrices();
+                  }}
                   className={`flex flex-col items-start gap-1 px-3 py-1.5 rounded-xl border text-xs font-medium transition min-w-[100px] ${
                     isSelected
                       ? 'border-indigo-500 bg-indigo-600/20 text-white font-semibold'

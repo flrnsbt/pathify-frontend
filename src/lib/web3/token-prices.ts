@@ -22,63 +22,82 @@ interface CachedPrices {
 }
 
 let cachedPrices: CachedPrices | null = null;
+let pricesPromise: Promise<Record<SupportedToken, number>> | null = null;
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+// Minimum gap between forced refreshes so rapid UI interactions don't spam the price APIs
+const MIN_REFRESH_INTERVAL_MS = 15 * 1000;
 
 /**
  * Fetches real-time USD prices for supported crypto assets.
  * Uses Binance public ticker API, falling back to CoinGecko, and then to internal defaults.
+ * Pass `force = true` to bypass the cache when the user interacts with payment UI.
  */
-export async function fetchLiveTokenPrices(): Promise<Record<SupportedToken, number>> {
+export async function fetchLiveTokenPrices(
+  force = false
+): Promise<Record<SupportedToken, number>> {
   const now = Date.now();
-  if (cachedPrices && now - cachedPrices.timestamp < CACHE_TTL_MS) {
-    return cachedPrices.prices;
+  const cacheAge = cachedPrices ? now - cachedPrices.timestamp : Infinity;
+  const shouldFetch =
+    !cachedPrices ||
+    cacheAge >= CACHE_TTL_MS ||
+    (force && cacheAge >= MIN_REFRESH_INTERVAL_MS);
+  if (!shouldFetch) {
+    return cachedPrices!.prices;
   }
 
-  const prices: Record<SupportedToken, number> = { ...DEFAULT_TOKEN_PRICES_USD };
+  if (!pricesPromise) {
+    pricesPromise = (async () => {
+      const prices: Record<SupportedToken, number> = { ...DEFAULT_TOKEN_PRICES_USD };
 
-  // 1. Fetch live rates from Binance ticker API
-  try {
-    const symbols = JSON.stringify(['ETHUSDT', 'BNBUSDT', 'POLUSDT', 'AVAXUSDT']);
-    const res = await fetch(
-      `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(symbols)}`,
-      { cache: 'no-store' }
-    );
-    if (res.ok) {
-      const data = (await res.json()) as Array<{ symbol: string; price: string }>;
-      for (const item of data) {
-        const val = parseFloat(item.price);
-        if (Number.isFinite(val) && val > 0) {
-          if (item.symbol === 'ETHUSDT') prices.ETH = val;
-          if (item.symbol === 'BNBUSDT') prices.BNB = val;
-          if (item.symbol === 'POLUSDT') prices.POL = val;
-          if (item.symbol === 'AVAXUSDT') prices.AVAX = val;
+      // 1. Fetch live rates from Binance ticker API
+      try {
+        const symbols = JSON.stringify(['ETHUSDT', 'BNBUSDT', 'POLUSDT', 'AVAXUSDT']);
+        const res = await fetch(
+          `https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(symbols)}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as Array<{ symbol: string; price: string }>;
+          for (const item of data) {
+            const val = parseFloat(item.price);
+            if (Number.isFinite(val) && val > 0) {
+              if (item.symbol === 'ETHUSDT') prices.ETH = val;
+              if (item.symbol === 'BNBUSDT') prices.BNB = val;
+              if (item.symbol === 'POLUSDT') prices.POL = val;
+              if (item.symbol === 'AVAXUSDT') prices.AVAX = val;
+            }
+          }
         }
+      } catch (err) {
+        console.warn('Binance price fetch error, attempting fallback:', err);
       }
-    }
-  } catch (err) {
-    console.warn('Binance price fetch error, attempting fallback:', err);
+
+      // 2. Fetch CoinGecko as fallback and for Plasma (XPL)
+      try {
+        const cgRes = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,polygon-ecosystem-token,avalanche-2,plasma&vs_currencies=usd',
+          { headers: { Accept: 'application/json' }, cache: 'no-store' }
+        );
+        if (cgRes.ok) {
+          const cgData = (await cgRes.json()) as Record<string, { usd?: number }>;
+          if (cgData.plasma?.usd) prices.XPL = cgData.plasma.usd;
+          if (!prices.ETH && cgData.ethereum?.usd) prices.ETH = cgData.ethereum.usd;
+          if (!prices.BNB && cgData.binancecoin?.usd) prices.BNB = cgData.binancecoin.usd;
+          if (!prices.POL && cgData['polygon-ecosystem-token']?.usd) prices.POL = cgData['polygon-ecosystem-token'].usd;
+          if (!prices.AVAX && cgData['avalanche-2']?.usd) prices.AVAX = cgData['avalanche-2'].usd;
+        }
+      } catch (err) {
+        console.warn('CoinGecko price fetch error:', err);
+      }
+
+      cachedPrices = { prices, timestamp: now };
+      return prices;
+    })().finally(() => {
+      pricesPromise = null;
+    });
   }
 
-  // 2. Fetch CoinGecko as fallback and for Plasma (XPL)
-  try {
-    const cgRes = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,polygon-ecosystem-token,avalanche-2,plasma&vs_currencies=usd',
-      { headers: { Accept: 'application/json' }, cache: 'no-store' }
-    );
-    if (cgRes.ok) {
-      const cgData = (await cgRes.json()) as Record<string, { usd?: number }>;
-      if (cgData.plasma?.usd) prices.XPL = cgData.plasma.usd;
-      if (!prices.ETH && cgData.ethereum?.usd) prices.ETH = cgData.ethereum.usd;
-      if (!prices.BNB && cgData.binancecoin?.usd) prices.BNB = cgData.binancecoin.usd;
-      if (!prices.POL && cgData['polygon-ecosystem-token']?.usd) prices.POL = cgData['polygon-ecosystem-token'].usd;
-      if (!prices.AVAX && cgData['avalanche-2']?.usd) prices.AVAX = cgData['avalanche-2'].usd;
-    }
-  } catch (err) {
-    console.warn('CoinGecko price fetch error:', err);
-  }
-
-  cachedPrices = { prices, timestamp: now };
-  return prices;
+  return pricesPromise;
 }
 
 /**

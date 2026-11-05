@@ -310,6 +310,7 @@ export function refreshCachedData(): void {
 }
 
 export interface RawWalletConfig {
+  chainKey?: string;
   chainId?: number | string;
   chain?: string;
   network?: string;
@@ -414,7 +415,7 @@ export function parseWalletList(
   const results: ParsedPaymentWallet[] = [];
   for (const item of items) {
     const chainKey = normalizeChainKey(
-      item.chainId ?? item.chain ?? item.network,
+      item.chainKey ?? item.chainId ?? item.chain ?? item.network,
     );
     const wallet =
       item.wallet || item.address || item.walletAddress || item.recipient;
@@ -489,7 +490,7 @@ export function parsePaymentWallets(rawEnv?: string): ParsedPaymentWallet[] {
     try {
       const item = JSON.parse(trimmed) as RawWalletConfig;
       const chainKey = normalizeChainKey(
-        item.chainId ?? item.chain ?? item.network,
+        item.chainKey ?? item.chainId ?? item.chain ?? item.network,
       );
       const wallet =
         item.wallet || item.address || item.walletAddress || item.recipient;
@@ -559,11 +560,14 @@ export function getRecipientWallet(
  */
 export function getAvailableChains(
   wallets: ParsedPaymentWallet[],
+  chains?: Record<SupportedChainKey, ChainMetadata> | null,
 ): ChainMetadata[] {
-  const chains = supportedChainsCache
-    ? Object.values(supportedChainsCache)
-    : [];
-  return chains.filter((chain) => {
+  const chainList = chains
+    ? Object.values(chains)
+    : supportedChainsCache
+      ? Object.values(supportedChainsCache)
+      : [];
+  return chainList.filter((chain) => {
     return wallets.some((w) => {
       if (!isValidWalletAddress(w.wallet)) return false;
       if (w.chainId && chain.chainId && w.chainId === chain.chainId)

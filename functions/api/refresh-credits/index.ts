@@ -39,6 +39,9 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   const authHeader = context.request.headers.get('Authorization');
   if (authHeader) headers.set('Authorization', authHeader);
 
+  const testnetSecret = context.request.headers.get('X-Testnet-Secret');
+  if (testnetSecret) headers.set('X-Testnet-Secret', testnetSecret);
+
   const body = await context.request.text();
 
   const res = await fetch(`${backendUrl}/api/refresh-credits`, {
