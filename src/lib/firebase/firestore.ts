@@ -41,6 +41,7 @@ export interface VectorizationHistoryItem {
   parameters: VTracerOptions;
   svg: string; // In-memory decompressed SVG string
   svgSize: number;
+  generationId?: string; // svg id this generation was validated under (dedupe key)
   createdAt: number; // unix timestamp ms
 }
 
@@ -66,7 +67,6 @@ export interface UserProfile {
   isAdmin: boolean;
   subscription: SubscriptionInfo;
   isPro: boolean;
-  unlockedSvgIds: string[];
   unlockedImages?: Record<string, UnlockedImageInfo>;
   updatedAt: number;
 }
@@ -188,7 +188,6 @@ export function getImageUnlockStatus(
 
 export function canAccessSvg(
   profile: UserProfile | null,
-  svgId?: string,
   imageHash?: string,
 ): boolean {
   if (!profile) return false;
@@ -198,7 +197,6 @@ export function canAccessSvg(
     const status = getImageUnlockStatus(profile, imageHash);
     if (status.isUnlocked) return true;
   }
-  if (svgId && profile.unlockedSvgIds?.includes(svgId)) return true;
   return false;
 }
 
@@ -211,7 +209,6 @@ export function canAccessSvg(
 export async function unlockImageWithCredit(
   userId: string,
   imageHash: string,
-  currentSvgId?: string,
 ): Promise<boolean> {
   const profile = await getUserProfile(userId);
   const status = getImageUnlockStatus(profile, imageHash);
@@ -241,11 +238,6 @@ export async function unlockImageWithCredit(
         unlockedAt: handshake.ticket.issuedAt,
       },
     };
-    if (currentSvgId) {
-      profile.unlockedSvgIds = Array.from(
-        new Set([...(profile.unlockedSvgIds || []), currentSvgId]),
-      );
-    }
     profile.updatedAt = Date.now();
     safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
     return true;
@@ -294,51 +286,6 @@ export async function consumeImageGeneration(
   const newUsed = (currentInfo.generationsUsed || 0) + 1;
   const maxGen = currentInfo.maxGenerations || 10;
   return Math.max(0, maxGen - newUsed);
-}
-
-/**
- * Backward compatibility wrapper for unlockSvgWithCredit.
- */
-export async function unlockSvgWithCredit(
-  userId: string,
-  svgId: string,
-  imageHash?: string,
-): Promise<boolean> {
-  if (imageHash) {
-    return unlockImageWithCredit(userId, imageHash, svgId);
-  }
-
-  const profile = await getUserProfile(userId);
-  if (canAccessSvg(profile, svgId)) {
-    return true;
-  }
-  if (profile.credits <= 0) {
-    return false;
-  }
-
-  const newCredits = profile.credits - 1;
-  const newUnlocked = Array.from(
-    new Set([...(profile.unlockedSvgIds || []), svgId]),
-  );
-
-
-  const userRef = doc(db, "users", userId);
-  await setDoc(
-    userRef,
-    {
-      credits: newCredits,
-      unlockedSvgIds: newUnlocked,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
-
-
-  profile.credits = newCredits;
-  profile.unlockedSvgIds = newUnlocked;
-  profile.updatedAt = Date.now();
-  safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
-  return true;
 }
 
 /**
@@ -457,6 +404,7 @@ export async function fetchUserHistory(
       parameters: data.parameters || {},
       svg: decompressedSvg,
       svgSize: data.svgSize || decompressedSvg.length,
+      generationId: data.generationId,
       createdAt: data.createdAt || Date.now(),
     });
   }
@@ -502,7 +450,6 @@ export async function linkWalletToUser(
         isAdmin: false,
         subscription: { status: "inactive" },
         isPro: false,
-        unlockedSvgIds: [],
         updatedAt: Date.now(),
       };
     profile.walletAddress = walletAddress;
@@ -528,9 +475,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
       isAdmin: Boolean(data.isAdmin),
       subscription: data.subscription || { status: "inactive" },
       isPro: Boolean(data.isPro),
-      unlockedSvgIds: Array.isArray(data.unlockedSvgIds)
-        ? data.unlockedSvgIds
-        : [],
       unlockedImages: data.unlockedImages || {},
       updatedAt: data.updatedAt?.toMillis
         ? data.updatedAt.toMillis()
@@ -548,7 +492,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     isAdmin: false,
     subscription: { status: "inactive" },
     isPro: false,
-    unlockedSvgIds: [],
     unlockedImages: {},
     updatedAt: Date.now(),
   };

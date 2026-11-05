@@ -23,6 +23,7 @@ export function useTransactionListener({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const pendingSetRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  const refreshInFlightRef = useRef(false);
 
   // Keep callback refs up to date so changing callback references never re-trigger listener effect
   const onTransactionFinishedRef = useRef(onTransactionFinished);
@@ -36,7 +37,8 @@ export function useTransactionListener({
 
   // Manual or automatic refresh trigger
   const triggerRefresh = useCallback(async () => {
-    if (!userId) return null;
+    if (!userId || refreshInFlightRef.current) return null;
+    refreshInFlightRef.current = true;
     setIsRefreshing(true);
     try {
       const result = await refreshUserCredits(userId);
@@ -46,6 +48,7 @@ export function useTransactionListener({
       console.warn('Failed to refresh user credits:', err);
       return null;
     } finally {
+      refreshInFlightRef.current = false;
       setIsRefreshing(false);
     }
   }, [userId]);
@@ -95,6 +98,17 @@ export function useTransactionListener({
   }, [userId]);
 
   const pendingCount = transactions.filter((t) => t.status === 'pending').length;
+  const hasPending = pendingCount > 0;
+
+  // Poll the backend while any transaction is pending so credits update
+  // as soon as verification completes, then stop once none remain.
+  useEffect(() => {
+    if (!hasPending) return;
+    const interval = setInterval(() => {
+      triggerRefreshRef.current();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [hasPending]);
 
   return {
     transactions,

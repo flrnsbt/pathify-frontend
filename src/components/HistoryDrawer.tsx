@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Clock, Layers, Download, Trash2, ArrowUpRight, Copy, Check, Lock, Shield } from 'lucide-react';
+import { X, Clock, Layers, Download, Trash2, ArrowUpRight, Copy, Check, Shield } from 'lucide-react';
 import { VectorizationHistoryItem } from '../lib/firebase/firestore';
 
 interface HistoryDrawerProps {
@@ -11,9 +11,6 @@ interface HistoryDrawerProps {
   onSelect: (item: VectorizationHistoryItem) => void;
   onDelete: (id: string) => void;
   isAdmin: boolean;
-  isSubscribed: boolean;
-  unlockedSvgIds: string[];
-  onRequestUnlock: (item: VectorizationHistoryItem) => void;
 }
 
 export function HistoryDrawer({
@@ -23,24 +20,14 @@ export function HistoryDrawer({
   onSelect,
   onDelete,
   isAdmin,
-  isSubscribed,
-  unlockedSvgIds,
-  onRequestUnlock,
 }: HistoryDrawerProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const isItemAccessible = (item: VectorizationHistoryItem) => {
-    return isAdmin || isSubscribed || unlockedSvgIds.includes(item.id);
-  };
-
+  // History only contains validated (paid) generations — always accessible
   const handleCopy = (e: React.MouseEvent, item: VectorizationHistoryItem) => {
     e.stopPropagation();
-    if (!isItemAccessible(item)) {
-      onRequestUnlock(item);
-      return;
-    }
     navigator.clipboard.writeText(item.svg);
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -48,10 +35,6 @@ export function HistoryDrawer({
 
   const handleDownload = (e: React.MouseEvent, item: VectorizationHistoryItem) => {
     e.stopPropagation();
-    if (!isItemAccessible(item)) {
-      onRequestUnlock(item);
-      return;
-    }
     const blob = new Blob([item.svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -95,12 +78,11 @@ export function HistoryDrawer({
               />
               <p className="text-sm font-medium">No history items yet</p>
               <p className="text-xs text-neutral-600 mt-1">
-                Vectorized outputs are automatically saved to your history.
+                Validated SVG exports are saved to your history.
               </p>
             </div>
           ) : (
             items.map((item) => {
-              const accessible = isItemAccessible(item);
               return (
                 <div
                   key={item.id}
@@ -116,11 +98,6 @@ export function HistoryDrawer({
                         <h3 className="text-sm font-medium text-neutral-200 truncate group-hover:text-indigo-400 transition">
                           {item.fileName}
                         </h3>
-                        {!accessible && (
-                          <span className="flex items-center gap-0.5 rounded bg-amber-500/10 px-1 py-0.2 text-[9px] font-bold text-amber-400 border border-amber-500/20">
-                            <Lock className="h-2.5 w-2.5" /> LOCKED
-                          </span>
-                        )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
                         <span>{new Date(item.createdAt).toLocaleDateString()}</span>
@@ -143,10 +120,8 @@ export function HistoryDrawer({
                       <div className="h-11 w-11 rounded-lg bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center text-indigo-400 shrink-0">
                         {isAdmin ? (
                           <Shield className="h-5 w-5 text-purple-400" />
-                        ) : accessible ? (
-                          <Layers className="h-5 w-5 text-emerald-400" />
                         ) : (
-                          <Lock className="h-5 w-5 text-amber-400" />
+                          <Layers className="h-5 w-5 text-emerald-400" />
                         )}
                       </div>
                     )}
@@ -160,28 +135,20 @@ export function HistoryDrawer({
                         onClick={(e) => handleCopy(e, item)}
                         className="flex items-center gap-1 hover:text-white transition"
                       >
-                        {accessible ? (
-                          copiedId === item.id ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
-                          )
+                        {copiedId === item.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
                         ) : (
-                          <Lock className="h-3.5 w-3.5 text-amber-400" />
+                          <Copy className="h-3.5 w-3.5" />
                         )}
-                        <span>{copiedId === item.id ? 'Copied' : accessible ? 'Copy' : 'Unlock Code'}</span>
+                        <span>{copiedId === item.id ? 'Copied' : 'Copy'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={(e) => handleDownload(e, item)}
                         className="flex items-center gap-1 hover:text-white transition ml-2"
                       >
-                        {accessible ? (
-                          <Download className="h-3.5 w-3.5" />
-                        ) : (
-                          <Lock className="h-3.5 w-3.5 text-amber-400" />
-                        )}
-                        <span>{accessible ? 'Download' : 'Unlock SVG'}</span>
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Download</span>
                       </button>
                     </div>
 

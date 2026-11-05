@@ -190,16 +190,6 @@ export function ControlsPanel({
             className="accent-indigo-500 h-4 w-4 rounded cursor-pointer"
           />
         </div>
-        {onCropToContent && hasImage && (
-          <button
-            type="button"
-            onClick={onCropToContent}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 py-1.5 px-3 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:text-white transition mt-1"
-          >
-            <Crop className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Trim Margins of Loaded Image</span>
-          </button>
-        )}
       </div>
 
       {/* Core Mode Toggles */}

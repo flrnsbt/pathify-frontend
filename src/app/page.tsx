@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from '../components/Header';
 import { Uploader, LoadedImageInfo } from '../components/Uploader';
 import { ControlsPanel } from '../components/ControlsPanel';
@@ -31,6 +31,7 @@ import {
   unlockImageWithCredit,
   getImageUnlockStatus,
   consumeImageGeneration,
+  getUserProfile,
 } from '../lib/firebase/firestore';
 
 export default function Home() {
@@ -88,6 +89,54 @@ export default function Home() {
     }
   }, [user]);
 
+  // Generations already counted this session (dedupe across repeated exports)
+  const validatedGenerationsRef = useRef<Set<string>>(new Set());
+
+  // A generation is "validated" when the user exports it (download SVG / copy SVG code).
+  // First validation of a given generation consumes 1 quota and writes the history entry;
+  // repeat exports of the same generation are free.
+  const recordValidatedGeneration = useCallback(async () => {
+    if (!user || user.isAnonymous || !currentImage || !svg || !currentSvgId) return;
+    try {
+      const freshProfile = await getUserProfile(user.uid);
+      const isPaidPath = Boolean(
+        freshProfile.isAdmin ||
+        freshProfile.subscription?.status === 'active' ||
+        getImageUnlockStatus(freshProfile, currentImage.imageHash).isUnlocked
+      );
+      if (!isPaidPath) return;
+
+      const alreadyCounted =
+        validatedGenerationsRef.current.has(currentSvgId) ||
+        historyItems.some(
+          (i) => i.generationId === currentSvgId || i.id === currentSvgId
+        );
+      if (alreadyCounted) return;
+      validatedGenerationsRef.current.add(currentSvgId);
+
+      await consumeImageGeneration(user.uid, currentImage.imageHash);
+      await refreshProfile();
+
+      const originalBase64 = await compressImageToBase64(currentImage.imageData);
+      await saveVectorizationHistory(user.uid, {
+        fileName: currentImage.fileName,
+        originalDimensions: { width: currentImage.width, height: currentImage.height },
+        originalSize: currentImage.fileSize,
+        originalBase64,
+        imageHash: currentImage.imageHash,
+        nodeCount: (svg.match(/<path/g) || []).length,
+        executionTimeMs: 0,
+        parameters: options,
+        svg,
+        svgSize: new Blob([svg]).size,
+        generationId: currentSvgId,
+      });
+      loadHistory();
+    } catch (err) {
+      console.warn('Failed to record validated generation:', err);
+    }
+  }, [user, currentImage, svg, currentSvgId, historyItems, options, refreshProfile, loadHistory]);
+
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
   const unlockStatus = getImageUnlockStatus(profile, currentImage?.imageHash);
@@ -96,7 +145,7 @@ export default function Home() {
       profile.isAdmin ||
       profile.subscription?.status === 'active' ||
       unlockStatus.isUnlocked ||
-      canAccessSvg(profile, currentSvgId, currentImage?.imageHash)
+      canAccessSvg(profile, currentImage?.imageHash)
     )
   );
 
@@ -117,46 +166,11 @@ export default function Home() {
         // This renders high-fidelity visuals while keeping raw SVG hidden from DOM scrapers
         const webpUrl = await svgToWebpBitmap(generatedSvg, img.width, img.height);
         setPreviewWebpUrl(webpUrl);
-
-        // "history only save paid generation"
-        // If image is already unlocked or user is admin/subscriber, this is a paid generation!
-        const status = getImageUnlockStatus(profile, img.imageHash);
-        const isPaid = Boolean(
-          profile && (
-            profile.isAdmin ||
-            profile.subscription?.status === 'active' ||
-            status.isUnlocked ||
-            canAccessSvg(profile, generatedId, img.imageHash)
-          )
-        );
-
-        if (user && isPaid && generatedSvg) {
-          // Consume 1 generation for this unlocked image
-          await consumeImageGeneration(user.uid, img.imageHash);
-          await refreshProfile();
-
-          // Save original file as compressed base64
-          const originalBase64 = await compressImageToBase64(img.imageData);
-
-          await saveVectorizationHistory(user.uid, {
-            fileName: img.fileName,
-            originalDimensions: { width: img.width, height: img.height },
-            originalSize: img.fileSize,
-            originalBase64,
-            imageHash: img.imageHash,
-            nodeCount: (generatedSvg.match(/<path/g) || []).length,
-            executionTimeMs: 0,
-            parameters: opts,
-            svg: generatedSvg,
-            svgSize: new Blob([generatedSvg]).size,
-          });
-          loadHistory();
-        }
       } catch (err) {
         console.error('Vectorization error:', err);
       }
     },
-    [currentImage, options, vectorize, user, profile, refreshProfile, loadHistory]
+    [currentImage, options, vectorize]
   );
 
   // Handle image load
@@ -264,6 +278,7 @@ export default function Home() {
 
     // 2. If Admin, Subscribed, or Already Unlocked -> Download immediately
     if (isCurrentUnlocked || profile?.isAdmin || profile?.subscription?.status === 'active') {
+      void recordValidatedGeneration();
       triggerSvgDownload(svg, currentImage.fileName);
       return;
     }
@@ -277,7 +292,7 @@ export default function Home() {
     // 4. If No Credits -> Prompt to purchase via WalletConnect / Web3
     setCreditReason('You need at least 1 credit to unlock and download this SVG. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, profile, triggerSvgDownload]);
+  }, [svg, currentImage, user, isCurrentUnlocked, profile, triggerSvgDownload, recordValidatedGeneration]);
 
   // Handle Copy / View Code Action with permission checks
   const handleRequestCopyCode = useCallback(() => {
@@ -290,6 +305,7 @@ export default function Home() {
 
     if (isCurrentUnlocked || profile?.isAdmin || profile?.subscription?.status === 'active') {
       // Allowed: copy to clipboard
+      void recordValidatedGeneration();
       navigator.clipboard.writeText(svg);
       return;
     }
@@ -301,37 +317,20 @@ export default function Home() {
 
     setCreditReason('You need at least 1 credit to inspect and copy the raw SVG markup. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, profile]);
+  }, [svg, currentImage, user, isCurrentUnlocked, profile, recordValidatedGeneration]);
 
   // Confirm Unlock with 1 Credit: grants 10 generations on currentImage.imageHash
   const handleConfirmUnlock = async () => {
     if (!user || !currentImage) return;
     setIsUnlocking(true);
     try {
-      const success = await unlockImageWithCredit(user.uid, currentImage.imageHash, currentSvgId);
+      const success = await unlockImageWithCredit(user.uid, currentImage.imageHash);
       if (success) {
-        // "history only save paid generation": this generation is now paid!
-        if (svg) {
-          const originalBase64 = await compressImageToBase64(currentImage.imageData);
-          await saveVectorizationHistory(user.uid, {
-            fileName: currentImage.fileName,
-            originalDimensions: { width: currentImage.width, height: currentImage.height },
-            originalSize: currentImage.fileSize,
-            originalBase64,
-            imageHash: currentImage.imageHash,
-            nodeCount: (svg.match(/<path/g) || []).length,
-            executionTimeMs: 0,
-            parameters: options,
-            svg: svg,
-            svgSize: new Blob([svg]).size,
-          });
-          // Consume 1 generation for this initial paid generation
-          await consumeImageGeneration(user.uid, currentImage.imageHash);
-          loadHistory();
-        }
         await refreshProfile();
         setIsUnlockOpen(false);
         if (svg) {
+          // This download is the first validated generation: consumes 1 quota + saves history
+          void recordValidatedGeneration();
           triggerSvgDownload(svg, currentImage.fileName);
         }
       }
@@ -384,20 +383,6 @@ export default function Home() {
     if (!user) return;
     await deleteHistoryItem(user.uid, id);
     setHistoryItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handleRequestUnlockHistoryItem = (item: VectorizationHistoryItem) => {
-    setCurrentSvgId(item.id);
-    if (!user || user.isAnonymous) {
-      setIsAuthOpen(true);
-      return;
-    }
-    if (profile && profile.credits > 0) {
-      setIsUnlockOpen(true);
-    } else {
-      setCreditReason('You need at least 1 credit to unlock this history item. Purchase credits with crypto below.');
-      setIsCreditsOpen(true);
-    }
   };
 
   return (
@@ -467,9 +452,6 @@ export default function Home() {
         onSelect={handleSelectHistoryItem}
         onDelete={handleDeleteHistoryItem}
         isAdmin={Boolean(profile?.isAdmin)}
-        isSubscribed={Boolean(profile?.subscription?.status === 'active')}
-        unlockedSvgIds={profile?.unlockedSvgIds || []}
-        onRequestUnlock={handleRequestUnlockHistoryItem}
       />
 
       {isCreditsOpen && (
