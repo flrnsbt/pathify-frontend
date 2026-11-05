@@ -36,8 +36,8 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   const appCheck = context.request.headers.get('X-Firebase-AppCheck');
   if (appCheck) headers.set('X-Firebase-AppCheck', appCheck);
 
-  const testnetSecret = context.request.headers.get('x-testnet-secret');
-  if (testnetSecret) headers.set('x-testnet-secret', testnetSecret);
+  const testnetSecret = context.request.headers.get('X-Testnet-Secret');
+  if (testnetSecret) headers.set('X-Testnet-Secret', testnetSecret);
 
   const res = await fetch(`${backendUrl}/api/config`, {
     method: 'GET',

@@ -1,5 +1,5 @@
 const ALLOWED_ORIGINS = ['https://vectorizerr.pages.dev', 'http://localhost:3000'];
-const ALLOWED_HEADERS = ['Content-Type', 'X-Firebase-App-Check', 'X-Debug-Secret', 'x-testnet-secret'];
+const ALLOWED_HEADERS = ['Content-Type', 'X-Firebase-AppCheck', 'X-Debug-Secret', 'X-Testnet-Secret'];
 const ALLOWED_METHODS = ['GET', 'POST', 'OPTIONS'];
 
 /**

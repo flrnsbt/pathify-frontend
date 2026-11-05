@@ -23,7 +23,7 @@ sessionId: session-261105-102711-so8z
 
 **What the functions expect (from `functions/utils.ts` CORS config):**
 - `X-Debug-Secret` — for localhost:3000 origin validation
-- `x-testnet-secret` — forwarded to backend for testnet mode
+- `X-Testnet-Secret` — forwarded to backend for testnet mode
 
 **Neither header is currently sent by any frontend API call.**
 
@@ -34,7 +34,7 @@ sessionId: session-261105-102711-so8z
    - `X-Firebase-AppCheck` (if `appCheckToken` provided)
    - `Authorization: Bearer <token>` (if `idToken` provided)
    - `X-Debug-Secret` (if `APP_CONFIG.debugSecret` is set)
-   - `x-testnet-secret` (if `APP_CONFIG.testnetSecret` is set)
+   - `X-Testnet-Secret` (if `APP_CONFIG.testnetSecret` is set)
 
 2. **Update all 6 API call sites** to use `buildApiHeaders()` instead of manual header construction:
    - `fetchBackendConfig()` in `payment-wallets.ts`
@@ -46,7 +46,7 @@ sessionId: session-261105-102711-so8z
 
 ### Why This Matters
 - `X-Debug-Secret` is required for localhost:3000 to pass the origin validation in Cloudflare Functions (otherwise you get 403 during local dev)
-- `x-testnet-secret` tells the backend to use testnet mode for payments
+- `X-Testnet-Secret` tells the backend to use testnet mode for payments
 
 # Delivery Steps
 

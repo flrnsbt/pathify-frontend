@@ -6,7 +6,7 @@
  * - X-Firebase-AppCheck (if appCheckToken provided)
  * - Authorization: Bearer &lt;token&gt; (if idToken provided)
  * - X-Debug-Secret (if debugSecret is set in app config)
- * - x-testnet-secret (if testnetSecret is set in app config)
+ * - X-Testnet-Secret (if testnetSecret is set in app config)
  */
 
 import { APP_CONFIG } from '@/config/app.config';
@@ -34,7 +34,7 @@ export function buildApiHeaders(options?: BuildApiHeadersOptions): Record<string
   }
 
   if (APP_CONFIG.testnetSecret) {
-    headers['x-testnet-secret'] = APP_CONFIG.testnetSecret;
+    headers['X-Testnet-Secret'] = APP_CONFIG.testnetSecret;
   }
 
   return headers;
