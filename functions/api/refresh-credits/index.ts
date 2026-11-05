@@ -1,3 +1,11 @@
+import type { EventContext } from '@cloudflare/workers-types';
+
+interface Env {
+  BACKEND_URL: string;
+  API_SECRET?: string;
+  TESTNET_SECRET?: string;
+}
+
 /**
  * Cloudflare Function proxy for /api/refresh-credits
  * Injects API_SECRET server-side and forwards auth headers.
