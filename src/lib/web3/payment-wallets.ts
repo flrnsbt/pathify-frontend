@@ -4,6 +4,7 @@
  */
 
 import { APP_CONFIG } from "@/config/app.config";
+import { getAppCheckToken } from "../firebase/app-check";
 
 export interface BackendChainConfig {
   key: string;
@@ -45,7 +46,16 @@ export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
     backendConfigPromise = (async () => {
       try {
         const url = APP_CONFIG.api.configUrl;
-        const response = await fetch(url);
+        const appCheckToken = await getAppCheckToken();
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'X-Firebase-AppCheck': appCheckToken || '',
+        };
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headers
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch config: ${response.status}`);
         }
