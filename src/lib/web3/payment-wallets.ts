@@ -104,7 +104,7 @@ export interface ChainMetadata {
 }
 
 // Default chain metadata with UI colors/badges - will be merged with backend config
-const DEFAULT_MAINNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
+export const DEFAULT_MAINNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   bsc: {
     key: "bsc",
     name: "BNB Smart Chain",
@@ -211,7 +211,7 @@ const DEFAULT_MAINNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
   },
 };
 
-const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
+export const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
   bsc: {
     key: "bsc",
     name: "BNB Smart Chain Testnet",
@@ -336,11 +336,15 @@ export async function getSupportedChains(): Promise<
 
   try {
     const backendConfig = await fetchBackendConfig();
-    const chains: Record<SupportedChainKey, ChainMetadata> = { ...DEFAULT_CHAIN_METADATA };
+    const isTestnet = backendConfig.isTestnet ?? false;
+    const defaultMetadata = isTestnet
+      ? DEFAULT_TESTNET_CHAIN_METADATA
+      : DEFAULT_MAINNET_CHAIN_METADATA;
+    const chains: Record<SupportedChainKey, ChainMetadata> = { ...defaultMetadata };
 
     for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
       const chainKey = key as SupportedChainKey;
-      const defaultMeta = DEFAULT_CHAIN_METADATA[chainKey];
+      const defaultMeta = defaultMetadata[chainKey];
 
       if (defaultMeta) {
         chains[chainKey] = {
@@ -362,6 +366,54 @@ export async function getSupportedChains(): Promise<
     supportedChainsCache = DEFAULT_CHAIN_METADATA;
     return DEFAULT_CHAIN_METADATA;
   }
+}
+
+/**
+ * Get the explorer URL for a given chain key from the backend config.
+ * Falls back to the static defaults if the backend config hasn't been loaded yet.
+ * This ensures the backend is the single source of truth for explorer URLs.
+ */
+export function getExplorerUrlForChain(
+  chainKey: SupportedChainKey,
+  isTestnet: boolean,
+): string {
+  // Prefer backend config if available
+  if (backendConfigCache) {
+    const backendChain = backendConfigCache.chains[chainKey];
+    if (backendChain?.explorerUrl) {
+      return backendChain.explorerUrl;
+    }
+  }
+  // Fallback to static defaults
+  const metadata = isTestnet
+    ? DEFAULT_TESTNET_CHAIN_METADATA[chainKey]
+    : DEFAULT_MAINNET_CHAIN_METADATA[chainKey];
+  return metadata?.explorerUrl || "";
+}
+
+/**
+ * Get the full chain metadata for a transaction, using backend config as the source of truth
+ * for explorer URLs and falling back to static defaults for UI styling.
+ */
+export function getChainMetadataForTransaction(
+  chainKey: SupportedChainKey,
+  isTestnet: boolean,
+): ChainMetadata | undefined {
+  const defaultMeta = (isTestnet
+    ? DEFAULT_TESTNET_CHAIN_METADATA
+    : DEFAULT_MAINNET_CHAIN_METADATA)[chainKey];
+
+  if (!defaultMeta) return undefined;
+
+  // Override explorerUrl from backend config if available
+  if (backendConfigCache) {
+    const backendChain = backendConfigCache.chains[chainKey];
+    if (backendChain?.explorerUrl) {
+      return { ...defaultMeta, explorerUrl: backendChain.explorerUrl };
+    }
+  }
+
+  return defaultMeta;
 }
 
 // Fallback to static chains if backend config fails

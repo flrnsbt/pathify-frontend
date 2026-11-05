@@ -24,7 +24,7 @@ import {
   CryptoTransaction,
   TransactionStatus,
 } from '../../lib/firebase/firestore';
-import { SUPPORTED_CHAINS, SupportedChainKey } from '../../lib/web3/payment-wallets';
+import { getChainMetadataForTransaction, SupportedChainKey } from '../../lib/web3/payment-wallets';
 import { ChainIcon, TokenIcon } from '../../components/ChainIcons';
 import { CreditModal } from '../../components/CreditModal';
 import { Footer } from '../../components/Footer';
@@ -467,7 +467,7 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
                   {filteredTxs.map((tx) => {
-                    const chainMeta = SUPPORTED_CHAINS[tx.chainKey as SupportedChainKey];
+                    const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.isTestnet ?? false);
                     const dateStr = new Date(tx.createdAt).toLocaleString(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -650,7 +650,7 @@ function TransactionDetailsModal({
   copiedField,
 }: DetailsModalProps) {
   const [checking, setChecking] = useState(false);
-  const chainMeta = SUPPORTED_CHAINS[tx.chainKey as SupportedChainKey];
+  const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.isTestnet ?? false);
 
   const handleCheckNow = async () => {
     setChecking(true);
