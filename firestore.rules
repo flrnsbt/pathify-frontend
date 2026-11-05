@@ -54,6 +54,18 @@ service cloud.firestore {
           allow create, update: if false; // Server-only via /api/save-history
         }
       }
+
+      // -----------------------------------------------------------------------
+      // Validated Generations (/users/{userId}/validatedGenerations/{svgHash})
+      // -----------------------------------------------------------------------
+      // Account-scoped markers written server-side when generation quota is
+      // consumed. They record which SVG contents the user has already paid
+      // for, independent of source image — re-exports of the same SVG are
+      // free even after the history entry was deleted. Server-write-only.
+      match /validatedGenerations/{generationId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
     
     // =========================================================================

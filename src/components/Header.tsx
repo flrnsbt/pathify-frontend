@@ -70,16 +70,6 @@ export function Header({
             )}
           </button>
 
-          {/* Transactions Link */}
-          <Link
-            href="/transactions"
-            className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
-            title="View Crypto Transactions"
-          >
-            <ReceiptText className="h-4 w-4 text-neutral-400" />
-            <span className="hidden md:inline">Transactions</span>
-          </Link>
-
           {/* Support Link */}
           <Link
             href="/support"
@@ -189,6 +179,14 @@ export function Header({
                     <UserIcon className="h-3.5 w-3.5 text-neutral-500" />
                     Account
                   </button>
+                  <Link
+                    href="/transactions"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
+                  >
+                    <ReceiptText className="h-3.5 w-3.5 text-neutral-500" />
+                    Transactions
+                  </Link>
                   <button
                     onClick={() => {
                       if (

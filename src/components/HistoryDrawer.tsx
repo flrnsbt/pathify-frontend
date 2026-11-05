@@ -13,6 +13,7 @@ import {
   Shield,
   ChevronDown,
   Loader2,
+  CloudOff,
 } from 'lucide-react';
 import {
   HistoryEntry,
@@ -21,6 +22,7 @@ import {
   fetchHistoryGenerations,
   getImageUnlockStatus,
 } from '../lib/firebase/firestore';
+import { fetchLocalGenerations } from '../lib/local-history';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -32,8 +34,12 @@ interface HistoryDrawerProps {
   isLoadingMore: boolean;
   onLoadMore: () => void;
   onSelect: (generation: HistoryGeneration) => void;
-  onDeleteEntry: (entryId: string) => void;
-  onDeleteGeneration: (entryId: string, generationId: string) => void;
+  onDeleteEntry: (entry: HistoryEntry) => void;
+  onDeleteGeneration: (
+    entryId: string,
+    generationId: string,
+    localOnly?: boolean,
+  ) => void;
   onDeleteAll: () => void;
   isAdmin: boolean;
   profile?: UserProfile | null;
@@ -94,19 +100,33 @@ export function HistoryDrawer({
   };
 
   const loadGenerations = React.useCallback(
-    async (entryId: string) => {
-      if (!userId || generationsByEntry[entryId]) return;
-      setLoadingEntries((prev) => new Set(prev).add(entryId));
+    async (entry: HistoryEntry) => {
+      const cacheKey = entry.id;
+      if (generationsByEntry[cacheKey]) return;
+      setLoadingEntries((prev) => new Set(prev).add(cacheKey));
       try {
-        const gens = await fetchHistoryGenerations(userId, entryId);
-        setGenerationsByEntry((prev) => ({ ...prev, [entryId]: gens }));
+        const imageHash = entry.imageHash || entry.id;
+        // Local-only entries have no Firestore doc; regular entries may still
+        // have local fallback generations merged in.
+        const [cloud, local] = await Promise.all([
+          entry.localOnly || !userId
+            ? Promise.resolve([] as HistoryGeneration[])
+            : fetchHistoryGenerations(userId, imageHash),
+          fetchLocalGenerations(imageHash),
+        ]);
+        const seen = new Set(cloud.map((g) => g.generationId || g.id));
+        const merged = [
+          ...cloud,
+          ...local.filter((g) => !seen.has(g.generationId || g.id)),
+        ].sort((a, b) => b.createdAt - a.createdAt);
+        setGenerationsByEntry((prev) => ({ ...prev, [cacheKey]: merged }));
       } catch (err) {
         console.warn('Could not load generations:', err);
-        setGenerationsByEntry((prev) => ({ ...prev, [entryId]: [] }));
+        setGenerationsByEntry((prev) => ({ ...prev, [cacheKey]: [] }));
       } finally {
         setLoadingEntries((prev) => {
           const next = new Set(prev);
-          next.delete(entryId);
+          next.delete(cacheKey);
           return next;
         });
       }
@@ -120,22 +140,23 @@ export function HistoryDrawer({
       return;
     }
     setExpandedId(entry.id);
-    void loadGenerations(entry.id);
+    void loadGenerations(entry);
   };
 
   const handleDeleteGeneration = (
     e: React.MouseEvent,
-    entryId: string,
-    generationId: string,
+    entry: HistoryEntry,
+    gen: HistoryGeneration,
   ) => {
     e.stopPropagation();
-    onDeleteGeneration(entryId, generationId);
+    const genKey = gen.generationId || gen.id;
+    onDeleteGeneration(entry.imageHash || entry.id, genKey, Boolean(gen.localOnly));
     setGenerationsByEntry((prev) => {
-      const gens = prev[entryId];
+      const gens = prev[entry.id];
       if (!gens) return prev;
       return {
         ...prev,
-        [entryId]: gens.filter((g) => (g.generationId || g.id) !== generationId),
+        [entry.id]: gens.filter((g) => (g.generationId || g.id) !== genKey),
       };
     });
   };
@@ -163,12 +184,11 @@ export function HistoryDrawer({
     URL.revokeObjectURL(url);
   };
 
-  const renderGeneration = (entryId: string, gen: HistoryGeneration) => {
+  const renderGeneration = (entry: HistoryEntry, gen: HistoryGeneration) => {
     const quota = gen.imageHash
       ? getImageUnlockStatus(profile ?? null, gen.imageHash)
       : null;
     const showQuota = quota !== null && quota.maxGenerations < 9000;
-    const genKey = gen.generationId || gen.id;
     return (
       <div
         key={gen.id}
@@ -200,6 +220,15 @@ export function HistoryDrawer({
             <span className="text-xs font-medium text-neutral-300 truncate group-hover:text-indigo-400 transition">
               {new Date(gen.createdAt).toLocaleString()}
             </span>
+            {gen.localOnly && (
+              <span
+                className="flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-medium text-amber-300"
+                title="Stored only in this browser — too large for cloud history"
+              >
+                <CloudOff className="h-2.5 w-2.5 shrink-0" />
+                Local only
+              </span>
+            )}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
             <span>{gen.nodeCount} paths</span>
@@ -245,13 +274,13 @@ export function HistoryDrawer({
           </button>
           <button
             type="button"
-            onClick={(e) => handleDeleteGeneration(e, entryId, genKey)}
+            onClick={(e) => handleDeleteGeneration(e, entry, gen)}
             className="rounded-md p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition"
             title="Delete generation"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-          <span className="flex items-center gap-0.5 pl-1 text-indigo-400 font-medium group-hover:translate-x-0.5 transition">
+          <span className="flex items-center gap-0.5 pl-1 text-[11px] text-indigo-400 font-medium group-hover:translate-x-0.5 transition">
             Load <ArrowUpRight className="h-3 w-3" />
           </span>
         </div>
@@ -358,7 +387,7 @@ export function HistoryDrawer({
                             <Loader2 className="h-4 w-4 animate-spin" />
                           </div>
                         ) : gens && gens.length > 0 ? (
-                          gens.map((gen) => renderGeneration(entry.id, gen))
+                          gens.map((gen) => renderGeneration(entry, gen))
                         ) : (
                           <p className="py-4 text-center text-xs text-neutral-500">
                             No generations found for this image.
@@ -373,7 +402,7 @@ export function HistoryDrawer({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteEntry(entry.id);
+                          onDeleteEntry(entry);
                         }}
                         className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-red-400 transition"
                         title="Delete this image and all its generations"

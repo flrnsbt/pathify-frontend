@@ -28,6 +28,7 @@ import {
   saveVectorizationHistory,
   fetchHistoryEntries,
   fetchHistoryCount,
+  validatedGenerationExists,
   deleteHistoryEntry,
   deleteHistoryGeneration,
   deleteAllHistoryEntries,
@@ -42,6 +43,15 @@ import {
 } from '../lib/firebase/firestore';
 import type { DocumentSnapshot } from 'firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
+import {
+  saveLocalGeneration,
+  fetchLocalImages,
+  localGenerationExists,
+  deleteLocalGeneration,
+  deleteLocalGenerationsForImage,
+  clearLocalGenerations,
+  LocalHistoryImage,
+} from '../lib/local-history';
 import { upscaleImageData, isEnhancementCached, UpscaleModelId } from '../lib/upscale';
 
 const AI_ENHANCE_PREF_KEY = 'vtracer_ai_enhance_pref';
@@ -118,6 +128,9 @@ export default function Home() {
   const [enhancePromptDontAsk, setEnhancePromptDontAsk] = useState(false);
   const [paramsLocked, setParamsLocked] = useState(false);
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
+  // Notice shown for source-image/history caveats (missing local source,
+  // oversized SVG saved locally only, etc.)
+  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
 
   // Modals
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -134,6 +147,14 @@ export default function Home() {
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
+  // Browser-local fallback history (IndexedDB) — holds generations that could
+  // not be written to Firestore (e.g. oversized SVGs). Rollup index only;
+  // SVG payloads are fetched lazily when an entry is expanded.
+  const [localImages, setLocalImages] = useState<LocalHistoryImage[]>([]);
+  const refreshLocalImages = useCallback(async () => {
+    setLocalImages(await fetchLocalImages());
+  }, []);
+
   const loadHistory = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -145,10 +166,11 @@ export default function Home() {
       setHistoryCursor(page.lastCursor);
       setHistoryHasMore(page.hasMore);
       setHistoryTotal(count);
+      await refreshLocalImages();
     } catch (err) {
       console.warn('Could not load history:', err);
     }
-  }, [user]);
+  }, [user, refreshLocalImages]);
 
   // Load first page of history when user changes
   useEffect(() => {
@@ -164,6 +186,9 @@ export default function Home() {
           setHistoryHasMore(page.hasMore);
           setHistoryTotal(count);
         }
+      });
+      fetchLocalImages().then((imgs) => {
+        if (active) setLocalImages(imgs);
       });
     }
     return () => {
@@ -196,24 +221,34 @@ export default function Home() {
 
   // Generations already counted this session, keyed `${imageHash}:${svgHash}`
   // (dedupe across repeated exports, scoped per source image)
-  const validatedGenerationsRef = useRef<Set<string>>(new Set());
+  const [sessionValidatedGenerations, setSessionValidatedGenerations] =
+    useState<ReadonlySet<string>>(new Set());
+  const markSessionValidated = useCallback((key: string) => {
+    setSessionValidatedGenerations((prev) =>
+      prev.has(key) ? prev : new Set(prev).add(key),
+    );
+  }, []);
 
   // Hash of the currently displayed SVG — identifies whether this exact
   // generation was already validated (paid), independent of remaining quota.
-  const [currentSvgHash, setCurrentSvgHash] = useState<string>('');
+  // Stored alongside the SVG it was computed from so a stale hash is never
+  // trusted while a new trace is being hashed.
+  const [svgHashResult, setSvgHashResult] = useState<{
+    svg: string;
+    hash: string;
+  } | null>(null);
   useEffect(() => {
+    if (!svg) return;
     let cancelled = false;
-    if (!svg) {
-      setCurrentSvgHash('');
-      return;
-    }
     hashSvgContent(svg).then((h) => {
-      if (!cancelled) setCurrentSvgHash(h);
+      if (!cancelled) setSvgHashResult({ svg, hash: h });
     });
     return () => {
       cancelled = true;
     };
   }, [svg]);
+  const currentSvgHash =
+    svg && svgHashResult?.svg === svg ? svgHashResult.hash : '';
 
   // True when the SVG on screen is already a validated (paid) generation —
   // re-exporting it is always free, even if the image quota is exhausted.
@@ -238,12 +273,14 @@ export default function Home() {
       }
       const sessionKey = `${currentImage.imageHash}:${currentSvgHash}`;
       const owned =
-        validatedGenerationsRef.current.has(sessionKey) ||
+        sessionValidatedGenerations.has(sessionKey) ||
+        (await localGenerationExists(currentImage.imageHash, currentSvgHash)) ||
         (await historyGenerationExists(
           user.uid,
           currentImage.imageHash,
           currentSvgHash,
-        ));
+        )) ||
+        (await validatedGenerationExists(user.uid, currentSvgHash));
       if (!cancelled && owned) {
         setRemoteOwnedGeneration({
           imageHash: currentImage.imageHash,
@@ -255,12 +292,12 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [user, currentImage?.imageHash, currentSvgHash]);
+  }, [user, currentImage?.imageHash, currentSvgHash, sessionValidatedGenerations]);
 
   const isCurrentGenerationOwned = Boolean(
     currentSvgHash &&
     currentImage?.imageHash &&
-    (validatedGenerationsRef.current.has(
+    (sessionValidatedGenerations.has(
       `${currentImage?.imageHash}:${currentSvgHash}`
     ) ||
       (remoteOwnedGeneration?.imageHash === currentImage.imageHash &&
@@ -277,14 +314,79 @@ export default function Home() {
       // generation is always re-exportable, even with exhausted quota.
       const svgHash = await hashSvgContent(svg);
       const sessionKey = `${currentImage.imageHash}:${svgHash}`;
-      const alreadyCounted =
-        validatedGenerationsRef.current.has(sessionKey) ||
+      const inHistory =
+        sessionValidatedGenerations.has(sessionKey) ||
+        (await localGenerationExists(currentImage.imageHash, svgHash)) ||
         (await historyGenerationExists(
           user.uid,
           currentImage.imageHash,
           svgHash,
         ));
-      if (alreadyCounted) return true;
+      // Account-scoped validated marker — survives history deletion and is
+      // independent of which source image produced this SVG.
+      const wasValidated =
+        inHistory || (await validatedGenerationExists(user.uid, svgHash));
+
+      const nodeCount = (svg.match(/<path/g) || []).length;
+      const svgSize = new Blob([svg]).size;
+      const originalDimensions = {
+        width: currentImage.width,
+        height: currentImage.height,
+      };
+
+      const saveToHistory = () =>
+        saveVectorizationHistory(user.uid, {
+          fileName: currentImage.fileName,
+          originalDimensions,
+          originalSize: currentImage.fileSize,
+          imageHash: currentImage.imageHash,
+          nodeCount,
+          executionTimeMs: 0,
+          parameters: options,
+          svg,
+          svgSize,
+          generationId: svgHash,
+        });
+
+      const saveToLocal = async (tooLarge: boolean) => {
+        // Cloud write failed (usually an oversized SVG) — keep a local copy so
+        // the paid generation still appears in history on this device.
+        await saveLocalGeneration({
+          id: svgHash,
+          generationId: svgHash,
+          userId: user.uid,
+          imageHash: currentImage.imageHash,
+          fileName: currentImage.fileName,
+          originalDimensions,
+          originalSize: currentImage.fileSize,
+          nodeCount,
+          executionTimeMs: 0,
+          parameters: options,
+          svg,
+          svgSize,
+          createdAt: Date.now(),
+          localOnly: true,
+        });
+        setSourceNotice(
+          tooLarge
+            ? 'This SVG is too large to save to cloud history (over 1 MB). It was saved locally on this device instead — it won\'t sync to other browsers.'
+            : 'Couldn\'t save this generation to cloud history. It was saved locally on this device instead.'
+        );
+      };
+
+      if (wasValidated) {
+        // Already paid for — free export. If it's missing from history (user
+        // deleted it, saved on another device, or the cloud write failed),
+        // re-insert it without consuming quota.
+        markSessionValidated(sessionKey);
+        if (!inHistory) {
+          const res = await saveToHistory();
+          if (!res.cloudSaved) await saveToLocal(res.tooLarge);
+          await refreshLocalImages();
+          loadHistory();
+        }
+        return true;
+      }
 
       const freshProfile = await getUserProfile(user.uid);
       const isPaidPath = Boolean(
@@ -293,31 +395,29 @@ export default function Home() {
       );
       if (!isPaidPath) return false;
 
-      // Fail closed: only proceed when the server confirms the quota consumption
-      const remaining = await consumeImageGeneration(user.uid, currentImage.imageHash);
+      // Fail closed: only proceed when the server confirms the quota consumption.
+      // The server also records an account-scoped validated marker for svgHash.
+      const remaining = await consumeImageGeneration(
+        user.uid,
+        currentImage.imageHash,
+        svgHash,
+      );
       if (remaining === null) return false;
-      validatedGenerationsRef.current.add(sessionKey);
+      markSessionValidated(sessionKey);
       await refreshProfile();
 
-      await saveVectorizationHistory(user.uid, {
-        fileName: currentImage.fileName,
-        originalDimensions: { width: currentImage.width, height: currentImage.height },
-        originalSize: currentImage.fileSize,
-        imageHash: currentImage.imageHash,
-        nodeCount: (svg.match(/<path/g) || []).length,
-        executionTimeMs: 0,
-        parameters: options,
-        svg,
-        svgSize: new Blob([svg]).size,
-        generationId: svgHash,
-      });
+      const historyResult = await saveToHistory();
+      if (!historyResult.cloudSaved) {
+        await saveToLocal(historyResult.tooLarge);
+      }
+      await refreshLocalImages();
       loadHistory();
       return true;
     } catch (err) {
       console.warn('Failed to record validated generation:', err);
       return false;
     }
-  }, [user, currentImage, svg, options, refreshProfile, loadHistory]);
+  }, [user, currentImage, svg, options, refreshProfile, loadHistory, refreshLocalImages, sessionValidatedGenerations, markSessionValidated]);
 
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
@@ -625,9 +725,6 @@ export default function Home() {
     }
   };
 
-  // Notice shown when a history item's source image isn't in local storage
-  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
-
   // Load history item into viewer: restores parameters + SVG, and the source
   // image from browser-local storage when available.
   const handleSelectHistoryItem = async (item: HistoryGeneration) => {
@@ -679,29 +776,69 @@ export default function Home() {
     loadResult(item.svg, item.nodeCount, item.executionTimeMs);
   };
 
-  const handleDeleteHistoryEntry = async (entryId: string) => {
+  const handleDeleteHistoryEntry = async (entry: HistoryEntry) => {
     if (!user) return;
-    await deleteHistoryEntry(user.uid, entryId);
-    setHistoryEntries((prev) => prev.filter((e) => e.id !== entryId));
+    if (entry.localOnly) {
+      // Synthetic entry backed only by the browser-local fallback store
+      await deleteLocalGenerationsForImage(entry.imageHash);
+      await refreshLocalImages();
+      return;
+    }
+    await deleteHistoryEntry(user.uid, entry.id);
+    // Also drop any local fallback generations for this image (mixed case)
+    await deleteLocalGenerationsForImage(entry.imageHash).catch(() => {});
+    await refreshLocalImages();
+    setHistoryEntries((prev) => prev.filter((e) => e.id !== entry.id));
     setHistoryTotal((t) => Math.max(0, t - 1));
   };
 
   const handleDeleteHistoryGeneration = async (
     entryId: string,
     generationId: string,
+    localOnly = false,
   ) => {
     if (!user) return;
+    if (localOnly) {
+      await deleteLocalGeneration(entryId, generationId);
+      await refreshLocalImages();
+      return;
+    }
     await deleteHistoryGeneration(user.uid, entryId, generationId);
   };
 
   const handleDeleteAllHistory = async () => {
     if (!user) return;
     await deleteAllHistoryEntries(user.uid);
+    await clearLocalGenerations();
+    setLocalImages([]);
     setHistoryEntries([]);
     setHistoryCursor(null);
     setHistoryHasMore(false);
     setHistoryTotal(0);
   };
+
+  // Merge local-only fallback entries: images with generations in IndexedDB but
+  // no (currently loaded) Firestore entry get a synthetic history entry. If the
+  // cloud entry exists on an unloaded page it replaces the synthetic one once
+  // "Load more" fetches it.
+  const cloudImageHashes = new Set(historyEntries.map((e) => e.imageHash));
+  const localOnlyEntries: HistoryEntry[] = localImages
+    .filter((img) => img.imageHash && !cloudImageHashes.has(img.imageHash))
+    .map((img) => ({
+      id: `local-${img.imageHash}`,
+      userId: user?.uid ?? '',
+      imageHash: img.imageHash,
+      fileName: img.fileName || 'traced-vector.svg',
+      originalDimensions: img.originalDimensions || { width: 0, height: 0 },
+      originalSize: img.originalSize,
+      createdAt: img.earliestAt,
+      updatedAt: img.latestAt,
+      localOnly: true,
+    }));
+  const displayEntries = [...localOnlyEntries, ...historyEntries].sort(
+    (a, b) => b.updatedAt - a.updatedAt,
+  );
+  const displayTotal = historyTotal + localOnlyEntries.length;
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
@@ -714,7 +851,7 @@ export default function Home() {
             setCreditReason('');
             setIsCreditsOpen(true);
           }}
-          historyCount={historyTotal}
+          historyCount={displayTotal}
         />
       </div>
 
@@ -796,8 +933,8 @@ export default function Home() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         userId={user?.uid}
-        entries={historyEntries}
-        totalCount={historyTotal}
+        entries={displayEntries}
+        totalCount={displayTotal}
         hasMore={historyHasMore}
         isLoadingMore={historyLoadingMore}
         onLoadMore={loadMoreHistory}

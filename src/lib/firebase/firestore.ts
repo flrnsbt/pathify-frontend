@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  addDoc,
   getDocs,
   deleteDoc,
   query,
@@ -22,7 +21,7 @@ import type { DocumentSnapshot, QueryConstraint, QueryDocumentSnapshot } from "f
 import { db, auth, getAppCheckToken } from "./config";
 import { handleAuthExpired } from "./auth-context";
 import { VTracerOptions } from "../vtracer/types";
-import { compressSvgString, decompressSvgString } from "../vtracer/compression";
+import { compressSvgString, decompressSvgString, decompressSvgBytes } from "../vtracer/compression";
 import { SupportedChainKey, SupportedToken } from "../web3/payment-wallets";
 import { getGenerationsPerUnlock } from "../app-config";
 import {
@@ -47,6 +46,8 @@ export interface HistoryEntry {
   originalSize?: number;
   createdAt: number; // first generation for this image
   updatedAt: number; // most recent generation
+  /** True for synthetic entries backed only by the browser-local fallback store. */
+  localOnly?: boolean;
 }
 
 /** A single validated generation, stored in the entry's `generations` subcollection. */
@@ -64,6 +65,8 @@ export interface HistoryGeneration {
   svg: string; // In-memory decompressed SVG string
   svgSize: number;
   createdAt: number; // unix timestamp ms
+  /** True when stored only in the browser-local fallback (oversized SVGs). */
+  localOnly?: boolean;
 }
 
 export const HISTORY_PAGE_SIZE = 5;
@@ -129,7 +132,6 @@ export interface CryptoTransaction {
   confirmedAt?: number;
 }
 
-const LOCAL_STORAGE_HISTORY_KEY = "vtracer_local_history";
 const LOCAL_STORAGE_PROFILE_KEY = "vtracer_local_profile";
 const LOCAL_STORAGE_TRANSACTIONS_KEY = "vtracer_local_transactions";
 
@@ -147,6 +149,38 @@ function safeSetStorage(key: string, val: string): void {
   try {
     localStorage.setItem(key, val);
   } catch { }
+}
+
+/** Parses a JSON response body, tolerating empty/non-JSON payloads. */
+async function readApiJson(res: Response): Promise<Record<string, unknown>> {
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+/**
+ * Handles a 401 from a backend call: refreshes the ID token when the server
+ * reports an expired/invalid token, otherwise expires the session.
+ */
+async function handleUnauthorizedResponse(res: Response): Promise<void> {
+  const errData = await readApiJson(res.clone());
+  const msg = typeof errData.error === "string" ? errData.error : "";
+  if (!/expired|invalid.*token/i.test(msg)) return;
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      await currentUser.getIdToken(true);
+      console.warn(
+        "[API] Session confirmed active with Google. Skipping disconnect.",
+      );
+    } else {
+      await handleAuthExpired();
+    }
+  } catch (authErr) {
+    console.warn(
+      "[API] Google confirmed session is revoked, signing out:",
+      authErr,
+    );
+    await handleAuthExpired();
+  }
 }
 
 /**
@@ -286,6 +320,7 @@ export async function unlockImageWithCredit(
 export async function consumeImageGeneration(
   userId: string,
   imageHash: string,
+  generationId?: string,
 ): Promise<number | null> {
   const profile = await getUserProfile(userId);
   if (profile.subscription?.status === "active") {
@@ -295,9 +330,12 @@ export async function consumeImageGeneration(
   // Request server to consume 1 generation from quota and re-sign ticket.
   // Fails closed: returns null when the server cannot confirm consumption,
   // so callers must not record the generation as validated.
+  // generationId (SVG content hash) lets the server record an account-scoped
+  // validated marker so re-exports of the same SVG stay free.
   const handshake = await requestServerHandshake({
     action: "consume_generation",
     imageHash,
+    generationId,
   });
 
   if (handshake.success && handshake.ticket) {
@@ -315,18 +353,42 @@ export async function consumeImageGeneration(
   return null;
 }
 
+export interface SaveHistoryResult {
+  savedId: string;
+  /** False when the generation could not be written to Firestore. */
+  cloudSaved: boolean;
+  /** True when the compressed SVG exceeds the Firestore field limit. */
+  tooLarge: boolean;
+}
+
+// Keep in sync with MAX_SVG_STORAGE_BYTES in backend/src/services/firestore.ts.
+// The 'gz:' payload is base64, so raw gzip bytes ≈ length * 3/4.
+const MAX_REMOTE_SVG_GZIP_BYTES = 1_000_000;
+
 /**
  * Saves a vectorization history item via the backend server endpoint (service account auth).
  * Compresses the SVG data using gzip before storing.
  * Client-side Firestore direct writes are removed for security.
  * Only paid generations should be passed to this function.
+ *
+ * Returns cloudSaved=false (with tooLarge set when applicable) when the
+ * backend rejects the write — callers should fall back to local storage.
  */
 export async function saveVectorizationHistory(
   userId: string,
   data: Omit<HistoryGeneration, "id" | "userId" | "createdAt">,
-): Promise<string> {
+): Promise<SaveHistoryResult> {
   // Gzip-compress SVG for compact storage
   const compressedSvg = await compressSvgString(data.svg);
+
+  const savedId = `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  // Oversized payloads can never fit the Firestore field limit — skip the
+  // upload entirely and let the caller store the generation locally.
+  const estGzipBytes = Math.floor(((compressedSvg?.length ?? 0) - 3) * 0.75);
+  if (compressedSvg?.startsWith("gz:") && estGzipBytes > MAX_REMOTE_SVG_GZIP_BYTES) {
+    return { savedId, cloudSaved: false, tooLarge: true };
+  }
 
   // Exclude userId from the API body — the backend extracts it from the Firebase ID token
   const itemToStore = {
@@ -335,7 +397,7 @@ export async function saveVectorizationHistory(
     createdAt: Date.now(),
   };
 
-  let savedId = `hist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  let result: SaveHistoryResult = { savedId, cloudSaved: false, tooLarge: false };
 
   const endpoint = APP_CONFIG.api.saveHistoryUrl || "/api/save-history";
   try {
@@ -360,41 +422,32 @@ export async function saveVectorizationHistory(
     });
 
     if (res.status === 401) {
-      const errData = (await res
-        .clone()
-        .json()
-        .catch(() => ({}))) as any;
-      if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
-        try {
-          const currentUser = auth.currentUser;
-          if (currentUser) {
-            await currentUser.getIdToken(true);
-            console.warn(
-              "[History] Session confirmed active with Google. Skipping disconnect.",
-            );
-          } else {
-            await handleAuthExpired();
-          }
-        } catch {
-          await handleAuthExpired();
-        }
-      }
+      await handleUnauthorizedResponse(res);
     }
 
     if (res.ok) {
-      const resJson = (await res.json().catch(() => ({}))) as any;
-      if (resJson.generationId) {
-        savedId = resJson.generationId;
-      }
+      const resJson = await readApiJson(res);
+      result = {
+        savedId:
+          typeof resJson.generationId === "string"
+            ? resJson.generationId
+            : savedId,
+        cloudSaved: true,
+        tooLarge: false,
+      };
     } else {
-      console.warn("Backend history saving returned error status:", res.status);
+      result.tooLarge = res.status === 413;
+      console.warn(
+        "Backend history saving returned error status:",
+        res.status,
+        result.tooLarge ? "(SVG too large for Firestore)" : "",
+      );
     }
-    // Backend history saving returned an error; no local fallback
   } catch (err) {
     console.warn("Failed to write history to backend:", err);
   }
 
-  return savedId;
+  return result;
 }
 
 function mapHistoryEntry(docSnap: QueryDocumentSnapshot, userId: string): HistoryEntry {
@@ -416,7 +469,24 @@ async function mapHistoryGeneration(
   userId: string,
 ): Promise<HistoryGeneration> {
   const data = docSnap.data();
-  const decompressedSvg = await decompressSvgString(data.svg || "");
+  // svg is stored as Firestore bytesValue (raw gzip). The client SDK surfaces
+  // it as a `Bytes` object (not a Uint8Array) — unwrap via toUint8Array().
+  // Tolerate Uint8Array/ArrayBuffer and the legacy 'gz:' string format too.
+  const rawSvg = data.svg as unknown;
+  let svgBytes: Uint8Array | null = null;
+  if (rawSvg instanceof Uint8Array) {
+    svgBytes = rawSvg;
+  } else if (rawSvg instanceof ArrayBuffer) {
+    svgBytes = new Uint8Array(rawSvg);
+  } else if (rawSvg && typeof (rawSvg as { toUint8Array?: unknown }).toUint8Array === 'function') {
+    svgBytes = (rawSvg as { toUint8Array: () => Uint8Array }).toUint8Array();
+  }
+  const decompressedSvg =
+    typeof rawSvg === "string"
+      ? await decompressSvgString(rawSvg)
+      : svgBytes
+        ? await decompressSvgBytes(svgBytes)
+        : "";
   return {
     id: docSnap.id,
     generationId: data.generationId || docSnap.id,
@@ -512,6 +582,22 @@ export async function historyGenerationExists(
     generationId,
   );
   const snap = await getDoc(genRef);
+  return snap.exists();
+}
+
+/**
+ * Checks the account-scoped validated-generation marker
+ * (users/{uid}/validatedGenerations/{svgHash}). Written server-side when
+ * quota is consumed, so it survives history deletion and is independent of
+ * which source image produced the SVG.
+ */
+export async function validatedGenerationExists(
+  userId: string,
+  generationId: string,
+): Promise<boolean> {
+  if (!userId || !generationId) return false;
+  const ref = doc(db, "users", userId, "validatedGenerations", generationId);
+  const snap = await getDoc(ref);
   return snap.exists();
 }
 
@@ -706,30 +792,12 @@ export async function createCryptoTransaction(
     console.info('[Transaction] Backend response:', res.status, res.statusText);
 
     if (res.status === 401) {
-      const errData = (await res
-        .clone()
-        .json()
-        .catch(() => ({}))) as any;
-      if (errData.error && /expired|invalid.*token/i.test(errData.error)) {
-        try {
-          const currentUser = auth.currentUser;
-          if (currentUser) {
-            await currentUser.getIdToken(true);
-            console.warn(
-              "[History] Session confirmed active with Google. Skipping disconnect.",
-            );
-          } else {
-            await handleAuthExpired();
-          }
-        } catch {
-          await handleAuthExpired();
-        }
-      }
+      await handleUnauthorizedResponse(res);
     }
 
     if (res.ok) {
-      const resJson = (await res.json().catch(() => ({}))) as any;
-      if (resJson.transactionId) {
+      const resJson = await readApiJson(res);
+      if (typeof resJson.transactionId === "string") {
         createdId = resJson.transactionId;
         backendSuccess = true;
       }
@@ -998,32 +1066,7 @@ export async function refreshUserCredits(
       });
 
       if (res.status === 401) {
-        const errorData = (await res
-          .clone()
-          .json()
-          .catch(() => ({}))) as any;
-        if (
-          errorData.error &&
-          /expired|invalid.*token/i.test(errorData.error)
-        ) {
-          try {
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-              await currentUser.getIdToken(true);
-              console.warn(
-                "[Firestore] Google confirmed session is active. Skipping disconnect.",
-              );
-            } else {
-              await handleAuthExpired();
-            }
-          } catch (authErr) {
-            console.warn(
-              "[Firestore] Google confirmed session is revoked, signing out:",
-              authErr,
-            );
-            await handleAuthExpired();
-          }
-        }
+        await handleUnauthorizedResponse(res);
       } else if (res.ok) {
         cloudFunctionNotified = true;
       }

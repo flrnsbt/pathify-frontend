@@ -25,6 +25,8 @@ export interface HandshakeRequest {
   action: HandshakeAction;
   imageHash: string;
   ticketId?: string;
+  /** SVG content hash — recorded server-side as a validated generation. */
+  generationId?: string;
 }
 
 export interface HandshakeResponse {

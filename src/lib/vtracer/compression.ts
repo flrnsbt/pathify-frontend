@@ -68,6 +68,24 @@ export async function compressSvgString(svg: string): Promise<string> {
 }
 
 /**
+ * Decompresses a gzip-compressed SVG stored as raw bytes (Firestore bytesValue).
+ */
+export async function decompressSvgBytes(bytes: Uint8Array): Promise<string> {
+  if (!bytes || bytes.length === 0) return '';
+  try {
+    if (typeof DecompressionStream !== 'undefined') {
+      const stream = new Blob([bytes as unknown as BlobPart])
+        .stream()
+        .pipeThrough(new DecompressionStream('gzip'));
+      return await new Response(stream).text();
+    }
+  } catch (err) {
+    console.warn('SVG gzip bytes decompression failed:', err);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+/**
  * Decompresses an SVG string compressed with compressSvgString.
  * Automatically detects whether the string is gzip-compressed ('gz:') or raw SVG.
  */
