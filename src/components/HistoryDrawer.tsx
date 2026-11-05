@@ -10,6 +10,7 @@ interface HistoryDrawerProps {
   items: VectorizationHistoryItem[];
   onSelect: (item: VectorizationHistoryItem) => void;
   onDelete: (id: string) => void;
+  onDeleteAll: () => void;
   isAdmin: boolean;
 }
 
@@ -19,9 +20,32 @@ export function HistoryDrawer({
   items,
   onSelect,
   onDelete,
+  onDeleteAll,
   isAdmin,
 }: HistoryDrawerProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = React.useState(false);
+  const [isClearing, setIsClearing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!confirmingClear) return;
+    const t = setTimeout(() => setConfirmingClear(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmingClear]);
+
+  const handleClearAll = async () => {
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      return;
+    }
+    setIsClearing(true);
+    try {
+      await onDeleteAll();
+    } finally {
+      setIsClearing(false);
+      setConfirmingClear(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -58,12 +82,29 @@ export function HistoryDrawer({
               {items.length}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={isClearing}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                  confirmingClear
+                    ? 'border-red-500/50 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                    : 'border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:text-red-300'
+                }`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {isClearing ? 'Clearing…' : confirmingClear ? 'Confirm clear all?' : 'Clear all'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -108,13 +149,13 @@ export function HistoryDrawer({
                       </div>
                     </div>
 
-                    {/* Thumbnail of original image (stored compressed) or fallback icon */}
-                    {item.originalBase64 ? (
+                    {/* Preview of the validated SVG (stored gzip-compressed, decompressed on fetch) */}
+                    {item.svg ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={item.originalBase64}
-                        alt="Thumbnail"
-                        className="h-11 w-11 rounded-lg border border-neutral-800 object-cover shrink-0"
+                        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
+                        alt="SVG preview"
+                        className="h-11 w-11 rounded-lg border border-neutral-800 bg-white object-contain shrink-0"
                       />
                     ) : (
                       <div className="h-11 w-11 rounded-lg bg-neutral-900 border border-neutral-800 p-2 flex items-center justify-center text-indigo-400 shrink-0">

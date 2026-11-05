@@ -25,6 +25,7 @@ import {
   saveVectorizationHistory,
   fetchUserHistory,
   deleteHistoryItem,
+  deleteAllHistoryItems,
   VectorizationHistoryItem,
   canAccessSvg,
   unlockImageWithCredit,
@@ -471,6 +472,12 @@ export default function Home() {
     setHistoryItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const handleDeleteAllHistory = async () => {
+    if (!user) return;
+    await deleteAllHistoryItems(user.uid);
+    setHistoryItems([]);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 selection:bg-indigo-500 selection:text-white">
       {/* Top Navigation Bar */}
@@ -551,6 +558,7 @@ export default function Home() {
         items={historyItems}
         onSelect={handleSelectHistoryItem}
         onDelete={handleDeleteHistoryItem}
+        onDeleteAll={handleDeleteAllHistory}
         isAdmin={Boolean(profile?.isAdmin)}
       />
 

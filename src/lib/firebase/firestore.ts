@@ -13,6 +13,7 @@ import {
   updateDoc,
   setDoc,
   getDoc,
+  writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
 import { db, auth, getAppCheckToken } from "./config";
@@ -424,6 +425,24 @@ export async function deleteHistoryItem(
 
 
 
+}
+
+/**
+ * Deletes every history document for the user, in batches.
+ */
+export async function deleteAllHistoryItems(userId: string): Promise<void> {
+  const historyCollection = collection(db, "users", userId, "history");
+  const snapshot = await getDocs(historyCollection);
+  if (snapshot.empty) return;
+
+  // Firestore batches are capped at 500 writes
+  for (let i = 0; i < snapshot.docs.length; i += 500) {
+    const batch = writeBatch(db);
+    for (const docSnap of snapshot.docs.slice(i, i + 500)) {
+      batch.delete(docSnap.ref);
+    }
+    await batch.commit();
+  }
 }
 
 export async function linkWalletToUser(
