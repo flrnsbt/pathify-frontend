@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useSyncExternalStore, useRef } from 'react';
-import { WagmiProvider } from 'wagmi';
+import { WagmiProvider, useDisconnect } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getWagmiConfig, getAppKit, sepolia, bsc } from './config';
 import { useAuth } from '../firebase/auth-context';
@@ -34,6 +34,24 @@ function WalletSync() {
 
     return () => unsubscribe();
   }, [user]);
+
+  return null;
+}
+
+function WalletDisconnectHandler() {
+  const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    const onDisconnect = () => {
+      try {
+        disconnect();
+      } catch (err) {
+        console.warn('[Web3Provider] Wallet disconnect on logout failed:', err);
+      }
+    };
+    window.addEventListener('app-wallet-disconnect', onDisconnect);
+    return () => window.removeEventListener('app-wallet-disconnect', onDisconnect);
+  }, [disconnect]);
 
   return null;
 }
@@ -72,6 +90,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={configRef.current}>
       <QueryClientProvider client={queryClient}>
         {mounted && <WalletSync />}
+        {mounted && <WalletDisconnectHandler />}
         {mounted && <NetworkInitializer />}
         {children}
       </QueryClientProvider>

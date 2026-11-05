@@ -40,6 +40,7 @@ export async function handleAuthExpired(): Promise<void> {
     console.warn('[Auth] Error signing out expired session:', err);
   }
   if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('app-wallet-disconnect'));
     window.dispatchEvent(new CustomEvent('auth-token-expired'));
   }
 }
@@ -109,6 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     if (isFirebaseConfigured && auth) {
       await fbSignOut(auth);
+    }
+    // Notify the web3 layer to disconnect any active wallet session
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-wallet-disconnect'));
     }
     setUser(null);
     setProfile(null);
