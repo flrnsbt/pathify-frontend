@@ -21,7 +21,7 @@ export function Header({
   onOpenCredits,
   historyCount,
 }: HeaderProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -181,6 +181,16 @@ export function Header({
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-neutral-800 bg-neutral-950 py-1 shadow-2xl">
                   <button
                     onClick={() => {
+                      setAccountMenuOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
+                  >
+                    <UserIcon className="h-3.5 w-3.5 text-neutral-500" />
+                    Account
+                  </button>
+                  <button
+                    onClick={() => {
                       if (
                         window.confirm(
                           'Clear all locally stored data? This removes cached source images and app preferences from this browser. Your account, credits and history are not affected.'
@@ -196,6 +206,16 @@ export function Header({
                   >
                     <Database className="h-3.5 w-3.5 text-neutral-500" />
                     {dataCleared ? 'Local data cleared' : 'Clear local data'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setAccountMenuOpen(false);
+                      await logout();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:bg-neutral-900 transition"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign out
                   </button>
                 </div>
               </>
