@@ -23,6 +23,8 @@ export interface VTracerOptions {
   backgroundMode?: BackgroundModeOption; // 'solid' | 'transparent'
   cropToContent?: boolean; // auto-trim margins
   optimizeSvg?: boolean; // clean and optimize paths
+  aiEnhance?: boolean; // AI upscale/denoise (Real-ESRGAN) before tracing
+  aiEnhanceModel?: 'anime' | 'general' | 'general-wdn';
   preset?: PresetOption;
 }
 
@@ -44,6 +46,8 @@ export const DEFAULT_VTRACER_OPTIONS: VTracerOptions = {
   backgroundMode: 'solid',
   cropToContent: false,
   optimizeSvg: true,
+  aiEnhance: true,
+  aiEnhanceModel: 'general',
   preset: 'photo',
 };
 
@@ -62,6 +66,7 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     pathPrecision: 2,
     gradientMode: false,
     maxColors: 128,
+    aiEnhanceModel: 'general',
   },
   gradient: {
     colorMode: 'color',
@@ -77,6 +82,7 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     pathPrecision: 3,
     gradientMode: true,
     maxColors: 256,
+    aiEnhanceModel: 'general',
   },
   'pixel-art': {
     colorMode: 'color',
@@ -91,6 +97,7 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     spliceThreshold: 180,
     pathPrecision: 1,
     gradientMode: false,
+    aiEnhanceModel: 'anime',
   },
   'line-art': {
     colorMode: 'binary',
@@ -105,6 +112,7 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     spliceThreshold: 45,
     pathPrecision: 2,
     gradientMode: false,
+    aiEnhanceModel: 'anime',
   },
   logo: {
     colorMode: 'color',
@@ -119,6 +127,7 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
     spliceThreshold: 60,
     pathPrecision: 2,
     gradientMode: false,
+    aiEnhanceModel: 'anime',
   },
 };
 

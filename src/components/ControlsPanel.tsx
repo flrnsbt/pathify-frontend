@@ -171,6 +171,49 @@ export function ControlsPanel({
         />
       </div>
 
+      {/* AI Enhance (Real-ESRGAN pre-processing) */}
+      <div className="flex flex-col gap-2 rounded-xl bg-neutral-950/80 p-3 border border-neutral-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+              AI Enhance (4x Upscale)
+            </span>
+            <p className="text-[11px] text-neutral-500">
+              Real-ESRGAN denoise &amp; upscale before tracing — slower, better on degraded sources
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={Boolean(options.aiEnhance)}
+            onChange={(e) => setOption('aiEnhance', e.target.checked)}
+            className="accent-violet-500 h-4 w-4 rounded cursor-pointer"
+          />
+        </div>
+        {options.aiEnhance && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              ['anime', 'Anime / Line Art'],
+              ['general', 'Photo'],
+              ['general-wdn', 'Heavy Denoise'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOption('aiEnhanceModel', id)}
+                className={`rounded-lg py-1.5 px-1 text-[11px] font-medium border transition truncate ${
+                  (options.aiEnhanceModel || 'anime') === id
+                    ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                    : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Crop to Content Feature */}
       <div className="flex flex-col gap-2 rounded-xl bg-neutral-950/80 p-3 border border-neutral-800">
         <div className="flex items-center justify-between">

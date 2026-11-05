@@ -34,6 +34,7 @@ import {
   getUserProfile,
 } from '../lib/firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
+import { upscaleImageData, UpscaleModelId } from '../lib/upscale';
 
 /** Content hash of an SVG string — the uniqueness key for a "generation". */
 async function hashSvgContent(svgStr: string): Promise<string> {
@@ -63,6 +64,7 @@ export default function Home() {
   const [currentImage, setCurrentImage] = useState<LoadedImageInfo | null>(null);
   const [options, setOptions] = useState<VTracerOptions>({ ...DEFAULT_VTRACER_OPTIONS });
   const [autoTrace, setAutoTrace] = useState<boolean>(true);
+  const [enhanceProgress, setEnhanceProgress] = useState<number | null>(null);
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
 
   // Modals
@@ -203,14 +205,32 @@ export default function Home() {
       if (!img) return;
 
       try {
-        const generatedSvg = await vectorize(img.imageData, opts);
+        let traceImage = img.imageData;
+        let traceW = img.width;
+        let traceH = img.height;
+
+        if (opts.aiEnhance) {
+          setEnhanceProgress(0);
+          const enhanced = await upscaleImageData(
+            img.imageData,
+            (opts.aiEnhanceModel ?? 'anime') as UpscaleModelId,
+            setEnhanceProgress
+          );
+          traceImage = enhanced;
+          traceW = enhanced.width;
+          traceH = enhanced.height;
+        }
+
+        const generatedSvg = await vectorize(traceImage, opts);
 
         // Convert the generated SVG into a high-quality WebP bitmap
         // This renders high-fidelity visuals while keeping raw SVG hidden from DOM scrapers
-        const webpUrl = await svgToWebpBitmap(generatedSvg, img.width, img.height);
+        const webpUrl = await svgToWebpBitmap(generatedSvg, traceW, traceH);
         setPreviewWebpUrl(webpUrl);
       } catch (err) {
         console.error('Vectorization error:', err);
+      } finally {
+        setEnhanceProgress(null);
       }
     },
     [currentImage, options, vectorize]
@@ -540,8 +560,12 @@ export default function Home() {
               isUnlocked={isCurrentUnlocked || isCurrentGenerationOwned}
               generationsRemaining={unlockStatus.generationsRemaining}
               generationsMax={unlockStatus.maxGenerations}
-              isProcessing={isProcessing}
-              statusText={statusText}
+              isProcessing={isProcessing || enhanceProgress !== null}
+              statusText={
+                enhanceProgress !== null
+                  ? `AI enhancing… ${Math.round(enhanceProgress * 100)}%`
+                  : statusText
+              }
               onRequestDownload={handleRequestDownload}
               onRequestCopyCode={handleRequestCopyCode}
             />
