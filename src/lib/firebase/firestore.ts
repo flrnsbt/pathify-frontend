@@ -35,7 +35,8 @@ export interface VectorizationHistoryItem {
   fileName: string;
   originalDimensions: { width: number; height: number };
   originalSize?: number;
-  originalBase64?: string; // Compressed base64 data URL of the original file
+  /** @deprecated Raw source image is no longer stored in history — kept for reading legacy items. Source images live in browser-local storage keyed by imageHash. */
+  originalBase64?: string;
   imageHash?: string; // Stable SHA-256 hash identifying the image
   nodeCount: number;
   executionTimeMs: number;

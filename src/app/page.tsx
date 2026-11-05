@@ -19,7 +19,6 @@ import {
 import {
   svgToWebpBitmap,
   autoCropImage,
-  compressImageToBase64,
   computeImageHash,
 } from '../lib/vtracer';
 import {
@@ -33,6 +32,7 @@ import {
   consumeImageGeneration,
   getUserProfile,
 } from '../lib/firebase/firestore';
+import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
 
 export default function Home() {
   const { user, profile, refreshProfile } = useAuth();
@@ -89,6 +89,14 @@ export default function Home() {
     }
   }, [user]);
 
+  // Persist the source image locally (browser-only) so history items can be
+  // re-edited later without storing raw image data in Firestore.
+  useEffect(() => {
+    if (currentImage?.imageHash && currentImage?.dataUrl) {
+      saveSourceImage(currentImage.imageHash, currentImage.dataUrl);
+    }
+  }, [currentImage]);
+
   // Generations already counted this session (dedupe across repeated exports)
   const validatedGenerationsRef = useRef<Set<string>>(new Set());
 
@@ -117,12 +125,10 @@ export default function Home() {
       await consumeImageGeneration(user.uid, currentImage.imageHash);
       await refreshProfile();
 
-      const originalBase64 = await compressImageToBase64(currentImage.imageData);
       await saveVectorizationHistory(user.uid, {
         fileName: currentImage.fileName,
         originalDimensions: { width: currentImage.width, height: currentImage.height },
         originalSize: currentImage.fileSize,
-        originalBase64,
         imageHash: currentImage.imageHash,
         nodeCount: (svg.match(/<path/g) || []).length,
         executionTimeMs: 0,
@@ -176,6 +182,7 @@ export default function Home() {
   // Handle image load
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
+      setSourceNotice(null);
       const finalInfo = info;
       if (options.cropToContent) {
         const cropRes = autoCropImage(info.imageData);
@@ -341,13 +348,21 @@ export default function Home() {
     }
   };
 
-  // Load history item into viewer
+  // Notice shown when a history item's source image isn't in local storage
+  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
+
+  // Load history item into viewer: restores parameters + SVG, and the source
+  // image from browser-local storage when available.
   const handleSelectHistoryItem = async (item: VectorizationHistoryItem) => {
     setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
     setCurrentSvgId(item.id);
 
-    // If item has stored compressed originalBase64, reconstruct originalImage
-    if (item.originalBase64) {
+    // Source image: browser-local store first, legacy embedded copy as fallback
+    const sourceDataUrl =
+      getSourceImage(item.imageHash) || item.originalBase64 || '';
+
+    if (sourceDataUrl) {
+      setSourceNotice(null);
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -363,12 +378,19 @@ export default function Home() {
             width: canvas.width,
             height: canvas.height,
             imageData,
-            dataUrl: item.originalBase64 || '',
+            dataUrl: sourceDataUrl,
             imageHash: item.imageHash || `hash-${item.id}`,
           });
         }
       };
-      img.src = item.originalBase64;
+      img.src = sourceDataUrl;
+    } else {
+      // No local source — SVG preview still loads, but re-tracing requires
+      // the user to upload the original file again.
+      setCurrentImage(null);
+      setSourceNotice(
+        `The source image for "${item.fileName}" isn't stored in this browser. The SVG preview is restored, but you'll need to load the original file again to edit parameters and re-trace.`
+      );
     }
 
     const webpUrl = await svgToWebpBitmap(
@@ -425,6 +447,19 @@ export default function Home() {
 
           {/* Right Column: Interactive Visualizer & Canvas (7 cols) - fixed in viewport */}
           <div className="lg:col-span-7 xl:col-span-8 flex flex-col min-h-[500px] lg:min-h-0 lg:h-full lg:overflow-hidden">
+            {sourceNotice && (
+              <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                <span className="flex-1">{sourceNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setSourceNotice(null)}
+                  className="text-amber-300/70 hover:text-amber-100 transition"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <Visualizer
               originalImage={currentImage}
               svg={svg}
