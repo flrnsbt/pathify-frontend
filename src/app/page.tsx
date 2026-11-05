@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import  { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from '../components/Header';
 import { Uploader, LoadedImageInfo } from '../components/Uploader';
 import { ControlsPanel } from '../components/ControlsPanel';

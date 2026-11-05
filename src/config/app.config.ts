@@ -31,6 +31,7 @@ export const APP_CONFIG = {
   // which inject secrets server-side and forward to the backend Worker.
   api: {
     appConfigUrl: `${API_URL}/app-config`,
+    userWalletUrl: `${API_URL}/user-wallet`,
     configUrl: `${API_URL}/crypto-config`,
     handshakeUrl: `${API_URL}/handshake`,
     refreshCreditsUrl: `${API_URL}/refresh-credits`,

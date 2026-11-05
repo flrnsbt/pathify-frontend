@@ -11,6 +11,7 @@ import {
 import { auth, isFirebaseConfigured } from './config';
 import { getUserProfile, UserProfile } from './firestore';
 import { ensureAppConfig } from '../app-config';
+import { ensureUserWalletAddress, resetUserWalletAddress } from '../user-wallet';
 
 interface AuthContextType {
   user: User | null;
@@ -85,8 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       if (currentUser) {
         await fetchProfile(currentUser.uid);
+        // Ensure the user's EVM deposit wallet exists (generated on first login)
+        ensureUserWalletAddress();
       } else {
         setProfile(null);
+        resetUserWalletAddress();
       }
       setLoading(false);
     });
