@@ -61,6 +61,27 @@ function setAiEnhancePref(pref: AiEnhancePref): void {
   }
 }
 
+// Separate flag: user dismissed the "AI Enhance recommended" suggestion, so we
+// stop proposing it for images where detection says it would help.
+const AI_ENHANCE_SUGGEST_DISMISS_KEY = 'vtracer_ai_enhance_suggest_dismissed';
+
+function isAiEnhanceSuggestDismissed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(AI_ENHANCE_SUGGEST_DISMISS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function dismissAiEnhanceSuggest(): void {
+  try {
+    localStorage.setItem(AI_ENHANCE_SUGGEST_DISMISS_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
+
 /** Content hash of an SVG string — the uniqueness key for a "generation". */
 async function hashSvgContent(svgStr: string): Promise<string> {
   const buf = await crypto.subtle.digest(
@@ -91,6 +112,9 @@ export default function Home() {
   const [autoTrace, setAutoTrace] = useState<boolean>(true);
   const [enhanceProgress, setEnhanceProgress] = useState<number | null>(null);
   const [showEnhancePrompt, setShowEnhancePrompt] = useState(false);
+  // 'offer' = enhance looks unnecessary, offer to enable anyway;
+  // 'suggest' = enhance looks worthwhile but the user disabled it — propose enabling.
+  const [enhancePromptVariant, setEnhancePromptVariant] = useState<'offer' | 'suggest'>('offer');
   const [enhancePromptDontAsk, setEnhancePromptDontAsk] = useState(false);
   const [paramsLocked, setParamsLocked] = useState(false);
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
@@ -306,12 +330,29 @@ export default function Home() {
     )
   );
 
+  // Monotonic trace id + abort handle: a new trace (e.g. user toggled AI
+  // Enhance or changed params mid-enhance) cancels the previous one's
+  // in-flight work and makes its continuations no-ops.
+  const traceSeqRef = useRef(0);
+  const enhanceAbortRef = useRef<AbortController | null>(null);
+
   // Execute Vectorization
   const handleTrace = useCallback(
     async (imageToTrace?: LoadedImageInfo, optsToUse?: VTracerOptions) => {
+      const traceId = ++traceSeqRef.current;
+      const isCurrent = () => traceId === traceSeqRef.current;
+
+      enhanceAbortRef.current?.abort();
+      const enhanceController = new AbortController();
+      enhanceAbortRef.current = enhanceController;
+
       const img = imageToTrace || currentImage;
       const opts = optsToUse || options;
       if (!img) return;
+
+      // A non-enhancing trace must not inherit the frozen progress indicator
+      // left behind by the cancelled enhancement.
+      if (!opts.aiEnhance) setEnhanceProgress(null);
 
       try {
         let traceImage = img.imageData;
@@ -326,23 +367,28 @@ export default function Home() {
           const enhanced = await upscaleImageData(
             img.imageData,
             modelId,
-            setEnhanceProgress
+            setEnhanceProgress,
+            enhanceController.signal
           );
+          if (!isCurrent()) return;
           traceImage = enhanced;
           traceW = enhanced.width;
           traceH = enhanced.height;
         }
 
         const generatedSvg = await vectorize(traceImage, opts);
+        if (!isCurrent()) return;
 
         // Convert the generated SVG into a high-quality WebP bitmap
         // This renders high-fidelity visuals while keeping raw SVG hidden from DOM scrapers
         const webpUrl = await svgToWebpBitmap(generatedSvg, traceW, traceH);
+        if (!isCurrent()) return;
         setPreviewWebpUrl(webpUrl);
       } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return; // superseded by newer trace
         console.error('Vectorization error:', err);
       } finally {
-        setEnhanceProgress(null);
+        if (isCurrent()) setEnhanceProgress(null);
       }
     },
     [currentImage, options, vectorize]
@@ -358,8 +404,8 @@ export default function Home() {
       // noisy sources); a stored user preference always wins.
       const detected = detectPreset(info.imageData);
       const pref = getAiEnhancePref();
-      const aiEnhance =
-        pref !== null ? pref === 'on' : isEnhancementWorthwhile(info.imageData);
+      const worthwhile = isEnhancementWorthwhile(info.imageData);
+      const aiEnhance = pref !== null ? pref === 'on' : worthwhile;
       const detectedOptions: VTracerOptions = {
         ...options,
         ...PRESET_OPTIONS[detected.preset as Exclude<PresetOption, 'custom'>],
@@ -367,7 +413,18 @@ export default function Home() {
         aiEnhance,
       };
       setOptions(detectedOptions);
-      if (pref === null && !isEnhancementWorthwhile(info.imageData)) {
+      if (pref === null && !worthwhile) {
+        setEnhancePromptVariant('offer');
+        setEnhancePromptDontAsk(false);
+        setShowEnhancePrompt(true);
+      } else if (
+        pref === 'off' &&
+        worthwhile &&
+        !isAiEnhanceSuggestDismissed()
+      ) {
+        // User explicitly disabled AI Enhance, but detection says it would
+        // help — propose enabling it once (dismissible forever via checkbox).
+        setEnhancePromptVariant('suggest');
         setEnhancePromptDontAsk(false);
         setShowEnhancePrompt(true);
       }
@@ -427,6 +484,11 @@ export default function Home() {
 
   // Handle options change
   const handleOptionsChange = (newOptions: VTracerOptions) => {
+    // A manual AI Enhance toggle is a user preference — persist it so image
+    // auto-detection never overrides an explicit on/off choice.
+    if (newOptions.aiEnhance !== options.aiEnhance) {
+      setAiEnhancePref(newOptions.aiEnhance ? 'on' : 'off');
+    }
     setOptions(newOptions);
     if (newOptions.cropToContent !== options.cropToContent && newOptions.cropToContent && currentImage) {
       const cropRes = autoCropImage(currentImage.imageData);
@@ -782,16 +844,20 @@ export default function Home() {
         isUnlocking={isUnlocking}
       />
 
-      {/* AI Enhance prompt — shown once when the source doesn't need it */}
+      {/* AI Enhance prompt — 'offer' when the source doesn't need it,
+          'suggest' when detection says it would help but the user disabled it */}
       {showEnhancePrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl">
             <h3 className="text-sm font-semibold text-white">
-              Enable AI Enhance?
+              {enhancePromptVariant === 'suggest'
+                ? 'AI Enhance recommended'
+                : 'Enable AI Enhance?'}
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-neutral-400">
-              This image looks clean already, so AI upscaling is off. You can
-              still enable it for extra sharpness.
+              {enhancePromptVariant === 'suggest'
+                ? 'This image looks detailed or noisy — AI upscaling would likely produce a cleaner trace. AI Enhance is currently off.'
+                : 'This image looks clean already, so AI upscaling is off. You can still enable it for extra sharpness.'}
             </p>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
               <input
@@ -809,7 +875,7 @@ export default function Home() {
                   const next = { ...options, aiEnhance: true };
                   setOptions(next);
                   if (currentImage) handleTrace(currentImage, next);
-                  if (enhancePromptDontAsk) setAiEnhancePref('on');
+                  setAiEnhancePref('on');
                   setShowEnhancePrompt(false);
                 }}
                 className="flex-1 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 transition"
@@ -819,12 +885,16 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => {
-                  if (enhancePromptDontAsk) setAiEnhancePref('off');
+                  if (enhancePromptVariant === 'suggest') {
+                    if (enhancePromptDontAsk) dismissAiEnhanceSuggest();
+                  } else if (enhancePromptDontAsk) {
+                    setAiEnhancePref('off');
+                  }
                   setShowEnhancePrompt(false);
                 }}
                 className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-medium text-neutral-300 hover:border-neutral-700 transition"
               >
-                No thanks
+                {enhancePromptVariant === 'suggest' ? 'Keep off' : 'No thanks'}
               </button>
             </div>
           </div>

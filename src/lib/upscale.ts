@@ -148,12 +148,47 @@ async function runTile(
 // Cache of upscaled results per source ImageData + model. The enhancement
 // depends only on the input pixels and model — VTracer parameter changes
 // reuse the cached result instead of re-running inference.
-const enhanceCache = new WeakMap<ImageData, Map<UpscaleModelId, Promise<ImageData>>>();
+interface EnhanceCacheEntry {
+  promise: Promise<ImageData>;
+  listeners: Set<(fraction: number) => void>;
+  waiters: number;
+  workController: AbortController;
+}
+const enhanceCache = new WeakMap<ImageData, Map<UpscaleModelId, EnhanceCacheEntry>>();
+
+/**
+ * Races a promise against an AbortSignal so callers can stop awaiting early.
+ * The shared inference keeps running until its last waiter leaves — see
+ * upscaleImageData, which aborts the work itself in that case.
+ */
+function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (v) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(v);
+      },
+      (e) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(e);
+      },
+    );
+  });
+}
 
 /**
  * Upscales an ImageData 4x using a Real-ESRGAN ONNX model via onnxruntime-web.
  * Processes the image in overlapping tiles to bound GPU/CPU memory.
  * Results are cached per (source pixels, model) for the session.
+ * Pass an AbortSignal to stop awaiting the result. When the last waiter
+ * aborts, the inference is cancelled between tiles; a completed result stays
+ * cached for subsequent calls.
  */
 /** True when an enhanced result is already cached for this source + model. */
 export function isEnhancementCached(
@@ -167,7 +202,8 @@ export function isEnhancementCached(
 export async function upscaleImageData(
   imageData: ImageData,
   modelId: UpscaleModelId,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  signal?: AbortSignal
 ): Promise<ImageData> {
   const model = UPSCALE_MODELS.find((m) => m.id === modelId) ?? UPSCALE_MODELS[0];
 
@@ -176,30 +212,59 @@ export async function upscaleImageData(
     perImage = new Map();
     enhanceCache.set(imageData, perImage);
   }
-  const cached = perImage.get(model.id);
-  if (cached) return cached;
+  let entry = perImage.get(model.id);
+  if (!entry) {
+    const listeners = new Set<(fraction: number) => void>();
+    const workController = new AbortController();
+    const promise = upscaleWithFallback(
+      model,
+      imageData,
+      (f) => {
+        listeners.forEach((cb) => {
+          try {
+            cb(f);
+          } catch {
+            // ignore listener errors
+          }
+        });
+      },
+      workController.signal,
+    );
+    entry = { promise, listeners, waiters: 0, workController };
+    perImage.set(model.id, entry);
+    promise.catch(() => perImage!.delete(model.id));
+  }
 
-  const promise = upscaleWithFallback(model, imageData, onProgress);
-  perImage.set(model.id, promise);
-  promise.catch(() => perImage!.delete(model.id));
-  return promise;
+  entry.waiters++;
+  if (onProgress) entry.listeners.add(onProgress);
+  try {
+    return await withAbort(entry.promise, signal);
+  } finally {
+    entry.waiters--;
+    if (onProgress) entry.listeners.delete(onProgress);
+    // Last waiter gone (e.g. its trace was superseded) — stop the inference
+    // between tiles instead of burning GPU/CPU for an unused result.
+    if (entry.waiters === 0) entry.workController.abort();
+  }
 }
 
 async function upscaleWithFallback(
   model: UpscaleModelInfo,
   imageData: ImageData,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  signal?: AbortSignal
 ): Promise<ImageData> {
   try {
-    return await upscaleWithSession(model, imageData, onProgress);
+    return await upscaleWithSession(model, imageData, onProgress, signal);
   } catch (err) {
+    if (signal?.aborted) throw err;
     // WebGPU EP can fail at kernel-run time (not session creation) on some
     // model exports — fall back to WASM once and retry the whole image.
     if (!wasmOnlyModels.has(model.id) && (await detectWebGpu())) {
       console.warn('[Upscale] WebGPU inference failed, retrying on WASM:', err);
       wasmOnlyModels.add(model.id);
       sessions.delete(model.id);
-      return upscaleWithSession(model, imageData, onProgress);
+      return upscaleWithSession(model, imageData, onProgress, signal);
     }
     throw err;
   }
@@ -208,7 +273,8 @@ async function upscaleWithFallback(
 async function upscaleWithSession(
   model: UpscaleModelInfo,
   imageData: ImageData,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  signal?: AbortSignal
 ): Promise<ImageData> {
   const session = await getSession(model);
   const inputName = session.inputNames[0];
@@ -228,6 +294,9 @@ async function upscaleWithSession(
 
   for (let ty = 0; ty < srcH; ty += step) {
     for (let tx = 0; tx < srcW; tx += step) {
+      if (signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
       const x0 = Math.max(0, tx - CONTEXT);
       const y0 = Math.max(0, ty - CONTEXT);
       const x1 = Math.min(srcW, tx + step + CONTEXT);
