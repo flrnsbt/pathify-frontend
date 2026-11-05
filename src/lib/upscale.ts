@@ -39,6 +39,7 @@ const CONTEXT = 16;
 const UPSCALE = 4;
 
 const sessions = new Map<UpscaleModelId, Promise<ort.InferenceSession>>();
+const wasmOnlyModels = new Set<UpscaleModelId>();
 let webgpuAvailable: boolean | null = null;
 
 async function detectWebGpu(): Promise<boolean> {
@@ -56,7 +57,7 @@ async function getSession(model: UpscaleModelInfo): Promise<ort.InferenceSession
   if (cached) return cached;
 
   const promise = (async () => {
-    const useWebGpu = await detectWebGpu();
+    const useWebGpu = (await detectWebGpu()) && !wasmOnlyModels.has(model.id);
     const eps = useWebGpu ? ['webgpu', 'wasm'] : ['wasm'];
     try {
       return await ort.InferenceSession.create(model.url, {
@@ -154,6 +155,27 @@ export async function upscaleImageData(
   onProgress?: (fraction: number) => void
 ): Promise<ImageData> {
   const model = UPSCALE_MODELS.find((m) => m.id === modelId) ?? UPSCALE_MODELS[0];
+
+  try {
+    return await upscaleWithSession(model, imageData, onProgress);
+  } catch (err) {
+    // WebGPU EP can fail at kernel-run time (not session creation) on some
+    // model exports — fall back to WASM once and retry the whole image.
+    if (!wasmOnlyModels.has(model.id) && (await detectWebGpu())) {
+      console.warn('[Upscale] WebGPU inference failed, retrying on WASM:', err);
+      wasmOnlyModels.add(model.id);
+      sessions.delete(model.id);
+      return upscaleWithSession(model, imageData, onProgress);
+    }
+    throw err;
+  }
+}
+
+async function upscaleWithSession(
+  model: UpscaleModelInfo,
+  imageData: ImageData,
+  onProgress?: (fraction: number) => void
+): Promise<ImageData> {
   const session = await getSession(model);
   const inputName = session.inputNames[0];
 

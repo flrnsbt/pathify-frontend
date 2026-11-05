@@ -65,3 +65,23 @@ export function getSourceImage(imageHash?: string): string | null {
   if (!imageHash) return null;
   return readMap()[imageHash]?.dataUrl || null;
 }
+
+/**
+ * Removes all locally cached app data (source images, UI preferences).
+ * Only touches keys under the app's own prefixes — auth/session untouched.
+ */
+export function clearLocalAppData(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("vtracer_") || k.startsWith("vectorizerr_"))) {
+        keys.push(k);
+      }
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // ignore
+  }
+}

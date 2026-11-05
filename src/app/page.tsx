@@ -15,7 +15,10 @@ import { useAuth } from '../lib/firebase/auth-context';
 import {
   VTracerOptions,
   DEFAULT_VTRACER_OPTIONS,
+  PRESET_OPTIONS,
+  PresetOption,
 } from '../lib/vtracer/types';
+import { detectPreset, isEnhancementWorthwhile } from '../lib/vtracer/detect';
 import {
   svgToWebpBitmap,
   autoCropImage,
@@ -35,6 +38,23 @@ import {
 } from '../lib/firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
 import { upscaleImageData, UpscaleModelId } from '../lib/upscale';
+
+const AI_ENHANCE_PREF_KEY = 'vtracer_ai_enhance_pref';
+type AiEnhancePref = 'on' | 'off';
+
+function getAiEnhancePref(): AiEnhancePref | null {
+  if (typeof window === 'undefined') return null;
+  const v = localStorage.getItem(AI_ENHANCE_PREF_KEY);
+  return v === 'on' || v === 'off' ? v : null;
+}
+
+function setAiEnhancePref(pref: AiEnhancePref): void {
+  try {
+    localStorage.setItem(AI_ENHANCE_PREF_KEY, pref);
+  } catch {
+    // ignore
+  }
+}
 
 /** Content hash of an SVG string — the uniqueness key for a "generation". */
 async function hashSvgContent(svgStr: string): Promise<string> {
@@ -65,6 +85,8 @@ export default function Home() {
   const [options, setOptions] = useState<VTracerOptions>({ ...DEFAULT_VTRACER_OPTIONS });
   const [autoTrace, setAutoTrace] = useState<boolean>(true);
   const [enhanceProgress, setEnhanceProgress] = useState<number | null>(null);
+  const [showEnhancePrompt, setShowEnhancePrompt] = useState(false);
+  const [enhancePromptDontAsk, setEnhancePromptDontAsk] = useState(false);
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
 
   // Modals
@@ -240,6 +262,24 @@ export default function Home() {
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
       setSourceNotice(null);
+      // Auto-detect the best preset + enhance model for this source image.
+      // AI Enhance defaults on only when it is likely to matter (detailed /
+      // noisy sources); a stored user preference always wins.
+      const detected = detectPreset(info.imageData);
+      const pref = getAiEnhancePref();
+      const aiEnhance =
+        pref !== null ? pref === 'on' : isEnhancementWorthwhile(info.imageData);
+      const detectedOptions: VTracerOptions = {
+        ...options,
+        ...PRESET_OPTIONS[detected.preset as Exclude<PresetOption, 'custom'>],
+        preset: detected.preset,
+        aiEnhance,
+      };
+      setOptions(detectedOptions);
+      if (pref === null && !isEnhancementWorthwhile(info.imageData)) {
+        setEnhancePromptDontAsk(false);
+        setShowEnhancePrompt(true);
+      }
       const finalInfo = info;
       if (options.cropToContent) {
         const cropRes = autoCropImage(info.imageData);
@@ -257,7 +297,7 @@ export default function Home() {
             setPreviewWebpUrl(null);
             reset();
             if (autoTrace) {
-              handleTrace(cropped, options);
+              handleTrace(cropped, detectedOptions);
             }
           });
           return;
@@ -267,7 +307,7 @@ export default function Home() {
       setPreviewWebpUrl(null);
       reset();
       if (autoTrace) {
-        handleTrace(finalInfo, options);
+        handleTrace(finalInfo, detectedOptions);
       }
     },
     [autoTrace, options, reset, handleTrace]
@@ -620,6 +660,56 @@ export default function Home() {
         fileName={currentImage?.fileName || 'vector.svg'}
         isUnlocking={isUnlocking}
       />
+
+      {/* AI Enhance prompt — shown once when the source doesn't need it */}
+      {showEnhancePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl">
+            <h3 className="text-sm font-semibold text-white">
+              Enable AI Enhance?
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-neutral-400">
+              This image looks clean already, so AI upscaling is off. You can
+              still enable it for extra sharpness — it runs Real-ESRGAN in
+              your browser before tracing.
+            </p>
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
+              <input
+                type="checkbox"
+                checked={enhancePromptDontAsk}
+                onChange={(e) => setEnhancePromptDontAsk(e.target.checked)}
+                className="accent-violet-500 h-3.5 w-3.5 rounded"
+              />
+              Don&apos;t ask again
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...options, aiEnhance: true };
+                  setOptions(next);
+                  if (currentImage) handleTrace(currentImage, next);
+                  if (enhancePromptDontAsk) setAiEnhancePref('on');
+                  setShowEnhancePrompt(false);
+                }}
+                className="flex-1 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 transition"
+              >
+                Enable
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (enhancePromptDontAsk) setAiEnhancePref('off');
+                  setShowEnhancePrompt(false);
+                }}
+                className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-medium text-neutral-300 hover:border-neutral-700 transition"
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

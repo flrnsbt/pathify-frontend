@@ -1,4 +1,4 @@
-pytorch2.14.0:Ú‚©
+pytorch2.10.0:à‚©
 ¬
 input
 body.0.weight
@@ -17019,10 +17019,11 @@ $
 batch
 
 height
-widthb0
-output&
-$ 
+widthb6
+output,
+*&
 batch
 
-height
-widthB
+	height_x4
+
+width_x4B

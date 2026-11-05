@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut, Database, ChevronDown } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
+import { clearLocalAppData } from '../lib/local-source-images';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit/react';
 
@@ -22,6 +24,8 @@ export function Header({
   const { user, profile } = useAuth();
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [dataCleared, setDataCleared] = useState(false);
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
@@ -136,27 +140,67 @@ export function Header({
             </div>
           )}
 
-          {/* Google Auth Button */}
-          <button
-            onClick={onOpenAuth}
-            className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800 transition"
-          >
-            {user?.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.photoURL}
-                alt={user.displayName || 'User'}
-                className="h-4 w-4 rounded-full"
-              />
-            ) : (
-              <UserIcon className="h-4 w-4 text-neutral-400" />
+          {/* Account Button + Menu */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (user && !user.isAnonymous) {
+                  setAccountMenuOpen((v) => !v);
+                } else {
+                  onOpenAuth();
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/80 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800 transition"
+            >
+              {user?.photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'User'}
+                  className="h-4 w-4 rounded-full"
+                />
+              ) : (
+                <UserIcon className="h-4 w-4 text-neutral-400" />
+              )}
+              <span className="hidden md:inline">
+                {user && !user.isAnonymous
+                  ? user.displayName || user.email || 'Account'
+                  : 'Sign In'}
+              </span>
+              {user && !user.isAnonymous && (
+                <ChevronDown className="h-3 w-3 text-neutral-500" />
+              )}
+            </button>
+
+            {accountMenuOpen && user && !user.isAnonymous && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setAccountMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-neutral-800 bg-neutral-950 py-1 shadow-2xl">
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          'Clear all locally stored data? This removes cached source images and app preferences from this browser. Your account, credits and history are not affected.'
+                        )
+                      ) {
+                        clearLocalAppData();
+                        setDataCleared(true);
+                        setTimeout(() => setDataCleared(false), 2500);
+                      }
+                      setAccountMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
+                  >
+                    <Database className="h-3.5 w-3.5 text-neutral-500" />
+                    {dataCleared ? 'Local data cleared' : 'Clear local data'}
+                  </button>
+                </div>
+              </>
             )}
-            <span className="hidden md:inline">
-              {user && !user.isAnonymous
-                ? user.displayName || user.email || 'Google User'
-                : 'Sign In'}
-            </span>
-          </button>
+          </div>
         </div>
       </div>
     </header>
