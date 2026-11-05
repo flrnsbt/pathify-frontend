@@ -143,8 +143,8 @@ export function getImageUnlockStatus(
     };
   }
 
-  // Admins (if enabled) and active subscribers have unlimited generations
-  if (profile.isAdmin || profile.subscription?.status === "active") {
+  // Active subscribers have unlimited generations
+  if (profile.subscription?.status === "active") {
     return {
       isUnlocked: true,
       generationsRemaining: 9999,
@@ -176,7 +176,10 @@ export function getImageUnlockStatus(
     };
   }
 
-  const maxGen = info.maxGenerations || getGenerationsPerUnlock();
+  const maxGen = Math.min(
+    info.maxGenerations || getGenerationsPerUnlock(),
+    getGenerationsPerUnlock(),
+  );
   const used = info.generationsUsed || 0;
   const remaining = Math.max(0, maxGen - used);
 
@@ -193,7 +196,6 @@ export function canAccessSvg(
   imageHash?: string,
 ): boolean {
   if (!profile) return false;
-  if (profile.isAdmin) return true;
   if (profile.subscription?.status === "active") return true;
   if (imageHash) {
     const status = getImageUnlockStatus(profile, imageHash);
@@ -256,13 +258,15 @@ export async function unlockImageWithCredit(
 export async function consumeImageGeneration(
   userId: string,
   imageHash: string,
-): Promise<number> {
+): Promise<number | null> {
   const profile = await getUserProfile(userId);
-  if (profile.isAdmin || profile.subscription?.status === "active") {
+  if (profile.subscription?.status === "active") {
     return 9999;
   }
 
-  // Request server to consume 1 generation from quota and re-sign ticket
+  // Request server to consume 1 generation from quota and re-sign ticket.
+  // Fails closed: returns null when the server cannot confirm consumption,
+  // so callers must not record the generation as validated.
   const handshake = await requestServerHandshake({
     action: "consume_generation",
     imageHash,
@@ -279,15 +283,8 @@ export async function consumeImageGeneration(
     return remaining;
   }
 
-  // Fallback to local profile count if offline
-  const currentInfo = profile.unlockedImages?.[imageHash];
-  if (!currentInfo) {
-    return 0;
-  }
-
-  const newUsed = (currentInfo.generationsUsed || 0) + 1;
-  const maxGen = currentInfo.maxGenerations || getGenerationsPerUnlock();
-  return Math.max(0, maxGen - newUsed);
+  console.warn("[Handshake] Generation consume rejected:", handshake.error);
+  return null;
 }
 
 /**

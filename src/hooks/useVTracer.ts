@@ -235,9 +235,25 @@ export function useVTracer() {
     [runMainThreadFallback]
   );
 
+  /** Loads a previously generated SVG into state without re-vectorizing (e.g. history restore). */
+  const loadResult = useCallback((svgStr: string, nodes?: number, execMs?: number) => {
+    setState((prev) => ({
+      ...prev,
+      isProcessing: false,
+      status: 'completed',
+      statusText: 'Loaded from history',
+      progress: 100,
+      svg: svgStr,
+      nodeCount: nodes ?? (svgStr.match(/<path/g) || []).length,
+      executionTimeMs: execMs ?? 0,
+      error: null,
+    }));
+  }, []);
+
   return {
     ...state,
     vectorize,
     reset,
+    loadResult,
   };
 }

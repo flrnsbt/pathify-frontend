@@ -34,6 +34,17 @@ import {
 } from '../lib/firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
 
+/** Content hash of an SVG string — the uniqueness key for a "generation". */
+async function hashSvgContent(svgStr: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(svgStr)
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 export default function Home() {
   const { user, profile, refreshProfile } = useAuth();
   const {
@@ -44,13 +55,13 @@ export default function Home() {
     isProcessing,
     statusText,
     reset,
+    loadResult,
   } = useVTracer();
 
   // State
   const [currentImage, setCurrentImage] = useState<LoadedImageInfo | null>(null);
   const [options, setOptions] = useState<VTracerOptions>({ ...DEFAULT_VTRACER_OPTIONS });
   const [autoTrace, setAutoTrace] = useState<boolean>(true);
-  const [currentSvgId, setCurrentSvgId] = useState<string>('');
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
 
   // Modals
@@ -101,28 +112,29 @@ export default function Home() {
   const validatedGenerationsRef = useRef<Set<string>>(new Set());
 
   // A generation is "validated" when the user exports it (download SVG / copy SVG code).
-  // First validation of a given generation consumes 1 quota and writes the history entry;
-  // repeat exports of the same generation are free.
-  const recordValidatedGeneration = useCallback(async () => {
-    if (!user || user.isAnonymous || !currentImage || !svg || !currentSvgId) return;
+  // Uniqueness is defined by SVG content: the first export of a given SVG consumes
+  // 1 quota and writes the history entry; re-exports of identical SVG content are free.
+  const recordValidatedGeneration = useCallback(async (): Promise<boolean> => {
+    if (!user || user.isAnonymous || !currentImage || !svg) return false;
     try {
       const freshProfile = await getUserProfile(user.uid);
       const isPaidPath = Boolean(
-        freshProfile.isAdmin ||
         freshProfile.subscription?.status === 'active' ||
         getImageUnlockStatus(freshProfile, currentImage.imageHash).isUnlocked
       );
-      if (!isPaidPath) return;
+      if (!isPaidPath) return false;
 
+      // Dedupe key = hash of the SVG content itself
+      const svgHash = await hashSvgContent(svg);
       const alreadyCounted =
-        validatedGenerationsRef.current.has(currentSvgId) ||
-        historyItems.some(
-          (i) => i.generationId === currentSvgId || i.id === currentSvgId
-        );
-      if (alreadyCounted) return;
-      validatedGenerationsRef.current.add(currentSvgId);
+        validatedGenerationsRef.current.has(svgHash) ||
+        historyItems.some((i) => i.generationId === svgHash);
+      if (alreadyCounted) return true;
 
-      await consumeImageGeneration(user.uid, currentImage.imageHash);
+      // Fail closed: only proceed when the server confirms the quota consumption
+      const remaining = await consumeImageGeneration(user.uid, currentImage.imageHash);
+      if (remaining === null) return false;
+      validatedGenerationsRef.current.add(svgHash);
       await refreshProfile();
 
       await saveVectorizationHistory(user.uid, {
@@ -135,20 +147,21 @@ export default function Home() {
         parameters: options,
         svg,
         svgSize: new Blob([svg]).size,
-        generationId: currentSvgId,
+        generationId: svgHash,
       });
       loadHistory();
+      return true;
     } catch (err) {
       console.warn('Failed to record validated generation:', err);
+      return false;
     }
-  }, [user, currentImage, svg, currentSvgId, historyItems, options, refreshProfile, loadHistory]);
+  }, [user, currentImage, svg, historyItems, options, refreshProfile, loadHistory]);
 
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
   const unlockStatus = getImageUnlockStatus(profile, currentImage?.imageHash);
   const isCurrentUnlocked = Boolean(
     profile && (
-      profile.isAdmin ||
       profile.subscription?.status === 'active' ||
       unlockStatus.isUnlocked ||
       canAccessSvg(profile, currentImage?.imageHash)
@@ -161,9 +174,6 @@ export default function Home() {
       const img = imageToTrace || currentImage;
       const opts = optsToUse || options;
       if (!img) return;
-
-      const generatedId = `svg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      setCurrentSvgId(generatedId);
 
       try {
         const generatedSvg = await vectorize(img.imageData, opts);
@@ -273,8 +283,21 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }, []);
 
+  // When quota validation fails, route like a normal locked export:
+  // credits available -> unlock dialog, otherwise -> top-up prompt.
+  const routeAfterValidationFailure = useCallback(async () => {
+    if (!user) return;
+    const fresh = await getUserProfile(user.uid).catch(() => null);
+    if (fresh && fresh.credits > 0) {
+      setIsUnlockOpen(true);
+    } else {
+      setCreditReason('Could not verify your generation quota. Purchase credits to continue.');
+      setIsCreditsOpen(true);
+    }
+  }, [user]);
+
   // Handle Download Action with permission & credit checks
-  const handleRequestDownload = useCallback(() => {
+  const handleRequestDownload = useCallback(async () => {
     if (!svg || !currentImage) return;
 
     // 1. If not logged in -> Ask to sign in with Google
@@ -283,9 +306,13 @@ export default function Home() {
       return;
     }
 
-    // 2. If Admin, Subscribed, or Already Unlocked -> Download immediately
-    if (isCurrentUnlocked || profile?.isAdmin || profile?.subscription?.status === 'active') {
-      void recordValidatedGeneration();
+    // 2. If Subscribed or Already Unlocked -> validate then download
+    if (isCurrentUnlocked || profile?.subscription?.status === 'active') {
+      const validated = await recordValidatedGeneration();
+      if (!validated) {
+        await routeAfterValidationFailure();
+        return;
+      }
       triggerSvgDownload(svg, currentImage.fileName);
       return;
     }
@@ -299,32 +326,36 @@ export default function Home() {
     // 4. If No Credits -> Prompt to purchase via WalletConnect / Web3
     setCreditReason('You need at least 1 credit to unlock and download this SVG. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, profile, triggerSvgDownload, recordValidatedGeneration]);
+  }, [svg, currentImage, user, isCurrentUnlocked, profile, triggerSvgDownload, recordValidatedGeneration, routeAfterValidationFailure]);
 
-  // Handle Copy / View Code Action with permission checks
-  const handleRequestCopyCode = useCallback(() => {
-    if (!svg || !currentImage) return;
+  // Handle Copy / View Code Action with permission checks.
+  // Returns true when the generation was validated and the caller may export it.
+  const handleRequestCopyCode = useCallback(async (): Promise<boolean> => {
+    if (!svg || !currentImage) return false;
 
     if (!user || user.isAnonymous) {
       setIsAuthOpen(true);
-      return;
+      return false;
     }
 
-    if (isCurrentUnlocked || profile?.isAdmin || profile?.subscription?.status === 'active') {
-      // Allowed: copy to clipboard
-      void recordValidatedGeneration();
-      navigator.clipboard.writeText(svg);
-      return;
+    if (isCurrentUnlocked || profile?.subscription?.status === 'active') {
+      const validated = await recordValidatedGeneration();
+      if (!validated) {
+        await routeAfterValidationFailure();
+        return false;
+      }
+      return true;
     }
 
     if (profile && profile.credits > 0) {
       setIsUnlockOpen(true);
-      return;
+      return false;
     }
 
     setCreditReason('You need at least 1 credit to inspect and copy the raw SVG markup. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, profile, recordValidatedGeneration]);
+    return false;
+  }, [svg, currentImage, user, isCurrentUnlocked, profile, recordValidatedGeneration, routeAfterValidationFailure]);
 
   // Confirm Unlock with 1 Credit: grants 10 generations on currentImage.imageHash
   const handleConfirmUnlock = async () => {
@@ -337,7 +368,7 @@ export default function Home() {
         setIsUnlockOpen(false);
         if (svg) {
           // This download is the first validated generation: consumes 1 quota + saves history
-          void recordValidatedGeneration();
+          await recordValidatedGeneration();
           triggerSvgDownload(svg, currentImage.fileName);
         }
       }
@@ -355,7 +386,6 @@ export default function Home() {
   // image from browser-local storage when available.
   const handleSelectHistoryItem = async (item: VectorizationHistoryItem) => {
     setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
-    setCurrentSvgId(item.id);
 
     // Source image: browser-local store first, legacy embedded copy as fallback
     const sourceDataUrl =
@@ -399,6 +429,8 @@ export default function Home() {
       item.originalDimensions.height || 300
     );
     setPreviewWebpUrl(webpUrl);
+    // Restore the SVG into viewer state so download/copy/code view use it
+    loadResult(item.svg, item.nodeCount, item.executionTimeMs);
   };
 
   const handleDeleteHistoryItem = async (id: string) => {

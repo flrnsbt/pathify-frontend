@@ -33,7 +33,8 @@ interface VisualizerProps {
   isProcessing?: boolean;
   statusText?: string;
   onRequestDownload: () => void;
-  onRequestCopyCode: () => void;
+  // Validates the generation (quota + history) — resolves true when export is allowed
+  onRequestCopyCode: () => Promise<boolean>;
 }
 
 type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster' | 'code';
@@ -537,15 +538,11 @@ export function Visualizer({
   };
 
   const handleCopyClick = async () => {
-    if (!isUnlocked) {
-      onRequestCopyCode();
-      return;
-    }
-    if (svg) {
-      await navigator.clipboard.writeText(svg);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    const allowed = await onRequestCopyCode();
+    if (!allowed || !svg) return;
+    await navigator.clipboard.writeText(svg);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const formattedSvg = React.useMemo(() => (svg ? formatXml(svg) : ''), [svg]);
@@ -554,12 +551,16 @@ export function Visualizer({
     [formattedSvg]
   );
 
-  const handleToggleCode = () => {
-    if (!isUnlocked) {
-      onRequestCopyCode();
+  const handleToggleCode = async () => {
+    if (viewMode === 'code') {
+      handleSelectViewMode('vector');
       return;
     }
-    handleSelectViewMode(viewMode === 'code' ? 'vector' : 'code');
+    // Viewing SVG code counts as a validated generation — same gate as copy/download
+    const allowed = await onRequestCopyCode();
+    if (allowed) {
+      handleSelectViewMode('code');
+    }
   };
 
   // SVG Size calculation
