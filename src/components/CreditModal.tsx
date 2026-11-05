@@ -51,6 +51,7 @@ import {
   getCachedUserWalletAddress,
 } from '../lib/user-wallet';
 import { ChainIcon, TokenIcon } from './ChainIcons';
+import { useI18n } from '../lib/i18n';
 
 interface CreditModalProps {
   isOpen: boolean;
@@ -83,6 +84,7 @@ const ERC20_BALANCE_ABI = [
 ] as const;
 
 export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: CreditModalProps) {
+  const { t } = useI18n();
   const { user, refreshProfile } = useAuth();
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
@@ -198,14 +200,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   );
 
   // Ensure selected chain stays valid whenever available chains load or update
-  useEffect(() => {
-    if (availableChains.length > 0) {
-      const isSelectedValid = availableChains.some((c) => c.key === selectedChainKey);
-      if (!isSelectedValid) {
-        setSelectedChainKey(availableChains[0].key);
-      }
-    }
-  }, [availableChains, selectedChainKey]);
+  // (render-time adjustment — React's recommended pattern for derived state)
+  if (
+    availableChains.length > 0 &&
+    !availableChains.some((c) => c.key === selectedChainKey)
+  ) {
+    setSelectedChainKey(availableChains[0].key);
+  }
 
   // Pre-select the chain matching the user's connected wallet on open
   const hasInitializedChainRef = useRef(false);
@@ -213,14 +214,16 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     if (isOpen && isConnected && currentChainId && !hasInitializedChainRef.current && availableChains.length > 0) {
       const matchingChain = availableChains.find((c) => c.chainId === currentChainId);
       if (matchingChain) {
-        setSelectedChainKey(matchingChain.key);
+        queueMicrotask(() => setSelectedChainKey(matchingChain.key));
         hasInitializedChainRef.current = true;
       }
     }
     if (!isOpen) {
       hasInitializedChainRef.current = false;
-      setSwitchFailedChainId(null);
-      setIsSwitchingChain(false);
+      queueMicrotask(() => {
+        setSwitchFailedChainId(null);
+        setIsSwitchingChain(false);
+      });
     }
   }, [isOpen, isConnected, currentChainId, availableChains]);
 
@@ -231,21 +234,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
   // React to wallet-initiated chain changes (e.g., user switches network in MetaMask)
   // Auto-sync selectedChainKey to match the wallet's current chain
-  useEffect(() => {
-    if (isConnected && currentChainId) {
-      const matchingChain = availableChains.find((c) => c.chainId === currentChainId);
-      if (matchingChain && matchingChain.key !== selectedChainKey) {
-        setSelectedChainKey(matchingChain.key);
-      }
+  if (isConnected && currentChainId) {
+    const matchingChain = availableChains.find((c) => c.chainId === currentChainId);
+    if (matchingChain && matchingChain.key !== selectedChainKey) {
+      setSelectedChainKey(matchingChain.key);
     }
-  }, [isConnected, currentChainId, availableChains, selectedChainKey]);
+  }
 
   // Clear failed switch notice if wallet successfully switches to selected chain
-  useEffect(() => {
-    if (currentChainId === chainMeta.chainId) {
-      setSwitchFailedChainId(null);
-    }
-  }, [currentChainId, chainMeta.chainId]);
+  if (currentChainId === chainMeta.chainId && switchFailedChainId !== null) {
+    setSwitchFailedChainId(null);
+  }
 
   // Refresh live token prices on user interaction (rates fluctuate)
   const refreshTokenPrices = () => {
@@ -389,11 +388,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   // Reset transient feedback state when modal opens or closes
   useEffect(() => {
     if (!isOpen) {
-      setErrorMsg(null);
-      setSuccessMsg(null);
-      setLoading(false);
-      setTxHashInput('');
-      setCopiedField(null);
+      queueMicrotask(() => {
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        setLoading(false);
+        setTxHashInput('');
+        setCopiedField(null);
+      });
 
       // Clean up any pending Firestore listeners
       activeUnsubscribesRef.current.forEach((unsub) => unsub());
@@ -422,7 +423,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   // Generate QR code for the recipient wallet
   useEffect(() => {
     if (!isOpen || isLoadingWallets || isInvalidRecipient || !recipientWallet) {
-      setQrCodeUrl('');
+      queueMicrotask(() => setQrCodeUrl(''));
       return;
     }
 
@@ -466,7 +467,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         onClose();
         onOpenAuth();
       } else {
-        setErrorMsg('Please sign in with Google first so your credits are saved to your account.');
+        setErrorMsg(t('modals.credits.signInFirst'));
       }
       return;
     }
@@ -481,12 +482,12 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
     try {
       if (isInvalidRecipient) {
-        throw new Error(`Payment wallet for ${chainMeta.name} is not configured yet. Please choose another chain.`);
+        throw new Error(t('modals.credits.walletNotConfigured', { chain: chainMeta.name }));
       }
 
       const targetChainId = chainMeta.chainId;
       if (!targetChainId) {
-        throw new Error('Selected chain does not support direct Web3 wallet execution. Please use Direct Transfer / QR code.');
+        throw new Error(t('modals.credits.noDirectTransfer'));
       }
 
       // 1. Switch network if needed
@@ -511,18 +512,18 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           const errorObj = switchErr as { code?: number; name?: string; message?: string; cause?: { code?: number; name?: string } } | undefined;
           const isUserRejection = errorObj?.code === 4001 || errorObj?.cause?.code === 4001 || errorObj?.name === 'UserRejectedRequestError';
           if (isUserRejection) {
-            throw new Error(`Please switch your wallet to ${chainMeta.name} and try again.`);
+            throw new Error(t('modals.credits.switchNetworkFirst', { chain: chainMeta.name }));
           }
           // If programmatic switch fails (e.g. not configured in wallet or mobile wallet), open Reown's network modal
           console.warn('Programmatic switch failed, opening Reown network dialog:', switchErr);
           open({ view: 'Networks' });
-          throw new Error(`Please select ${chainMeta.name} in the network dialog and try again.`);
+          throw new Error(t('modals.credits.selectNetworkDialog', { chain: chainMeta.name }));
         }
       }
 
       // 2. Fetch current gas fees to ensure we respect the block base fee
       if (!publicClient) {
-        throw new Error('Unable to connect to the network. Please try again.');
+        throw new Error(t('modals.credits.networkError'));
       }
       const block = await publicClient.getBlock();
       const baseFee = block.baseFeePerGas ?? BigInt(0);
@@ -570,7 +571,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         const tokenConfig = getERC20Contracts()[targetChainId]?.[activeToken];
         if (!tokenConfig) {
           throw new Error(
-            `Direct Web3 transfer not configured for ${activeToken} on ${chainMeta.name}. Please use Direct Transfer / QR Code below.`
+            t('modals.credits.erc20NotConfigured', { token: activeToken, chain: chainMeta.name })
           );
         }
 
@@ -600,7 +601,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         toAddress: recipientWallet,
         txHash,
         status: 'pending',
-        statusMessage: `Submitted on ${chainMeta.name}. Awaiting blockchain confirmation.`,
+        statusMessage: t('modals.credits.txSubmittedOn', { chain: chainMeta.name }),
       });
 
       // Listen for transaction confirmation in real-time
@@ -608,18 +609,18 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         if (updatedTx?.status === 'confirmed') {
           refreshProfile();
           setSuccessMsg(
-            `🎉 Transaction confirmed (${txHash.slice(0, 10)}...)! Added ${selectedPack.credits} credits to your account.`
+            t('modals.credits.txConfirmed', { hash: txHash.slice(0, 10), credits: selectedPack.credits })
           );
           unsubscribe();
         } else if (updatedTx?.status === 'failed') {
-          setErrorMsg('Transaction verification failed. Please check transactions page for details.');
+          setErrorMsg(t('modals.credits.txVerifyFailed'));
           unsubscribe();
         }
       });
       activeUnsubscribesRef.current.push(unsubscribe);
 
       setSuccessMsg(
-        `🎉 Transaction submitted on ${chainMeta.name} (${txHash.slice(0, 10)}...)! Awaiting confirmation. Your credits will update automatically once verified.`
+        t('modals.credits.txSubmittedAwaiting', { chain: chainMeta.name, hash: txHash.slice(0, 10) })
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -638,11 +639,11 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
     try {
       if (!user || user.isAnonymous) {
-        throw new Error('Please sign in with Google first so your credits are saved to your account.');
+        throw new Error(t('modals.credits.signInFirst'));
       }
 
       if (isInvalidRecipient) {
-        throw new Error(`Payment wallet for ${chainMeta.name} is not configured yet. Please choose another chain.`);
+        throw new Error(t('modals.credits.walletNotConfigured', { chain: chainMeta.name }));
       }
 
       // Record transaction in Firestore with status 'pending'
@@ -658,7 +659,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         toAddress: recipientWallet,
         txHash: txHashInput.trim() || undefined,
         status: 'pending',
-        statusMessage: 'Direct network transfer submitted. Awaiting verification.',
+        statusMessage: t('modals.credits.manualStatus'),
       });
 
       // Listen for transaction confirmation
@@ -666,16 +667,14 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         if (updatedTx?.status === 'confirmed') {
           refreshProfile();
           setSuccessMsg(
-            `🎉 Payment confirmed! ${selectedPack.credits} credits have been deposited to your account.`
+            t('modals.credits.paymentConfirmed', { credits: selectedPack.credits })
           );
           unsubscribe();
         }
       });
       activeUnsubscribesRef.current.push(unsubscribe);
 
-      setSuccessMsg(
-        `🎉 Payment submitted! Your transaction is now pending verification. Credits will be automatically added as soon as confirmed.`
-      );
+      setSuccessMsg(t('modals.credits.paymentSubmitted'));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMsg(msg);
@@ -698,10 +697,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
             />
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>Crypto Credit Packs</span>
+                <span>{t('modals.credits.title')}</span>
               </h2>
               <p className="text-xs text-neutral-400">
-                Unlock high-resolution SVG downloads via Web3 or Direct Transfer
+                {t('modals.credits.subtitle')}
               </p>
             </div>
           </div>
@@ -726,7 +725,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
             <span>
-              Please sign in with Google so your purchased credits are securely linked to your account.
+              {t('modals.credits.unauthNotice')}
             </span>
           </div>
         )}
@@ -743,7 +742,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
               onClick={onClose}
               className="shrink-0 underline font-semibold text-emerald-200 hover:text-white flex items-center gap-1"
             >
-              <span>Transactions</span>
+              <span>{t('modals.credits.transactions')}</span>
               <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
@@ -761,7 +760,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         <div className="mt-5 space-y-2">
           <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
             <Coins className="h-3.5 w-3.5 text-amber-400" />
-            1. Select Credit Pack
+            {t('modals.credits.selectPack')}
           </label>
           <div className="grid grid-cols-3 gap-3">
             {CREDIT_PACKS.map((pack) => {
@@ -781,17 +780,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 >
                   {pack.popular && (
                     <span className="absolute -top-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">
-                      Best Value
+                      {t('modals.credits.bestValue')}
                     </span>
                   )}
                   <div className="text-lg font-extrabold text-white">
-                    {pack.credits} <span className="text-xs font-normal text-neutral-400">credits</span>
+                    {pack.credits} <span className="text-xs font-normal text-neutral-400">{t('modals.credits.creditsWord')}</span>
                   </div>
                   <div className="text-xs text-neutral-300 font-semibold mt-1">
                     ${pack.usdPrice} USD
                   </div>
                   <div className="text-[10px] text-neutral-500 mt-0.5">
-                    ${(pack.usdPrice / pack.credits).toFixed(2)} / SVG
+                    {t('modals.credits.perSvg', { price: `$${(pack.usdPrice / pack.credits).toFixed(2)}` })}
                   </div>
                 </button>
               );
@@ -803,17 +802,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         <div className="mt-5 space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
-              <span>2. Choose Blockchain Network</span>
+              <span>{t('modals.credits.chooseNetwork')}</span>
             </label>
             <span className="text-[11px] text-neutral-400">
-              Selected: <span className="text-white font-medium">{chainMeta.name}</span>
+              {t('modals.credits.selected')} <span className="text-white font-medium">{chainMeta.name}</span>
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {availableChains.length === 0 ? (
               <div className="col-span-full rounded-2xl border border-neutral-800 bg-neutral-950/40 p-4 text-center text-xs text-neutral-400">
-                {isLoadingWallets ? 'Loading payment networks...' : 'No payment networks configured.'}
+                {isLoadingWallets ? t('modals.credits.loadingNetworks') : t('modals.credits.noNetworks')}
               </div>
             ) : (
               availableChains.map((chain) => {
@@ -886,7 +885,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         {/* Step 3: Select Token */}
         <div className="mt-5 space-y-2">
           <label className="text-xs font-semibold text-neutral-300">
-            3. Choose Payment Token ({chainMeta.name})
+            {t('modals.credits.chooseToken', { chain: chainMeta.name })}
           </label>
           <div className="flex flex-wrap gap-2">
             {chainTokens.map((token) => {
@@ -897,7 +896,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
               const displayBalance = balance !== undefined
                 ? `${formatBalance(balance, 4)} ${token}`
                 : isBalanceLoading
-                  ? 'loading...'
+                  ? t('modals.credits.balanceLoading')
                   : isConnected
                     ? `0 ${token}`
                     : null;
@@ -924,7 +923,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   </div>
                   {displayBalance && (
                     <div className={`text-[10px] font-mono ${isSelected ? 'text-indigo-300' : 'text-neutral-500'}`}>
-                      Balance: {displayBalance}
+                      {t('modals.credits.balanceLabel', { balance: displayBalance })}
                     </div>
                   )}
                 </button>
@@ -948,7 +947,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   }`}
               >
                 <Wallet className="h-3.5 w-3.5" />
-                <span>Web3 / WalletConnect</span>
+                <span>{t('modals.credits.web3Method')}</span>
               </button>
               <button
                 type="button"
@@ -959,13 +958,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   }`}
               >
                 <QrCode className="h-3.5 w-3.5" />
-                <span>Direct Transfer / QR Code</span>
+                <span>{t('modals.credits.qrMethod')}</span>
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-between text-xs text-neutral-400 border-b border-neutral-800/80 pb-2">
               <span className="font-semibold text-neutral-200 flex items-center gap-1.5">
-                <QrCode className="h-4 w-4 text-indigo-400" /> Direct Network Transfer
+                <QrCode className="h-4 w-4 text-indigo-400" /> {t('modals.credits.directTransfer')}
               </span>
               <span className="rounded bg-neutral-800 px-2 py-0.5 text-[10px] font-mono text-neutral-300">
                 {chainMeta.badge}
@@ -981,9 +980,9 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
                   <AlertCircle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-amber-300 mb-1">Sign in required</p>
+                    <p className="font-semibold text-amber-300 mb-1">{t('modals.credits.signInRequired')}</p>
                     <p className="text-amber-200/80 leading-snug">
-                      You need to sign in with Google first so your credits are saved to your account.
+                      {t('modals.credits.signInRequiredBody')}
                     </p>
                     {onOpenAuth && (
                       <button
@@ -994,7 +993,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                         }}
                         className="mt-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition"
                       >
-                        Sign in with Google
+                        {t('modals.credits.signInWithGoogle')}
                       </button>
                     )}
                   </div>
@@ -1003,9 +1002,9 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <div className="flex items-start gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-200">
                   <Wallet className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-indigo-300 mb-1">Wallet not connected</p>
+                    <p className="font-semibold text-indigo-300 mb-1">{t('modals.credits.walletNotConnected')}</p>
                     <p className="text-indigo-200/80 leading-snug">
-                      Click the button below to connect your Web3 wallet, then confirm the payment transaction.
+                      {t('modals.credits.walletNotConnectedBody')}
                     </p>
                   </div>
                 </div>
@@ -1013,7 +1012,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
                   <Check className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="font-semibold text-emerald-300 mb-1">Wallet connected</p>
+                    <p className="font-semibold text-emerald-300 mb-1">{t('modals.credits.walletConnected')}</p>
                     <p className="font-mono text-emerald-200/80">{address?.slice(0, 6)}...{address?.slice(-4)}</p>
                   </div>
                   <button
@@ -1021,7 +1020,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     onClick={() => disconnect()}
                     className="shrink-0 rounded-lg bg-neutral-800 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
                   >
-                    Disconnect
+                    {t('modals.credits.disconnect')}
                   </button>
                 </div>
               )}
@@ -1032,7 +1031,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   <div className="flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
                     <span>
-                      Wallet on different network. Switch to <strong>{chainMeta.name}</strong> to pay.
+                      {t('modals.credits.networkMismatchPrefix')}<strong>{chainMeta.name}</strong>{t('modals.credits.networkMismatchSuffix')}
                     </span>
                   </div>
                   <button
@@ -1057,21 +1056,21 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     }}
                     className="shrink-0 rounded-lg bg-amber-500/20 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
                   >
-                    Switch Network
+                    {t('modals.credits.switchNetwork')}
                   </button>
                 </div>
               )}
 
               <div className="flex items-center justify-between rounded-xl bg-neutral-900/60 p-3 border border-neutral-800 text-xs">
                 <div>
-                  <span className="text-neutral-400 block text-[11px]">Total to Send</span>
+                  <span className="text-neutral-400 block text-[11px]">{t('modals.credits.totalToSend')}</span>
                   <span className="text-base font-bold text-white flex items-center gap-1.5">
                     <TokenIcon token={activeToken} className="w-4 h-4 shrink-0" />
                     <span>{amountToPay} {activeToken}</span>
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-neutral-400 block text-[11px]">Network</span>
+                  <span className="text-neutral-400 block text-[11px]">{t('modals.credits.network')}</span>
                   <span className="font-semibold text-neutral-200">{chainMeta.name}</span>
                 </div>
               </div>
@@ -1085,25 +1084,25 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 {loading ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : isLoadingWallets ? (
-                  <span>Loading configuration...</span>
+                  <span>{t('modals.credits.loadingConfig')}</span>
                 ) : isInvalidRecipient ? (
-                  <span>Network not configured</span>
+                  <span>{t('modals.credits.networkNotConfigured')}</span>
                 ) : !user || user.isAnonymous ? (
                   <>
                     <AlertCircle className="h-4 w-4" />
-                    <span>Sign in to Pay ({amountToPay} {activeToken})</span>
+                    <span>{t('modals.credits.signInToPay', { amount: amountToPay, token: activeToken })}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 ) : !isConnected ? (
                   <>
                     <Wallet className="h-4 w-4" />
-                    <span>Connect Wallet & Pay ({amountToPay} {activeToken})</span>
+                    <span>{t('modals.credits.connectWalletPay', { amount: amountToPay, token: activeToken })}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 ) : (
                   <>
                     <Wallet className="h-4 w-4" />
-                    <span>Send {amountToPay} {activeToken} ({chainMeta.name})</span>
+                    <span>{t('modals.credits.sendPayment', { amount: amountToPay, token: activeToken, chain: chainMeta.name })}</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -1116,20 +1115,20 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 {/* QR Code */}
                 {isLoadingWallets ? (
                   <div className="h-32 w-32 rounded-xl bg-neutral-800 animate-pulse shrink-0 flex items-center justify-center text-[10px] text-neutral-500 font-mono">
-                    Loading QR...
+                    {t('modals.credits.loadingQr')}
                   </div>
                 ) : qrCodeUrl ? (
                   <div className="rounded-xl bg-white p-2 shrink-0 shadow-lg">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={qrCodeUrl}
-                      alt="Payment QR Code"
+                      alt={t('modals.credits.qrAlt')}
                       className="h-32 w-32 object-contain"
                     />
                   </div>
                 ) : (
                   <div className="h-32 w-32 rounded-xl bg-neutral-800 animate-pulse shrink-0 flex items-center justify-center text-[10px] text-neutral-500 font-mono">
-                    {isInvalidRecipient ? 'No wallet configured' : 'Generating QR...'}
+                    {isInvalidRecipient ? t('modals.credits.noWalletConfigured') : t('modals.credits.generatingQr')}
                   </div>
                 )}
 
@@ -1137,14 +1136,14 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <div className="flex-1 w-full space-y-2.5">
                   <div>
                     <label className="text-[11px] font-medium text-neutral-400 block mb-1">
-                      Recipient Address ({chainMeta.badge})
+                      {t('modals.credits.recipientAddress', { badge: chainMeta.badge })}
                     </label>
                     <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
                       <span className="font-mono text-xs text-neutral-200 truncate flex-1 select-all">
                         {isLoadingWallets ? (
-                          <span className="text-neutral-500 animate-pulse">Loading wallet address...</span>
+                          <span className="text-neutral-500 animate-pulse">{t('modals.credits.loadingAddress')}</span>
                         ) : isInvalidRecipient ? (
-                          <span className="text-amber-400">Wallet not configured for this network</span>
+                          <span className="text-amber-400">{t('modals.credits.walletNotConfiguredForNetwork')}</span>
                         ) : (
                           recipientWallet
                         )}
@@ -1154,7 +1153,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                         disabled={isLoadingWallets || isInvalidRecipient}
                         onClick={() => copyToClipboard(recipientWallet, 'address')}
                         className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition disabled:opacity-40"
-                        title="Copy Address"
+                        title={t('modals.credits.copyAddress')}
                       >
                         {copiedField === 'address' ? (
                           <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -1167,7 +1166,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
                   <div>
                     <label className="text-[11px] font-medium text-neutral-400 block mb-1">
-                      Exact Amount to Transfer
+                      {t('modals.credits.exactAmount')}
                     </label>
                     <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
                       <span className="font-mono text-xs font-semibold text-amber-300 truncate flex-1 flex items-center gap-1.5">
@@ -1178,7 +1177,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                         type="button"
                         onClick={() => copyToClipboard(amountToPay, 'amount')}
                         className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition"
-                        title="Copy Amount"
+                        title={t('modals.credits.copyAmount')}
                       >
                         {copiedField === 'amount' ? (
                           <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -1193,17 +1192,16 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
               {/* Safety Network Warning */}
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 text-[11px] text-amber-400/90 leading-relaxed">
-                ⚠️ <strong>Network Safety:</strong> Please send only{' '}
-                <strong className="text-white">{activeToken}</strong> on the{' '}
-                <strong className="text-white">{chainMeta.badge}</strong> network. Sending via an
-                unsupported network may result in loss of funds.
+                ⚠️ <strong>{t('modals.credits.safetyStrong')}</strong>{t('modals.credits.safetyBody1')}
+                <strong className="text-white">{activeToken}</strong>{t('modals.credits.safetyBody2')}
+                <strong className="text-white">{chainMeta.badge}</strong>{t('modals.credits.safetyBody3')}
               </div>
 
               {/* Optional TX Hash Input & Confirmation Button */}
               <div className="pt-2 border-t border-neutral-800 space-y-2">
                 <input
                   type="text"
-                  placeholder="Optional: Transaction Hash / ID (e.g. 0x... or txid)"
+                  placeholder={t('modals.credits.txHashPlaceholder')}
                   value={txHashInput}
                   onChange={(e) => setTxHashInput(e.target.value)}
                   className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 focus:border-indigo-500 focus:outline-none"
@@ -1218,13 +1216,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   {loading ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : isLoadingWallets ? (
-                    <span>Loading configuration...</span>
+                    <span>{t('modals.credits.loadingConfig')}</span>
                   ) : isInvalidRecipient ? (
-                    <span>Address not configured</span>
+                    <span>{t('modals.credits.addressNotConfigured')}</span>
                   ) : (
                     <>
                       <Check className="h-4 w-4" />
-                      <span>I Have Sent the Payment ({selectedPack.credits} Credits)</span>
+                      <span>{t('modals.credits.iHaveSent', { credits: selectedPack.credits })}</span>
                     </>
                   )}
                 </button>
@@ -1236,7 +1234,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         {/* Footer info */}
         <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-neutral-500">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span>Supported: BNB Chain, Ethereum, Polygon, Base, Arbitrum, Optimism, Avalanche, Plasma</span>
+            <span>{t('modals.credits.supportedChains')}</span>
             <span>•</span>
             <Link
               href="/transactions"
@@ -1244,7 +1242,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
               className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition underline"
             >
               <ReceiptText className="h-3 w-3" />
-              <span>View Transactions</span>
+              <span>{t('modals.credits.viewTransactions')}</span>
             </Link>
           </div>
           {chainMeta.explorerUrl && (
@@ -1254,7 +1252,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-neutral-400 transition shrink-0"
             >
-              <span>{chainMeta.name} Explorer</span>
+              <span>{t('modals.credits.explorer', { chain: chainMeta.name })}</span>
               <ExternalLink className="h-3 w-3" />
             </a>
           )}
@@ -1268,7 +1266,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/20">
                   <AlertCircle className="h-5 w-5 text-red-400" />
                 </div>
-                <h3 className="text-sm font-semibold text-red-300">Payment Error</h3>
+                <h3 className="text-sm font-semibold text-red-300">{t('modals.credits.paymentError')}</h3>
               </div>
               <p className="mb-4 text-xs text-neutral-300 leading-relaxed">{errorMsg}</p>
               <button
@@ -1276,7 +1274,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 onClick={() => setErrorMsg(null)}
                 className="w-full rounded-xl bg-red-600 py-2.5 text-xs font-semibold text-white hover:bg-red-500 transition"
               >
-                Dismiss
+                {t('modals.credits.dismiss')}
               </button>
             </div>
           </div>

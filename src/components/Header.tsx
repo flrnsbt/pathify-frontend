@@ -7,6 +7,7 @@ import { useAuth } from '../lib/firebase/auth-context';
 import { clearLocalAppData } from '../lib/local-source-images';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit/react';
+import { useI18n } from '../lib/i18n';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -22,6 +23,7 @@ export function Header({
   historyCount,
 }: HeaderProps) {
   const { user, profile, logout } = useAuth();
+  const { t } = useI18n();
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -49,7 +51,7 @@ export function Header({
               vectorizerr
             </span>
             <p className="hidden sm:block text-xs text-neutral-400">
-              Raster to SVG Vectorizer
+              {t('header.brandTagline')}
             </p>
           </div>
         </div>
@@ -62,7 +64,7 @@ export function Header({
             className="relative flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
           >
             <History className="h-4 w-4 text-neutral-400" />
-            <span className="hidden sm:inline">History</span>
+            <span className="hidden sm:inline">{t('header.history')}</span>
             {historyCount > 0 && (
               <span className="ml-1 rounded-full bg-indigo-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
                 {historyCount}
@@ -74,10 +76,10 @@ export function Header({
           <Link
             href="/support"
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
-            title="Assistance & Support Portal"
+            title={t('header.support')}
           >
             <LifeBuoy className="h-4 w-4 text-neutral-400" />
-            <span className="hidden lg:inline">Support</span>
+            <span className="hidden lg:inline">{t('header.support')}</span>
           </Link>
 
           {/* Credits Badge / Buy Credits */}
@@ -93,20 +95,20 @@ export function Header({
             {isAdmin ? (
               <>
                 <Shield className="h-4 w-4 text-purple-400" />
-                <span>Admin Pass</span>
+                <span>{t('header.adminPass')}</span>
               </>
             ) : isSubscribed ? (
               <>
                 <Sparkles className="h-4 w-4 text-emerald-400" />
-                <span>Subscribed</span>
+                <span>{t('header.subscribed')}</span>
               </>
             ) : (
               <>
                 <Coins className="h-4 w-4 text-amber-400" />
                 <span className="font-semibold">{credits}</span>
-                <span className="text-neutral-400">Credits</span>
+                <span className="text-neutral-400">{t('header.credits')}</span>
                 <span className="ml-1 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold text-amber-300">
-                  + Buy
+                  {t('header.buy')}
                 </span>
               </>
             )}
@@ -123,7 +125,7 @@ export function Header({
               <button
                 onClick={() => disconnect()}
                 className="ml-1 rounded px-1 py-0.5 text-[10px] font-bold text-emerald-400/60 hover:text-red-400 hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100"
-                title="Disconnect wallet"
+                title={t('header.disconnectWallet')}
               >
                 <LogOut className="h-3 w-3" />
               </button>
@@ -154,8 +156,8 @@ export function Header({
               )}
               <span className="hidden md:inline">
                 {user && !user.isAnonymous
-                  ? user.displayName || user.email || 'Account'
-                  : 'Sign In'}
+                  ? user.displayName || user.email || t('header.account')
+                  : t('header.signIn')}
               </span>
               {user && !user.isAnonymous && (
                 <ChevronDown className="h-3 w-3 text-neutral-500" />
@@ -177,7 +179,7 @@ export function Header({
                     className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
                   >
                     <UserIcon className="h-3.5 w-3.5 text-neutral-500" />
-                    Account
+                    {t('header.account')}
                   </button>
                   <Link
                     href="/transactions"
@@ -185,14 +187,12 @@ export function Header({
                     className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
                   >
                     <ReceiptText className="h-3.5 w-3.5 text-neutral-500" />
-                    Transactions
+                    {t('header.transactions')}
                   </Link>
                   <button
                     onClick={() => {
                       if (
-                        window.confirm(
-                          'Clear all locally stored data? This removes cached source images and app preferences from this browser. Your account, credits and history are not affected.'
-                        )
+                        window.confirm(t('header.clearLocalDataConfirm'))
                       ) {
                         clearLocalAppData();
                         setDataCleared(true);
@@ -203,7 +203,7 @@ export function Header({
                     className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
                   >
                     <Database className="h-3.5 w-3.5 text-neutral-500" />
-                    {dataCleared ? 'Local data cleared' : 'Clear local data'}
+                    {dataCleared ? t('header.localDataCleared') : t('header.clearLocalData')}
                   </button>
                   <button
                     onClick={async () => {
@@ -213,7 +213,7 @@ export function Header({
                     className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:bg-neutral-900 transition"
                   >
                     <LogOut className="h-3.5 w-3.5" />
-                    Sign out
+                    {t('header.signOut')}
                   </button>
                 </div>
               </>

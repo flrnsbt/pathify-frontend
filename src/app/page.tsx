@@ -53,6 +53,7 @@ import {
   LocalHistoryImage,
 } from '../lib/local-history';
 import { upscaleImageData, isEnhancementCached, UpscaleModelId } from '../lib/upscale';
+import { useI18n } from '../lib/i18n';
 
 const AI_ENHANCE_PREF_KEY = 'vtracer_ai_enhance_pref';
 type AiEnhancePref = 'on' | 'off';
@@ -104,6 +105,7 @@ async function hashSvgContent(svgStr: string): Promise<string> {
 }
 
 export default function Home() {
+  const { t } = useI18n();
   const { user, profile, refreshProfile } = useAuth();
   const {
     vectorize,
@@ -368,9 +370,7 @@ export default function Home() {
           localOnly: true,
         });
         setSourceNotice(
-          tooLarge
-            ? 'This SVG is too large to save to cloud history (over 1 MB). It was saved locally on this device instead — it won\'t sync to other browsers.'
-            : 'Couldn\'t save this generation to cloud history. It was saved locally on this device instead.'
+          tooLarge ? t('page.svgTooLarge') : t('page.historySaveFailed')
         );
       };
 
@@ -417,7 +417,7 @@ export default function Home() {
       console.warn('Failed to record validated generation:', err);
       return false;
     }
-  }, [user, currentImage, svg, options, refreshProfile, loadHistory, refreshLocalImages, sessionValidatedGenerations, markSessionValidated]);
+  }, [user, currentImage, svg, options, refreshProfile, loadHistory, refreshLocalImages, sessionValidatedGenerations, markSessionValidated, t]);
 
 
   // Check if current active image and SVG are unlocked (1 credit = 10 generations on image hash)
@@ -631,10 +631,10 @@ export default function Home() {
     if (fresh && fresh.credits > 0) {
       setIsUnlockOpen(true);
     } else {
-      setCreditReason('Could not verify your generation quota. Purchase credits to continue.');
+      setCreditReason(t('page.quotaVerifyFailed'));
       setIsCreditsOpen(true);
     }
-  }, [user]);
+  }, [user, t]);
 
   // Handle Download Action with permission & credit checks
   const handleRequestDownload = useCallback(async () => {
@@ -665,9 +665,9 @@ export default function Home() {
     }
 
     // 4. If No Credits -> Prompt to purchase via WalletConnect / Web3
-    setCreditReason('You need at least 1 credit to unlock and download this SVG. Purchase credits with crypto below.');
+    setCreditReason(t('page.needCreditsDownload'));
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, triggerSvgDownload, recordValidatedGeneration, routeAfterValidationFailure]);
+  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, triggerSvgDownload, recordValidatedGeneration, routeAfterValidationFailure, t]);
 
   // Handle Copy / View Code Action with permission checks.
   // Returns true when the generation was validated and the caller may export it.
@@ -693,10 +693,10 @@ export default function Home() {
       return false;
     }
 
-    setCreditReason('You need at least 1 credit to inspect and copy the raw SVG markup. Purchase credits with crypto below.');
+    setCreditReason(t('page.needCreditsCopy'));
     setIsCreditsOpen(true);
     return false;
-  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, recordValidatedGeneration, routeAfterValidationFailure]);
+  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, recordValidatedGeneration, routeAfterValidationFailure, t]);
 
   // Confirm Unlock with 1 Credit: grants 10 generations on currentImage.imageHash
   const handleConfirmUnlock = async () => {
@@ -761,9 +761,7 @@ export default function Home() {
       // the user to upload the original file again.
       setCurrentImage(null);
       setParamsLocked(true);
-      setSourceNotice(
-        `The source image for "${item.fileName}" isn't stored in this browser. The SVG preview is restored, but you'll need to load the original file again to edit parameters and re-trace.`
-      );
+      setSourceNotice(t('page.sourceImageMissing', { fileName: item.fileName }));
     }
 
     const webpUrl = await svgToWebpBitmap(
@@ -872,7 +870,7 @@ export default function Home() {
               isProcessing={isProcessing || enhanceProgress !== null}
               statusText={
                 enhanceProgress !== null
-                  ? `AI enhancing… ${Math.round(enhanceProgress * 100)}%`
+                  ? t('page.aiEnhancing', { percent: Math.round(enhanceProgress * 100) })
                   : statusText
               }
               hasImage={Boolean(currentImage)}
@@ -896,7 +894,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setSourceNotice(null)}
                   className="text-amber-300/70 hover:text-amber-100 transition"
-                  aria-label="Dismiss"
+                  aria-label={t('common.dismiss')}
                 >
                   ✕
                 </button>
@@ -916,7 +914,7 @@ export default function Home() {
               isProcessing={isProcessing || enhanceProgress !== null}
               statusText={
                 enhanceProgress !== null
-                  ? `AI enhancing… ${Math.round(enhanceProgress * 100)}%`
+                  ? t('page.aiEnhancing', { percent: Math.round(enhanceProgress * 100) })
                   : statusText
               }
               onRequestDownload={handleRequestDownload}
@@ -988,13 +986,13 @@ export default function Home() {
           <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl">
             <h3 className="text-sm font-semibold text-white">
               {enhancePromptVariant === 'suggest'
-                ? 'AI Enhance recommended'
-                : 'Enable AI Enhance?'}
+                ? t('page.enhanceRecommended')
+                : t('page.enableEnhance')}
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-neutral-400">
               {enhancePromptVariant === 'suggest'
-                ? 'This image looks detailed or noisy — AI upscaling would likely produce a cleaner trace. AI Enhance is currently off.'
-                : 'This image looks clean already, so AI upscaling is off. You can still enable it for extra sharpness.'}
+                ? t('page.enhanceRecommendedBody')
+                : t('page.enableEnhanceBody')}
             </p>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
               <input
@@ -1003,7 +1001,7 @@ export default function Home() {
                 onChange={(e) => setEnhancePromptDontAsk(e.target.checked)}
                 className="accent-violet-500 h-3.5 w-3.5 rounded"
               />
-              Don&apos;t ask again
+              {t('page.dontAskAgain')}
             </label>
             <div className="mt-4 flex gap-2">
               <button
@@ -1017,7 +1015,7 @@ export default function Home() {
                 }}
                 className="flex-1 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 transition"
               >
-                Enable
+                {t('page.enable')}
               </button>
               <button
                 type="button"
@@ -1031,7 +1029,7 @@ export default function Home() {
                 }}
                 className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-medium text-neutral-300 hover:border-neutral-700 transition"
               >
-                {enhancePromptVariant === 'suggest' ? 'Keep off' : 'No thanks'}
+                {enhancePromptVariant === 'suggest' ? t('page.keepOff') : t('page.noThanks')}
               </button>
             </div>
           </div>

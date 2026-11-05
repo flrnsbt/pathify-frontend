@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { LoadedImageInfo } from './Uploader';
 import { exportRasterImage } from '../lib/raster/export';
+import { useI18n } from '../lib/i18n';
 
 interface VisualizerProps {
   originalImage: LoadedImageInfo | null;
@@ -360,6 +361,7 @@ export function Visualizer({
   onRequestDownload,
   onRequestCopyCode,
 }: VisualizerProps) {
+  const { t } = useI18n();
   // Default to full 'vector' or 'side-by-side' mode so user does not see split cut
   const [viewMode, setViewMode] = useState<ViewMode>('side-by-side');
   const [bgMode, setBgMode] = useState<BgMode>('checker');
@@ -612,63 +614,63 @@ export function Visualizer({
               <button
                 type="button"
                 onClick={() => handleSelectViewMode('side-by-side')}
-                title="Side-by-Side Comparison"
+                title={t('visualizer.sideBySideTitle')}
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
                   viewMode === 'side-by-side' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Columns className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Side by Side</span>
+                <span className="hidden sm:inline">{t('visualizer.sideBySide')}</span>
               </button>
             </>
           )}
           <button
             type="button"
             onClick={() => handleSelectViewMode('vector')}
-            title="Full Vector View"
+            title={t('visualizer.vectorTitle')}
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'vector' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Eye className="h-3.5 w-3.5" />
-            <span>Vector View</span>
+            <span>{t('visualizer.vectorView')}</span>
           </button>
           {hasRaster && (
             <>
               <button
                 type="button"
                 onClick={() => handleSelectViewMode('split')}
-                title="Split-Screen Comparison Slider"
+                title={t('visualizer.splitTitle')}
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
                   viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Split className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Split Slider</span>
+                <span className="hidden sm:inline">{t('visualizer.split')}</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectViewMode('raster')}
-                title="Original Raster Only"
+                title={t('visualizer.rasterTitle')}
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
                   viewMode === 'raster' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <ImageIcon className="h-3.5 w-3.5" />
-                <span>Raster</span>
+                <span>{t('visualizer.raster')}</span>
               </button>
             </>
           )}
           <button
             type="button"
             onClick={handleToggleCode}
-            title="Inspect SVG XML Code"
+            title={t('visualizer.codeTitle')}
             className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               viewMode === 'code' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
             <FileCode className="h-3.5 w-3.5 text-emerald-400" />
-            <span>SVG Code</span>
+            <span>{t('visualizer.svgCode')}</span>
           </button>
         </div>
 
@@ -680,25 +682,25 @@ export function Visualizer({
               type="button"
               onClick={() => setBgMode('checker')}
               className={`rounded px-1.5 py-0.5 ${bgMode === 'checker' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-              title="Checkerboard Grid"
+              title={t('visualizer.bgGridTitle')}
             >
-              Grid
+              {t('visualizer.bgGrid')}
             </button>
             <button
               type="button"
               onClick={() => setBgMode('dark')}
               className={`rounded px-1.5 py-0.5 ${bgMode === 'dark' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-              title="Dark Background"
+              title={t('visualizer.bgDarkTitle')}
             >
-              Dark
+              {t('visualizer.bgDark')}
             </button>
             <button
               type="button"
               onClick={() => setBgMode('light')}
               className={`rounded px-1.5 py-0.5 ${bgMode === 'light' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-              title="Light Background"
+              title={t('visualizer.bgLightTitle')}
             >
-              Light
+              {t('visualizer.bgLight')}
             </button>
           </div>
 
@@ -708,7 +710,7 @@ export function Visualizer({
               type="button"
               onClick={handleZoomOut}
               className="p-1 text-neutral-400 hover:text-white transition"
-              title="Zoom Out"
+              title={t('visualizer.zoomOut')}
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
@@ -719,7 +721,7 @@ export function Visualizer({
               type="button"
               onClick={handleZoomIn}
               className="p-1 text-neutral-400 hover:text-white transition"
-              title="Zoom In"
+              title={t('visualizer.zoomIn')}
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
@@ -727,7 +729,7 @@ export function Visualizer({
               type="button"
               onClick={handleZoomReset}
               className="p-1 text-neutral-400 hover:text-white transition border-l border-neutral-800 ml-0.5"
-              title="Reset Zoom & Pan"
+              title={t('visualizer.resetZoom')}
             >
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
@@ -739,7 +741,7 @@ export function Visualizer({
               type="button"
               disabled={!renderedVectorImage}
               onClick={handleCopyClick}
-              title={isUnlocked ? 'Copy SVG Code' : 'Unlock to copy SVG code'}
+              title={isUnlocked ? t('visualizer.copySvgTitle') : t('visualizer.copySvgLockedTitle')}
               className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-800/80 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white disabled:opacity-40 transition"
             >
               {!isUnlocked ? (
@@ -750,7 +752,7 @@ export function Visualizer({
                 <Copy className="h-3.5 w-3.5" />
               )}
               <span className="hidden sm:inline">
-                {!isUnlocked ? 'Copy SVG' : copied ? 'Copied' : 'Copy'}
+                {!isUnlocked ? t('visualizer.copySvg') : copied ? t('common.copied') : t('common.copy')}
               </span>
             </button>
 
@@ -760,7 +762,7 @@ export function Visualizer({
                 type="button"
                 disabled={!renderedVectorImage}
                 onClick={onRequestDownload}
-                title={isUnlocked ? 'Download lossless .SVG vector file' : 'Unlock with credit to download SVG'}
+                title={isUnlocked ? t('visualizer.downloadSvgTitle') : t('visualizer.downloadSvgLockedTitle')}
                 className={`flex items-center gap-1.5 rounded-l-lg border-y border-l px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition disabled:opacity-40 ${
                   isUnlocked
                     ? 'border-emerald-500/30 bg-emerald-600 hover:bg-emerald-500'
@@ -770,12 +772,12 @@ export function Visualizer({
                 {isUnlocked ? (
                   <>
                     <Download className="h-3.5 w-3.5" />
-                    <span>Download SVG</span>
+                    <span>{t('visualizer.downloadSvg')}</span>
                   </>
                 ) : (
                   <>
                     <Lock className="h-3.5 w-3.5 text-amber-300" />
-                    <span>Download SVG</span>
+                    <span>{t('visualizer.downloadSvg')}</span>
                   </>
                 )}
               </button>
@@ -785,7 +787,7 @@ export function Visualizer({
                 type="button"
                 disabled={!renderedVectorImage}
                 onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
-                title="Download options (Free PNG / WebP available)"
+                title={t('visualizer.menuTitle')}
                 className={`flex items-center justify-center rounded-r-lg border px-2 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40 ${
                   isUnlocked
                     ? 'border-emerald-500/30 bg-emerald-700 hover:bg-emerald-600'
@@ -799,7 +801,7 @@ export function Visualizer({
               {isDownloadMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur-md z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 border-b border-neutral-800">
-                    Download Formats
+                    {t('visualizer.formats')}
                   </div>
 
                   {/* 1. SVG Vector (Lossless, requires unlock/credits) */}
@@ -816,25 +818,25 @@ export function Visualizer({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">SVG Vector</span>
+                        <span className="text-xs font-bold text-white">{t('visualizer.svgVector')}</span>
                         <span
                           className={`rounded px-1.5 py-0.2 text-[9px] font-mono font-semibold ${
                             isUnlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
                           }`}
                         >
-                          {isUnlocked ? 'Unlocked' : '1 Credit'}
+                          {isUnlocked ? t('visualizer.unlocked') : t('visualizer.oneCredit')}
                         </span>
                       </div>
                       <p className="text-[10px] text-neutral-400 mt-0.5">
-                        Lossless infinite resolution math curves
+                        {t('visualizer.svgVectorDesc')}
                       </p>
                     </div>
                   </button>
 
                   <div className="my-1 border-t border-neutral-800/80" />
                   <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400 flex items-center justify-between">
-                    <span>Free Downloads</span>
-                    <span className="text-[9px] text-neutral-500 font-normal">No credits needed</span>
+                    <span>{t('visualizer.freeDownloads')}</span>
+                    <span className="text-[9px] text-neutral-500 font-normal">{t('visualizer.noCredits')}</span>
                   </div>
 
                   {/* 2. Free PNG */}
@@ -849,13 +851,13 @@ export function Visualizer({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">PNG Image</span>
+                        <span className="text-xs font-bold text-white">{t('visualizer.png')}</span>
                         <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-mono font-semibold text-emerald-300">
-                          {isExportingRaster === 'png' ? 'Exporting...' : 'Free'}
+                          {isExportingRaster === 'png' ? t('visualizer.exporting') : t('visualizer.free')}
                         </span>
                       </div>
                       <p className="text-[10px] text-neutral-400 mt-0.5">
-                        High-resolution 2x raster with transparency
+                        {t('visualizer.pngDesc')}
                       </p>
                     </div>
                   </button>
@@ -872,13 +874,13 @@ export function Visualizer({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">WebP Image</span>
+                        <span className="text-xs font-bold text-white">{t('visualizer.webp')}</span>
                         <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-mono font-semibold text-emerald-300">
-                          {isExportingRaster === 'webp' ? 'Exporting...' : 'Free'}
+                          {isExportingRaster === 'webp' ? t('visualizer.exporting') : t('visualizer.free')}
                         </span>
                       </div>
                       <p className="text-[10px] text-neutral-400 mt-0.5">
-                        Ultra-compact modern web raster format
+                        {t('visualizer.webpDesc')}
                       </p>
                     </div>
                   </button>
@@ -895,7 +897,7 @@ export function Visualizer({
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-amber-400 shrink-0" />
             <span>
-              <strong className="text-neutral-200">Browser Rendering Notice:</strong> Web browsers may rasterize SVG curves and subpixel anti-aliasing slightly differently. The output SVG has infinite mathematical vector resolution — download or inspect the SVG to view true precision in Figma, Illustrator, or Inkscape.
+              <strong className="text-neutral-200">{t('visualizer.noticeStrong')}</strong>{t('visualizer.noticeRest')}
             </span>
           </div>
         </div>
@@ -908,7 +910,7 @@ export function Visualizer({
           <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-2.5 text-xs text-neutral-300 shrink-0">
             <div className="flex items-center gap-2">
               <FileCode className="h-4 w-4 text-emerald-400" />
-              <span className="font-semibold text-white">SVG Source Code</span>
+              <span className="font-semibold text-white">{t('visualizer.svgSource')}</span>
               <span className="rounded bg-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400">
                 {nodeCount} nodes • {(svgSizeBytes / 1024).toFixed(1)} KB
               </span>
@@ -922,12 +924,12 @@ export function Visualizer({
                 {copied ? (
                   <>
                     <Check className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Copied</span>
+                    <span>{t('common.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="h-3.5 w-3.5" />
-                    <span>Copy XML</span>
+                    <span>{t('visualizer.copyXml')}</span>
                   </>
                 )}
               </button>
@@ -936,20 +938,20 @@ export function Visualizer({
                 disabled={Boolean(isExportingRaster)}
                 onClick={() => handleDownloadRaster('png')}
                 className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-750 hover:text-white transition disabled:opacity-40"
-                title="Download Free PNG Image"
+                title={t('visualizer.pngFreeTitle')}
               >
                 <ImageIcon className="h-3.5 w-3.5 text-emerald-400" />
-                <span>PNG (Free)</span>
+                <span>{t('visualizer.pngFree')}</span>
               </button>
               <button
                 type="button"
                 disabled={Boolean(isExportingRaster)}
                 onClick={() => handleDownloadRaster('webp')}
                 className="flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-750 hover:text-white transition disabled:opacity-40"
-                title="Download Free WebP Image"
+                title={t('visualizer.webpFreeTitle')}
               >
                 <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                <span>WebP (Free)</span>
+                <span>{t('visualizer.webpFree')}</span>
               </button>
               <button
                 type="button"
@@ -957,7 +959,7 @@ export function Visualizer({
                 className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-600/20 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Download .SVG</span>
+                <span>{t('visualizer.downloadSvgFile')}</span>
               </button>
             </div>
           </div>
@@ -973,7 +975,7 @@ export function Visualizer({
 
             {/* Code content */}
             <pre className="flex-1 p-3 overflow-x-auto text-[11px] font-mono leading-relaxed select-text cursor-text text-neutral-200 whitespace-pre custom-scrollbar">
-              <code>{formattedSvg || svg || 'No SVG generated yet'}</code>
+              <code>{formattedSvg || svg || t('visualizer.noSvg')}</code>
             </pre>
           </div>
         </div>
@@ -988,9 +990,9 @@ export function Visualizer({
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-800/50 text-neutral-500 mb-3 border border-neutral-700/50">
               <ImageIcon className="h-8 w-8" />
             </div>
-            <h3 className="font-semibold text-neutral-300 text-base">No Image Loaded</h3>
+            <h3 className="font-semibold text-neutral-300 text-base">{t('visualizer.noImage')}</h3>
             <p className="mt-1 max-w-sm text-xs text-neutral-500">
-              Upload an image or pick a sample preset to begin vectorizing.
+              {t('visualizer.emptyDesc')}
             </p>
           </div>
         ) : (
@@ -1020,7 +1022,7 @@ export function Visualizer({
               <div className="flex items-center justify-center gap-4 sm:gap-6 p-2 sm:p-4 max-w-full max-h-full">
                 {/* Original */}
                 <div className="flex flex-col items-center shrink-0">
-                  <span className="mb-2 text-xs font-semibold text-neutral-400">Original Raster</span>
+                  <span className="mb-2 text-xs font-semibold text-neutral-400">{t('visualizer.originalRaster')}</span>
                   <div
                     className="rounded-2xl border border-neutral-800 bg-neutral-950/60 shadow-2xl p-1 flex items-center justify-center overflow-hidden"
                     style={{
@@ -1032,7 +1034,7 @@ export function Visualizer({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={originalImage.dataUrl}
-                      alt="Original Raster"
+                      alt={t('visualizer.originalRaster')}
                       draggable={false}
                       className="w-full h-full object-contain select-none pointer-events-none rounded-xl"
                     />
@@ -1042,9 +1044,9 @@ export function Visualizer({
                 {/* Vectorized Result (HTML5 Canvas) */}
                 <div className="flex flex-col items-center shrink-0">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
-                    <span>Vectorized Result</span>
+                    <span>{t('visualizer.vectorizedResult')}</span>
                     <span className="rounded bg-indigo-500/10 px-1.5 py-0.2 text-[10px] font-medium text-indigo-300 border border-indigo-500/20">
-                      HTML5 Canvas
+                      {t('visualizer.canvasVector')}
                     </span>
                     {typeof generationsRemaining === 'number' && generationsRemaining < 9000 && (
                       <span
@@ -1054,8 +1056,8 @@ export function Visualizer({
                             : 'bg-neutral-800/60 text-neutral-400 border-neutral-700'
                         }`}
                       >
-                        {isUnlocked ? 'Unlocked ' : ''}
-                        {generationsRemaining}/{generationsMax ?? generationsRemaining} gens left
+                        {isUnlocked ? t('visualizer.unlockedPrefix') : ''}
+                        {t('visualizer.gensLeft', { remaining: generationsRemaining, max: generationsMax ?? generationsRemaining })}
                       </span>
                     )}
                   </div>
@@ -1078,7 +1080,7 @@ export function Visualizer({
                       />
                     ) : (
                       <div className="flex h-48 w-48 items-center justify-center text-xs text-neutral-500">
-                        Pending vectorization...
+                        {t('visualizer.pending')}
                       </div>
                     )}
                   </div>
@@ -1099,7 +1101,7 @@ export function Visualizer({
                     className="max-h-[75vh] max-w-[85vw] object-contain shadow-2xl"
                   />
                 ) : (
-                  <div className="text-xs text-neutral-400">Click &quot;Vectorize&quot; to generate output</div>
+                  <div className="text-xs text-neutral-400">{t('visualizer.clickVectorize')}</div>
                 )}
               </div>
             )}
@@ -1143,10 +1145,10 @@ export function Visualizer({
 
                 {/* Labels */}
                 <span className="absolute top-3 left-3 rounded-md bg-neutral-950/80 px-2 py-0.5 text-[10px] font-semibold text-neutral-300 border border-neutral-800">
-                  Raster
+                  {t('visualizer.raster')}
                 </span>
                 <span className="absolute top-3 right-3 rounded-md bg-indigo-950/90 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-700/50">
-                  HTML5 Canvas Vector
+                  {t('visualizer.canvasVector')}
                 </span>
               </div>
             )}
@@ -1157,7 +1159,7 @@ export function Visualizer({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={originalImage.dataUrl}
-                  alt="Original Raster"
+                  alt={t('visualizer.originalRaster')}
                   draggable={false}
                   className="max-h-[75vh] max-w-[85vw] object-contain select-none pointer-events-none"
                 />
@@ -1191,15 +1193,15 @@ export function Visualizer({
               {/* Status Header Badge */}
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold text-indigo-300 mb-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>VECTORIZING RASTER</span>
+                <span>{t('visualizer.processingBadge')}</span>
               </div>
 
               <h4 className="text-sm font-bold text-white tracking-tight">
-                {statusText || 'Tracing Vector Geometry...'}
+                {statusText || t('visualizer.processingDefault')}
               </h4>
 
               <p className="mt-1 text-[11px] text-neutral-400 max-w-xs leading-relaxed">
-                Fitting high-precision Bezier splines and clustering color layers.
+                {t('visualizer.processingDesc')}
               </p>
 
               {/* Progress shimmer track */}
@@ -1219,22 +1221,22 @@ export function Visualizer({
             <>
               <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
                 <Sparkles className="h-3.5 w-3.5" />
-                Traced in {executionTimeMs} ms
+                {t('visualizer.tracedIn', { ms: executionTimeMs })}
               </span>
               <span className="hidden sm:inline font-mono">
-                Paths/Nodes: <strong className="text-neutral-200">{nodeCount}</strong>
+                {t('visualizer.pathsNodes')} <strong className="text-neutral-200">{nodeCount}</strong>
               </span>
               <span className="hidden md:inline font-mono">
-                SVG: {(svgSizeBytes / 1024).toFixed(1)} KB
+                {t('visualizer.svgSize', { kb: (svgSizeBytes / 1024).toFixed(1) })}
               </span>
               {compressionRatio && (
                 <span className="hidden lg:inline text-neutral-500">
-                  (Ratio: {compressionRatio}x of raster)
+                  {t('visualizer.ratio', { ratio: compressionRatio })}
                 </span>
               )}
             </>
           ) : (
-            <span>Ready to trace</span>
+            <span>{t('visualizer.readyToTrace')}</span>
           )}
         </div>
 

@@ -29,8 +29,10 @@ import { ChainIcon, TokenIcon } from '../../components/ChainIcons';
 import { CreditModal } from '../../components/CreditModal';
 import { Footer } from '../../components/Footer';
 import { useTransactionListener } from '../../hooks/useTransactionListener';
+import { useI18n } from '../../lib/i18n';
 
 export default function TransactionsPage() {
+  const { t, locale } = useI18n();
   const { user, profile, loading, loginWithGoogle, refreshProfile } = useAuth();
   const [selectedTx, setSelectedTx] = useState<CryptoTransaction | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -43,12 +45,12 @@ export default function TransactionsPage() {
     (tx: CryptoTransaction) => {
       refreshProfile();
       if (tx.status === 'confirmed') {
-        setStatusNotice(`🎉 Transaction ${tx.id.slice(0, 8)} confirmed! ${tx.credits} credits added.`);
+        setStatusNotice(t('transactions.noticeConfirmed', { id: tx.id.slice(0, 8), credits: tx.credits }));
       } else if (tx.status === 'failed') {
-        setStatusNotice(`⚠️ Transaction ${tx.id.slice(0, 8)} failed or was rejected.`);
+        setStatusNotice(t('transactions.noticeFailed', { id: tx.id.slice(0, 8) }));
       }
     },
-    [refreshProfile]
+    [refreshProfile, t]
   );
 
   // Real-time listener for user transactions and status change
@@ -63,7 +65,7 @@ export default function TransactionsPage() {
     await refreshProfile();
     if (result) {
       if (!result.cloudFunctionNotified) {
-        setStatusNotice(`Credits refreshed! Current balance: ${result.updatedCredits} credits.`);
+        setStatusNotice(t('transactions.noticeRefreshed', { credits: result.updatedCredits }));
       }
     }
   };
@@ -99,7 +101,7 @@ export default function TransactionsPage() {
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-          <p className="text-xs font-mono text-neutral-400">Verifying session...</p>
+          <p className="text-xs font-mono text-neutral-400">{t('transactions.verifyingSession')}</p>
         </div>
       </div>
     );
@@ -118,7 +120,7 @@ export default function TransactionsPage() {
                 className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 hover:text-white transition"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Back to Editor</span>
+                <span>{t('transactions.backToEditor')}</span>
               </Link>
               <div className="h-4 w-px bg-neutral-800" />
               <div className="flex items-center gap-2.5">
@@ -132,7 +134,7 @@ export default function TransactionsPage() {
                   vectorizerr
                 </span>
                 <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
-                  Transactions
+                  {t('transactions.title')}
                 </span>
               </div>
             </div>
@@ -149,10 +151,10 @@ export default function TransactionsPage() {
           </div>
 
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Sign In to View Transactions
+            {t('transactions.guardTitle')}
           </h1>
           <p className="mt-3 text-sm text-neutral-400 leading-relaxed">
-            Transaction history, blockchain confirmation tracking, and credit receipts are linked to your registered Vectorizerr account.
+            {t('transactions.guardBody')}
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3">
@@ -178,7 +180,7 @@ export default function TransactionsPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Sign in with Google</span>
+              <span>{t('transactions.signInWithGoogle')}</span>
             </button>
 
             <Link
@@ -186,7 +188,7 @@ export default function TransactionsPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-5 py-3 text-sm font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 hover:text-white transition"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Return to Studio</span>
+              <span>{t('transactions.returnToStudio')}</span>
             </Link>
           </div>
         </main>
@@ -207,7 +209,7 @@ export default function TransactionsPage() {
               className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 hover:text-white transition"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Back to Editor</span>
+              <span>{t('transactions.backToEditor')}</span>
             </Link>
 
             <div className="h-4 w-px bg-neutral-800" />
@@ -223,7 +225,7 @@ export default function TransactionsPage() {
                 vectorizerr
               </span>
               <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
-                Transactions
+                {t('transactions.title')}
               </span>
             </div>
           </div>
@@ -233,16 +235,16 @@ export default function TransactionsPage() {
             <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs">
               <Coins className="h-3.5 w-3.5 text-amber-400" />
               <span className="font-bold text-white">{profile?.credits ?? 0}</span>
-              <span className="text-neutral-400 text-[11px]">Credits</span>
+              <span className="text-neutral-400 text-[11px]">{t('transactions.credits')}</span>
             </div>
 
             <Link
               href="/support?category=crypto_transaction"
               className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white transition"
-              title="Need help with transactions?"
+              title={t('transactions.supportTitle')}
             >
               <LifeBuoy className="h-3.5 w-3.5 text-neutral-400" />
-              <span className="hidden sm:inline">Support</span>
+              <span className="hidden sm:inline">{t('transactions.support')}</span>
             </Link>
 
             <button
@@ -250,7 +252,7 @@ export default function TransactionsPage() {
               className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 hover:from-indigo-500 hover:to-purple-500 transition"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Add Credits</span>
+              <span>{t('transactions.addCredits')}</span>
             </button>
           </div>
         </div>
@@ -263,10 +265,10 @@ export default function TransactionsPage() {
           <div>
             <h1 className="text-2xl font-extrabold text-white flex items-center gap-2.5">
               <ReceiptText className="h-6 w-6 text-indigo-400" />
-              <span>Crypto Transactions</span>
+              <span>{t('transactions.title')}</span>
             </h1>
             <p className="text-xs text-neutral-400 mt-1">
-              Real-time audit log of your Web3 and direct transfer credit purchases.
+              {t('transactions.subtitle')}
             </p>
           </div>
 
@@ -276,7 +278,7 @@ export default function TransactionsPage() {
             className="self-start sm:self-auto flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-2 text-xs font-semibold text-neutral-200 hover:border-neutral-700 hover:bg-neutral-800 transition disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-indigo-400' : ''}`} />
-            <span>{isRefreshing ? 'Checking...' : 'Refresh Credits'}</span>
+            <span>{isRefreshing ? t('transactions.checking') : t('transactions.refreshCredits')}</span>
           </button>
         </div>
 
@@ -301,16 +303,16 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300">
             <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
             <div className="flex-1">
-              <strong className="block text-amber-200 text-sm mb-0.5">Guest Mode</strong>
+              <strong className="block text-amber-200 text-sm mb-0.5">{t('transactions.guestMode')}</strong>
               <span>
-                You are currently browsing as a guest. Please sign in with Google to associate crypto transactions permanently with your profile across devices.
+                {t('transactions.guestBody')}
               </span>
             </div>
             <Link
               href="/signin"
               className="rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-black hover:bg-amber-400 transition shrink-0"
             >
-              Sign In
+              {t('header.signIn')}
             </Link>
           </div>
         )}
@@ -320,21 +322,21 @@ export default function TransactionsPage() {
           {/* Card 1: Available Credits */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1">
             <div className="flex items-center justify-between text-neutral-400 text-xs">
-              <span>Available Credits</span>
+              <span>{t('transactions.statAvailable')}</span>
               <Coins className="h-4 w-4 text-amber-400" />
             </div>
             <div className="text-2xl font-black text-white">
               {profile?.credits ?? 0}
             </div>
             <div className="text-[11px] text-neutral-500">
-              For lossless SVG vector unlocks
+              {t('transactions.statAvailableDesc')}
             </div>
           </div>
 
           {/* Card 2: Pending Confirmations */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1">
             <div className="flex items-center justify-between text-neutral-400 text-xs">
-              <span>Pending Transactions</span>
+              <span>{t('transactions.statPending')}</span>
               <Clock className="h-4 w-4 text-amber-400" />
             </div>
             <div className="text-2xl font-black text-amber-300 flex items-center gap-2">
@@ -344,35 +346,35 @@ export default function TransactionsPage() {
               )}
             </div>
             <div className="text-[11px] text-neutral-500">
-              Awaiting blockchain confirmation
+              {t('transactions.statPendingDesc')}
             </div>
           </div>
 
           {/* Card 3: Confirmed Transactions */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1">
             <div className="flex items-center justify-between text-neutral-400 text-xs">
-              <span>Confirmed Orders</span>
+              <span>{t('transactions.statConfirmed')}</span>
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             </div>
             <div className="text-2xl font-black text-white">
               {confirmedCount}
             </div>
             <div className="text-[11px] text-neutral-500">
-              Verified &amp; deposited
+              {t('transactions.statConfirmedDesc')}
             </div>
           </div>
 
           {/* Card 4: Total Credits Purchased */}
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1">
             <div className="flex items-center justify-between text-neutral-400 text-xs">
-              <span>Lifetime Purchased</span>
+              <span>{t('transactions.statLifetime')}</span>
               <Shield className="h-4 w-4 text-indigo-400" />
             </div>
             <div className="text-2xl font-black text-white">
               {totalPurchasedCredits}
             </div>
             <div className="text-[11px] text-neutral-500">
-              Cumulative historical credits
+              {t('transactions.statLifetimeDesc')}
             </div>
           </div>
         </div>
@@ -383,10 +385,10 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-1.5 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-1">
             {(
               [
-                { key: 'all' as const, label: 'All', count: undefined },
-                { key: 'pending' as const, label: 'Pending', count: pendingCount },
-                { key: 'confirmed' as const, label: 'Confirmed', count: confirmedCount },
-                { key: 'failed' as const, label: 'Failed', count: undefined },
+                { key: 'all' as const, label: t('transactions.filterAll'), count: undefined },
+                { key: 'pending' as const, label: t('transactions.filterPending'), count: pendingCount },
+                { key: 'confirmed' as const, label: t('transactions.filterConfirmed'), count: confirmedCount },
+                { key: 'failed' as const, label: t('transactions.filterFailed'), count: undefined },
               ]
             ).map((tab) => {
               const isActive = filterStatus === tab.key;
@@ -420,7 +422,7 @@ export default function TransactionsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
             <input
               type="text"
-              placeholder="Search by ID, Hash, Chain..."
+              placeholder={t('transactions.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/60 pl-9 pr-3 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:border-indigo-500 focus:outline-none"
@@ -435,18 +437,18 @@ export default function TransactionsPage() {
               <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-neutral-500 mb-3">
                 <ReceiptText className="h-8 w-8" />
               </div>
-              <h3 className="text-sm font-bold text-white">No transactions found</h3>
+              <h3 className="text-sm font-bold text-white">{t('transactions.emptyTitle')}</h3>
               <p className="text-xs text-neutral-400 mt-1 max-w-sm">
                 {filterStatus !== 'all'
-                  ? `No transactions with status "${filterStatus}".`
-                  : 'You have not made any crypto credit purchases yet.'}
+                  ? t('transactions.emptyFiltered', { status: filterStatus })
+                  : t('transactions.emptyBody')}
               </p>
               <button
                 onClick={() => setIsCreditModalOpen(true)}
                 className="mt-4 flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-indigo-500 transition"
               >
                 <Coins className="h-3.5 w-3.5" />
-                <span>Buy Credits</span>
+                <span>{t('transactions.buyCredits')}</span>
               </button>
             </div>
           ) : (
@@ -454,19 +456,19 @@ export default function TransactionsPage() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-neutral-800 bg-neutral-950/60 text-neutral-400 font-semibold">
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4">Credits</th>
-                    <th className="py-3.5 px-4">Payment</th>
-                    <th className="py-3.5 px-4">Network</th>
-                    <th className="py-3.5 px-4">Tx Hash</th>
-                    <th className="py-3.5 px-4">Date</th>
-                    <th className="py-3.5 px-4 text-right">Action</th>
+                    <th className="py-3.5 px-4">{t('transactions.colStatus')}</th>
+                    <th className="py-3.5 px-4">{t('transactions.colCredits')}</th>
+                    <th className="py-3.5 px-4">{t('transactions.colPayment')}</th>
+                    <th className="py-3.5 px-4">{t('transactions.colNetwork')}</th>
+                    <th className="py-3.5 px-4">{t('transactions.colTxHash')}</th>
+                    <th className="py-3.5 px-4">{t('transactions.colDate')}</th>
+                    <th className="py-3.5 px-4 text-right">{t('transactions.colAction')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
                   {filteredTxs.map((tx) => {
                     const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.chainId);
-                    const dateStr = new Date(tx.createdAt).toLocaleString(undefined, {
+                    const dateStr = new Date(tx.createdAt).toLocaleString(locale, {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
@@ -488,7 +490,7 @@ export default function TransactionsPage() {
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-white flex items-center gap-1">
                             <span className="text-amber-400">+{tx.credits}</span>
-                            <span className="text-neutral-400 text-[11px] font-normal">credits</span>
+                            <span className="text-neutral-400 text-[11px] font-normal">{t('transactions.creditsWord')}</span>
                           </div>
                           <div className="text-[10px] text-neutral-500 font-mono">
                             ${tx.usdPrice} USD
@@ -502,7 +504,7 @@ export default function TransactionsPage() {
                             <span>{tx.cryptoAmount} {tx.cryptoToken}</span>
                           </div>
                           <div className="text-[10px] text-neutral-500 uppercase">
-                            {tx.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Direct QR'}
+                            {tx.paymentMethod === 'web3' ? t('transactions.methodWeb3') : t('transactions.methodDirect')}
                           </div>
                         </td>
 
@@ -537,14 +539,14 @@ export default function TransactionsPage() {
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="text-neutral-500 hover:text-white transition"
-                                  title="View on Block Explorer"
+                                  title={t('transactions.viewOnExplorer')}
                                 >
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
                               )}
                             </div>
                           ) : (
-                            <span className="text-neutral-500 text-[11px] italic">Not provided</span>
+                            <span className="text-neutral-500 text-[11px] italic">{t('transactions.notProvided')}</span>
                           )}
                         </td>
 
@@ -563,7 +565,7 @@ export default function TransactionsPage() {
                             }}
                             className="rounded-lg bg-neutral-800 hover:bg-neutral-700 px-2.5 py-1 text-[11px] font-semibold text-neutral-200 transition"
                           >
-                            Details
+                            {t('transactions.details')}
                           </button>
                         </td>
                       </tr>
@@ -601,32 +603,33 @@ export default function TransactionsPage() {
 }
 
 function StatusBadge({ status }: { status: TransactionStatus }) {
+  const { t } = useI18n();
   switch (status) {
     case 'pending':
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-          Pending
+          {t('transactions.statusPending')}
         </span>
       );
     case 'confirmed':
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
           <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-          Confirmed
+          {t('transactions.statusConfirmed')}
         </span>
       );
     case 'failed':
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-300">
           <XCircle className="h-3 w-3 text-red-400" />
-          Failed
+          {t('transactions.statusFailed')}
         </span>
       );
     case 'cancelled':
       return (
         <span className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-800 px-2.5 py-0.5 text-[11px] font-medium text-neutral-400">
-          Cancelled
+          {t('transactions.statusCancelled')}
         </span>
       );
   }
@@ -647,6 +650,7 @@ function TransactionDetailsModal({
   copyToClipboard,
   copiedField,
 }: DetailsModalProps) {
+  const { t, locale } = useI18n();
   const [checking, setChecking] = useState(false);
   const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.chainId);
 
@@ -669,7 +673,7 @@ function TransactionDetailsModal({
               <ChainIcon chainKey={tx.chainKey as SupportedChainKey} className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Transaction Details</h3>
+              <h3 className="text-sm font-bold text-white">{t('transactions.modalTitle')}</h3>
               <p className="text-[11px] font-mono text-neutral-400">{tx.id}</p>
             </div>
           </div>
@@ -684,7 +688,7 @@ function TransactionDetailsModal({
         {/* Status Callout */}
         <div className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-950/60 p-3.5">
           <div>
-            <span className="text-[11px] text-neutral-500 block">Current Status</span>
+            <span className="text-[11px] text-neutral-500 block">{t('transactions.currentStatus')}</span>
             <span className="text-sm font-bold text-white capitalize">{tx.status}</span>
           </div>
           <StatusBadge status={tx.status} />
@@ -694,19 +698,19 @@ function TransactionDetailsModal({
         <div className="space-y-2.5 text-xs">
           {/* Credits */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
-            <span className="text-neutral-400">Credits Credited</span>
-            <span className="font-bold text-amber-400 text-sm">+{tx.credits} Credits</span>
+            <span className="text-neutral-400">{t('transactions.creditsCredited')}</span>
+            <span className="font-bold text-amber-400 text-sm">{t('transactions.creditsValue', { count: tx.credits })}</span>
           </div>
 
           {/* USD Value */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
-            <span className="text-neutral-400">Order Value</span>
+            <span className="text-neutral-400">{t('transactions.orderValue')}</span>
             <span className="font-semibold text-white">${tx.usdPrice} USD</span>
           </div>
 
           {/* Crypto Amount */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
-            <span className="text-neutral-400">Crypto Amount</span>
+            <span className="text-neutral-400">{t('transactions.cryptoAmount')}</span>
             <span className="font-mono font-semibold text-neutral-200 flex items-center gap-1.5">
               <TokenIcon token={tx.cryptoToken} className="w-4 h-4 shrink-0" />
               <span>{tx.cryptoAmount} {tx.cryptoToken}</span>
@@ -715,7 +719,7 @@ function TransactionDetailsModal({
 
           {/* Network */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
-            <span className="text-neutral-400">Blockchain Network</span>
+            <span className="text-neutral-400">{t('transactions.blockchainNetwork')}</span>
             <span className="font-semibold text-neutral-200">
               {chainMeta ? `${chainMeta.name} (${chainMeta.badge})` : tx.chainKey}
             </span>
@@ -723,9 +727,9 @@ function TransactionDetailsModal({
 
           {/* Payment Method */}
           <div className="flex items-center justify-between py-1 border-b border-neutral-800/50">
-            <span className="text-neutral-400">Payment Channel</span>
+            <span className="text-neutral-400">{t('transactions.paymentChannel')}</span>
             <span className="text-neutral-300 uppercase font-mono text-[11px]">
-              {tx.paymentMethod === 'web3' ? 'Web3 Connected Wallet' : 'Direct Transfer (QR)'}
+              {tx.paymentMethod === 'web3' ? t('transactions.channelWeb3') : t('transactions.channelDirect')}
             </span>
           </div>
 
@@ -733,7 +737,7 @@ function TransactionDetailsModal({
           {tx.txHash && (
             <div className="py-1 border-b border-neutral-800/50">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-neutral-400">Transaction Hash</span>
+                <span className="text-neutral-400">{t('transactions.transactionHash')}</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -741,7 +745,7 @@ function TransactionDetailsModal({
                     className="text-neutral-400 hover:text-white flex items-center gap-1 text-[10px]"
                   >
                     {copiedField === 'txHash' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                    <span>Copy</span>
+                    <span>{t('transactions.copy')}</span>
                   </button>
                   {chainMeta?.explorerUrl && (
                     <a
@@ -751,7 +755,7 @@ function TransactionDetailsModal({
                       className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-[10px]"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      <span>Explorer</span>
+                      <span>{t('transactions.explorer')}</span>
                     </a>
                   )}
                 </div>
@@ -764,17 +768,17 @@ function TransactionDetailsModal({
 
           {/* Timestamps */}
           <div className="flex items-center justify-between py-1">
-            <span className="text-neutral-400">Created At</span>
+            <span className="text-neutral-400">{t('transactions.createdAt')}</span>
             <span suppressHydrationWarning className="text-neutral-300">
-              {new Date(tx.createdAt).toLocaleString()}
+              {new Date(tx.createdAt).toLocaleString(locale)}
             </span>
           </div>
 
           {tx.confirmedAt && (
             <div className="flex items-center justify-between py-1">
-              <span className="text-neutral-400">Confirmed At</span>
+              <span className="text-neutral-400">{t('transactions.confirmedAt')}</span>
               <span suppressHydrationWarning className="text-emerald-400 font-semibold">
-                {new Date(tx.confirmedAt).toLocaleString()}
+                {new Date(tx.confirmedAt).toLocaleString(locale)}
               </span>
             </div>
           )}
@@ -789,7 +793,7 @@ function TransactionDetailsModal({
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-            <span>{checking ? 'Checking Status...' : 'Check Status / Refresh Now'}</span>
+            <span>{checking ? t('transactions.checkingStatus') : t('transactions.checkStatus')}</span>
           </button>
         )}
 
@@ -799,7 +803,7 @@ function TransactionDetailsModal({
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900/60 py-2.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:text-white transition"
         >
           <LifeBuoy className="h-4 w-4 text-indigo-400" />
-          <span>Need Help with this Transaction?</span>
+          <span>{t('transactions.needHelp')}</span>
         </Link>
       </div>
     </div>

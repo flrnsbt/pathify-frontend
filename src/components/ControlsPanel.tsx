@@ -20,6 +20,7 @@ import {
   PRESET_OPTIONS,
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
+import { useI18n } from '../lib/i18n';
 
 interface ControlsPanelProps {
   options: VTracerOptions;
@@ -50,6 +51,7 @@ export function ControlsPanel({
   generationsMax,
   locked = false,
 }: ControlsPanelProps) {
+  const { t } = useI18n();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const setOption = <K extends keyof VTracerOptions>(key: K, value: VTracerOptions[K]) => {
@@ -80,23 +82,22 @@ export function ControlsPanel({
       <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
         <div className="flex items-center gap-2">
           <Sliders className="h-5 w-5 text-indigo-400" />
-          <h2 className="font-semibold text-white text-base">Trace Parameters</h2>
+          <h2 className="font-semibold text-white text-base">{t('controls.title')}</h2>
         </div>
         <button
           type="button"
           onClick={resetDefaults}
-          title="Reset to defaults"
+          title={t('controls.resetTitle')}
           className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white transition"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          <span>Reset</span>
+          <span>{t('controls.reset')}</span>
         </button>
       </div>
 
       {locked && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-300">
-          Source image not available in this browser — parameters are locked.
-          Upload the original file to re-trace.
+          {t('controls.lockedNotice')}
         </div>
       )}
 
@@ -105,10 +106,10 @@ export function ControlsPanel({
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span className="font-medium text-neutral-300 flex items-center gap-1.5">
             <Cpu className="h-3.5 w-3.5 text-indigo-400" />
-            Tracer Engine Version
+            {t('controls.engineVersion')}
           </span>
           <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-            v2.0.10 Default
+            {t('controls.engineBadge')}
           </span>
         </div>
         <select
@@ -122,10 +123,10 @@ export function ControlsPanel({
           className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-indigo-500 focus:outline-none cursor-pointer"
         >
           <option value="vtracer-2.0.10">
-            VTracer 2.0.10 (Default: Next-Gen Vector Engine)
+            {t('controls.engineV2')}
           </option>
           <option value="vtracer-0.2.0">
-            VTracer 0.2.0 (Classic Legacy Engine)
+            {t('controls.engineV1')}
           </option>
         </select>
       </div>
@@ -134,29 +135,29 @@ export function ControlsPanel({
       <div>
         <label className="text-xs font-medium text-neutral-400 mb-2 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-          Optimized Presets
+          {t('controls.presets')}
         </label>
         <div className="grid grid-cols-5 gap-1.5">
           {(['photo', 'gradient', 'pixel-art', 'line-art', 'logo'] as const).map((preset) => {
             const isSelected = options.preset === preset;
-            const labels: Record<string, string> = {
-              photo: 'Photo',
-              gradient: 'Gradient',
-              'pixel-art': 'Pixel',
-              'line-art': 'Line Art',
-              logo: 'Logo',
-            };
+            const presetKeys = {
+              photo: 'controls.presetPhoto',
+              gradient: 'controls.presetGradient',
+              'pixel-art': 'controls.presetPixel',
+              'line-art': 'controls.presetLineArt',
+              logo: 'controls.presetLogo',
+            } as const;
             return (
               <button
                 key={preset}
                 type="button"
                 onClick={() => handleSelectPreset(preset)}
-                className={`rounded-lg py-1.5 text-xs font-medium capitalize transition border ${isSelected
+                className={`rounded-lg py-1.5 text-xs font-medium border transition ${isSelected
                   ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
                   : 'border-neutral-800 bg-neutral-800/40 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
                   }`}
               >
-                {labels[preset]}
+                {t(presetKeys[preset])}
               </button>
             );
           })}
@@ -170,10 +171,10 @@ export function ControlsPanel({
         <div>
           <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
             <FileCheck className="h-3.5 w-3.5 text-emerald-400" />
-            Optimize SVG Output
+            {t('controls.optimizeSvg')}
           </span>
           <p className="text-[11px] text-neutral-500">
-            Rounds decimals, merges duplicate paths &amp; reduces SVG size
+            {t('controls.optimizeSvgDesc')}
           </p>
         </div>
         <input
@@ -190,10 +191,10 @@ export function ControlsPanel({
           <div>
             <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-              AI Enhance (4x Upscale)
+              {t('controls.aiEnhance')}
             </span>
             <p className="text-[11px] text-neutral-500">
-              Real-ESRGAN denoise &amp; upscale before tracing — slower, better on degraded sources
+              {t('controls.aiEnhanceDesc')}
             </p>
           </div>
           <input
@@ -206,9 +207,9 @@ export function ControlsPanel({
         {options.aiEnhance && (
           <div className="grid grid-cols-3 gap-1.5">
             {([
-              ['anime', 'Anime / Line Art'],
-              ['general', 'Photo'],
-              ['general-wdn', 'Heavy Denoise'],
+              ['anime', t('controls.modelAnime')],
+              ['general', t('controls.modelGeneral')],
+              ['general-wdn', t('controls.modelGeneralWdn')],
             ] as const).map(([id, label]) => (
               <button
                 key={id}
@@ -233,10 +234,10 @@ export function ControlsPanel({
           <div>
             <span className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
               <Crop className="h-3.5 w-3.5 text-indigo-400" />
-              Crop to Content (Auto-Trim)
+              {t('controls.cropToContent')}
             </span>
             <p className="text-[11px] text-neutral-500">
-              Trims blank transparent or solid background margins
+              {t('controls.cropDesc')}
             </p>
           </div>
           <input
@@ -253,8 +254,8 @@ export function ControlsPanel({
         {/* Background Parameter: Solid vs Transparent */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-neutral-300">Background Mode</span>
-            <span className="text-neutral-500 capitalize">{options.backgroundMode || 'solid'}</span>
+            <span className="font-medium text-neutral-300">{t('controls.backgroundMode')}</span>
+            <span className="text-neutral-500">{options.backgroundMode === 'transparent' ? t('controls.bgTransparentValue') : t('controls.bgSolidValue')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -265,7 +266,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Solid Background
+              {t('controls.bgSolid')}
             </button>
             <button
               type="button"
@@ -275,7 +276,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Transparent (Cutout)
+              {t('controls.bgTransparent')}
             </button>
           </div>
         </div>
@@ -283,8 +284,8 @@ export function ControlsPanel({
         {/* Color vs Binary */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-neutral-300">Color Mode</span>
-            <span className="text-neutral-500 capitalize">{options.colorMode}</span>
+            <span className="font-medium text-neutral-300">{t('controls.colorMode')}</span>
+            <span className="text-neutral-500">{options.colorMode === 'binary' ? t('controls.colorBinary') : t('controls.colorFull')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -295,7 +296,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Full Color
+              {t('controls.colorFull')}
             </button>
             <button
               type="button"
@@ -305,7 +306,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Binary (Monochrome / Line)
+              {t('controls.colorBinary')}
             </button>
           </div>
         </div>
@@ -313,8 +314,8 @@ export function ControlsPanel({
         {/* Hierarchical: Stacked vs Cutout */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-neutral-300">Layer Hierarchy</span>
-            <span className="text-neutral-500 capitalize">{options.hierarchical}</span>
+            <span className="font-medium text-neutral-300">{t('controls.layerHierarchy')}</span>
+            <span className="text-neutral-500">{options.hierarchical === 'cutout' ? t('controls.hierCutout') : t('controls.hierStacked')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -325,7 +326,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Stacked (Rich Overlap)
+              {t('controls.hierStacked')}
             </button>
             <button
               type="button"
@@ -335,7 +336,7 @@ export function ControlsPanel({
                 : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                 }`}
             >
-              Cutout (Holes / Transparent)
+              {t('controls.hierCutout')}
             </button>
           </div>
         </div>
@@ -343,8 +344,8 @@ export function ControlsPanel({
         {/* Path Simplification Mode */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-neutral-300">Curve Fitting Mode</span>
-            <span className="text-neutral-500 capitalize">{options.mode}</span>
+            <span className="font-medium text-neutral-300">{t('controls.curveMode')}</span>
+            <span className="text-neutral-500">{options.mode === 'spline' ? t('controls.modeSpline') : options.mode === 'polygon' ? t('controls.modePolygon') : t('controls.modeRaw')}</span>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
             {(['spline', 'polygon', 'none'] as const).map((m) => (
@@ -357,7 +358,7 @@ export function ControlsPanel({
                   : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
                   }`}
               >
-                {m === 'spline' ? 'Spline Curves' : m === 'polygon' ? 'Polygons' : 'Raw Edges'}
+                {m === 'spline' ? t('controls.modeSpline') : m === 'polygon' ? t('controls.modePolygon') : t('controls.modeRaw')}
               </button>
             ))}
           </div>
@@ -369,8 +370,8 @@ export function ControlsPanel({
         {/* Color Palette Richness */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-neutral-300">Palette Richness (Color Count)</span>
-            <span className="font-mono text-indigo-400">{options.maxColors || 128} Colors</span>
+            <span className="font-medium text-neutral-300">{t('controls.paletteRichness')}</span>
+            <span className="font-mono text-indigo-400">{t('controls.colors', { count: options.maxColors || 128 })}</span>
           </div>
           <input
             type="range"
@@ -393,15 +394,15 @@ export function ControlsPanel({
             className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
           />
           <p className="mt-1 text-[11px] text-neutral-500">
-            Higher values keep nuanced color shades and gradients; lower values produce flat shapes.
+            {t('controls.paletteDesc')}
           </p>
         </div>
 
         {/* Filter Speckle */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-neutral-300">Filter Speckle (Denoise)</span>
-            <span className="font-mono text-indigo-400">{options.filterSpeckle} px</span>
+            <span className="font-medium text-neutral-300">{t('controls.filterSpeckle')}</span>
+            <span className="font-mono text-indigo-400">{t('controls.speckleUnit', { count: options.filterSpeckle })}</span>
           </div>
           <input
             type="range"
@@ -413,14 +414,14 @@ export function ControlsPanel({
             className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
           />
           <p className="mt-1 text-[11px] text-neutral-500">
-            Removes isolated pixel noise smaller than this area. Set to 0-1 for fine line art.
+            {t('controls.speckleDesc')}
           </p>
         </div>
 
         {/* Layer Difference */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-neutral-300">Layer Contour Step</span>
+            <span className="font-medium text-neutral-300">{t('controls.layerStep')}</span>
             <span className="font-mono text-indigo-400">{options.layerDifference}</span>
           </div>
           <input
@@ -433,7 +434,7 @@ export function ControlsPanel({
             className="w-full accent-indigo-500 h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
           />
           <p className="mt-1 text-[11px] text-neutral-500">
-            Color distance to separate layers. Lower values (2-6) produce smooth gradient contours.
+            {t('controls.layerStepDesc')}
           </p>
         </div>
       </div>
@@ -447,7 +448,7 @@ export function ControlsPanel({
         >
           <span className="flex items-center gap-1.5">
             <Settings2 className="h-3.5 w-3.5" />
-            Advanced Curve &amp; Path Fine-Tuning
+            {t('controls.advanced')}
           </span>
           {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
@@ -457,8 +458,8 @@ export function ControlsPanel({
             {/* Color Precision (Bits) */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-300">Color Quantization Precision</span>
-                <span className="font-mono text-indigo-400">{options.colorPrecision} bits</span>
+                <span className="text-neutral-300">{t('controls.colorPrecision')}</span>
+                <span className="font-mono text-indigo-400">{t('controls.bits', { count: options.colorPrecision })}</span>
               </div>
               <input
                 type="range"
@@ -474,7 +475,7 @@ export function ControlsPanel({
             {/* Corner Threshold */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-300">Corner Angle Threshold</span>
+                <span className="text-neutral-300">{t('controls.cornerThreshold')}</span>
                 <span className="font-mono text-indigo-400">{options.cornerThreshold}°</span>
               </div>
               <input
@@ -491,7 +492,7 @@ export function ControlsPanel({
             {/* Segment Length */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-300">Segment Length Threshold</span>
+                <span className="text-neutral-300">{t('controls.segmentLength')}</span>
                 <span className="font-mono text-indigo-400">{options.lengthThreshold}</span>
               </div>
               <input
@@ -508,7 +509,7 @@ export function ControlsPanel({
             {/* Max Iterations */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-300">Max Curve Fitting Iterations</span>
+                <span className="text-neutral-300">{t('controls.maxIterations')}</span>
                 <span className="font-mono text-indigo-400">{options.maxIterations}</span>
               </div>
               <input
@@ -525,8 +526,8 @@ export function ControlsPanel({
             {/* Path Decimal Precision */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-300">SVG Coordinate Precision</span>
-                <span className="font-mono text-indigo-400">{options.pathPrecision} decimals</span>
+                <span className="text-neutral-300">{t('controls.svgPrecision')}</span>
+                <span className="font-mono text-indigo-400">{t('controls.decimals', { count: options.pathPrecision })}</span>
               </div>
               <input
                 type="range"
@@ -556,7 +557,7 @@ export function ControlsPanel({
             >
               <span className="flex items-center gap-1.5">
                 <Zap className="h-3.5 w-3.5" />
-                Generations left
+                {t('controls.generationsLeft')}
               </span>
               <span className="font-bold">
                 {generationsRemaining}/{generationsMax ?? generationsRemaining}
@@ -566,7 +567,7 @@ export function ControlsPanel({
         <div className="flex items-center justify-between rounded-lg bg-neutral-800/30 px-3 py-2 border border-neutral-800">
           <label className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
             <Zap className="h-3.5 w-3.5 text-amber-400" />
-            <span>Auto-trace on change</span>
+            <span>{t('controls.autoTrace')}</span>
           </label>
           <input
             type="checkbox"
@@ -590,12 +591,12 @@ export function ControlsPanel({
           {isProcessing ? (
             <>
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              <span>{statusText || 'Vectorizing...'}</span>
+              <span>{statusText || t('controls.vectorizing')}</span>
             </>
           ) : (
             <>
               <Play className="h-4 w-4 fill-white" />
-              <span>Vectorize Image</span>
+              <span>{t('controls.vectorize')}</span>
             </>
           )}
         </button>

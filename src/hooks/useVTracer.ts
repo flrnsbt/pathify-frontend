@@ -8,6 +8,7 @@ import {
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
 import { initVTracer, convertImage, countSvgNodes } from '../lib/vtracer';
+import { useI18n } from '../lib/i18n';
 
 export type VTracerStatus = 'idle' | 'initializing' | 'vectorizing' | 'completed' | 'error';
 
@@ -23,10 +24,11 @@ export interface VTracerState {
 }
 
 export function useVTracer() {
+  const { t } = useI18n();
   const [state, setState] = useState<VTracerState>({
     isProcessing: false,
     status: 'idle',
-    statusText: 'Ready',
+    statusText: t('status.ready'),
     progress: 0,
     svg: null,
     nodeCount: 0,
@@ -59,7 +61,7 @@ export function useVTracer() {
             ...prev,
             isProcessing: false,
             status: 'completed',
-            statusText: `Vectorized in ${response.executionTimeMs}ms (${response.nodeCount} paths)`,
+            statusText: t('status.vectorized', { ms: response.executionTimeMs, count: response.nodeCount }),
             progress: 100,
             svg: response.svg,
             nodeCount: response.nodeCount,
@@ -72,7 +74,7 @@ export function useVTracer() {
             ...prev,
             isProcessing: false,
             status: 'error',
-            statusText: 'Vectorization failed',
+            statusText: t('status.failed'),
             progress: 0,
             error: response.error,
           }));
@@ -99,21 +101,21 @@ export function useVTracer() {
       }
       resolvers.clear();
     };
-  }, []);
+  }, [t]);
 
   const reset = useCallback(() => {
     activeTaskId.current = null;
     setState({
       isProcessing: false,
       status: 'idle',
-      statusText: 'Ready',
+      statusText: t('status.ready'),
       progress: 0,
       svg: null,
       nodeCount: 0,
       executionTimeMs: 0,
       error: null,
     });
-  }, []);
+  }, [t]);
 
   const runMainThreadFallback = useCallback(
     async (
@@ -127,7 +129,7 @@ export function useVTracer() {
       try {
         setState((prev) => ({
           ...prev,
-          statusText: 'Initializing WASM...',
+          statusText: t('status.initializingWasm'),
           progress: 45,
         }));
         const engine = options.engineVersion || 'vtracer-2.0.10';
@@ -136,7 +138,7 @@ export function useVTracer() {
 
         setState((prev) => ({
           ...prev,
-          statusText: 'Tracing paths...',
+          statusText: t('status.tracingPaths'),
           progress: 75,
         }));
 
@@ -150,7 +152,7 @@ export function useVTracer() {
           setState({
             isProcessing: false,
             status: 'completed',
-            statusText: `Vectorized in ${executionTimeMs}ms (${nodeCount} paths)`,
+            statusText: t('status.vectorized', { ms: executionTimeMs, count: nodeCount }),
             progress: 100,
             svg,
             nodeCount,
@@ -167,7 +169,7 @@ export function useVTracer() {
             ...prev,
             isProcessing: false,
             status: 'error',
-            statusText: 'Vectorization failed',
+            statusText: t('status.failed'),
             progress: 0,
             error: errorMessage,
           }));
@@ -175,7 +177,7 @@ export function useVTracer() {
         throw err;
       }
     },
-    []
+    [t]
   );
 
   const vectorize = useCallback(
@@ -195,7 +197,7 @@ export function useVTracer() {
         ...prev,
         isProcessing: true,
         status: 'vectorizing',
-        statusText: 'Vectorizing image...',
+        statusText: t('status.vectorizingImage'),
         progress: 30,
         error: null,
       }));
@@ -232,7 +234,7 @@ export function useVTracer() {
       // Fallback path: In-thread WASM execution
       return runMainThreadFallback(taskId, pixels, width, height, mergedOptions);
     },
-    [runMainThreadFallback]
+    [runMainThreadFallback, t]
   );
 
   /** Loads a previously generated SVG into state without re-vectorizing (e.g. history restore). */
@@ -241,14 +243,14 @@ export function useVTracer() {
       ...prev,
       isProcessing: false,
       status: 'completed',
-      statusText: 'Loaded from history',
+      statusText: t('status.loadedFromHistory'),
       progress: 100,
       svg: svgStr,
       nodeCount: nodes ?? (svgStr.match(/<path/g) || []).length,
       executionTimeMs: execMs ?? 0,
       error: null,
     }));
-  }, []);
+  }, [t]);
 
   return {
     ...state,

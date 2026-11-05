@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ShieldCheck, HeartHandshake, FileText, Lock, ReceiptText, Sparkles } from 'lucide-react';
 import { APP_CONFIG } from '@/config/app.config';
+import { useI18n } from '../lib/i18n';
 
 function XLogo({ className }: { className?: string }) {
   return (
@@ -39,6 +40,7 @@ const SOCIAL_ICONS: Record<
 };
 
 export function Footer() {
+  const { t } = useI18n();
   return (
     <footer className="w-full border-t border-neutral-850 bg-neutral-950/80 backdrop-blur-md mt-auto text-neutral-400">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -57,19 +59,18 @@ export function Footer() {
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-relaxed max-w-md">
-              High-performance raster to vector graphics (SVG) conversion studio.
-              Uploaded data and vector assets are temporarily saved solely for user convenience, are never used for any external purposes, and remain strictly private and confidential.
+              {t('footer.description')}
             </p>
             <div className="flex items-center gap-2 pt-1 text-[11px] text-emerald-400 font-medium">
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Strict Privacy & Confidentiality &bull; Never Used for Other Purposes</span>
+              <span>{t('footer.privacyBadge')}</span>
             </div>
           </div>
 
           {/* Quick Links */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-200">
-              Navigation
+              {t('footer.navigation')}
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
@@ -78,7 +79,7 @@ export function Footer() {
                   className="flex items-center gap-1.5 hover:text-white transition"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-neutral-500" />
-                  <span>Vectorizer Studio</span>
+                  <span>{t('footer.vectorizerStudio')}</span>
                 </Link>
               </li>
               <li>
@@ -87,7 +88,7 @@ export function Footer() {
                   className="flex items-center gap-1.5 hover:text-white transition"
                 >
                   <ReceiptText className="h-3.5 w-3.5 text-neutral-500" />
-                  <span>Crypto Transactions</span>
+                  <span>{t('footer.cryptoTransactions')}</span>
                 </Link>
               </li>
               <li>
@@ -96,7 +97,7 @@ export function Footer() {
                   className="flex items-center gap-1.5 hover:text-white transition"
                 >
                   <HeartHandshake className="h-3.5 w-3.5 text-neutral-500" />
-                  <span>Contact & Support</span>
+                  <span>{t('footer.contactSupport')}</span>
                 </Link>
               </li>
             </ul>
@@ -105,7 +106,7 @@ export function Footer() {
           {/* Legal & Policy */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-200">
-              Legal & Safety
+              {t('footer.legalSafety')}
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
@@ -114,7 +115,7 @@ export function Footer() {
                   className="flex items-center gap-1.5 hover:text-white transition"
                 >
                   <Lock className="h-3.5 w-3.5 text-neutral-500" />
-                  <span>Privacy Policy</span>
+                  <span>{t('footer.privacyPolicy')}</span>
                 </Link>
               </li>
               <li>
@@ -123,7 +124,7 @@ export function Footer() {
                   className="flex items-center gap-1.5 hover:text-white transition"
                 >
                   <FileText className="h-3.5 w-3.5 text-neutral-500" />
-                  <span>Conditions of Use</span>
+                  <span>{t('footer.conditionsOfUse')}</span>
                 </Link>
               </li>
               <li>
@@ -131,7 +132,7 @@ export function Footer() {
                   href="/support?category=crypto_transaction"
                   className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 transition"
                 >
-                  <span>Transaction Assistance</span>
+                  <span>{t('footer.transactionAssistance')}</span>
                 </Link>
               </li>
             </ul>
@@ -141,7 +142,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-neutral-850/80 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-neutral-400">
           <div>
-            &copy; {new Date().getFullYear()} vectorizerr. All rights reserved.
+            {t('footer.allRightsReserved', { year: new Date().getFullYear() })}
           </div>
           <div className="flex items-center gap-4">
             {(Object.keys(SOCIAL_ICONS) as (keyof typeof APP_CONFIG.socials)[])
@@ -162,15 +163,15 @@ export function Footer() {
                 );
               })}
             <Link href="/privacy" className="hover:text-neutral-300 transition">
-              Privacy
+              {t('footer.privacy')}
             </Link>
             <span className="text-neutral-800">•</span>
             <Link href="/terms" className="hover:text-neutral-300 transition">
-              Terms & Conditions
+              {t('footer.termsConditions')}
             </Link>
             <span className="text-neutral-800">•</span>
             <Link href="/support" className="hover:text-neutral-300 transition">
-              Support Portal
+              {t('footer.supportPortal')}
             </Link>
           </div>
         </div>

@@ -23,6 +23,7 @@ import {
   getImageUnlockStatus,
 } from '../lib/firebase/firestore';
 import { fetchLocalGenerations } from '../lib/local-history';
+import { useI18n } from '../lib/i18n';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ export function HistoryDrawer({
   isAdmin,
   profile,
 }: HistoryDrawerProps) {
+  const { t, locale } = useI18n();
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [confirmingClear, setConfirmingClear] = React.useState(false);
   const [isClearing, setIsClearing] = React.useState(false);
@@ -218,22 +220,22 @@ export function HistoryDrawer({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-medium text-neutral-300 truncate group-hover:text-indigo-400 transition">
-              {new Date(gen.createdAt).toLocaleString()}
+              {new Date(gen.createdAt).toLocaleString(locale)}
             </span>
             {gen.localOnly && (
               <span
                 className="flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-medium text-amber-300"
-                title="Stored only in this browser — too large for cloud history"
+                title={t('history.localOnlyTitle')}
               >
                 <CloudOff className="h-2.5 w-2.5 shrink-0" />
-                Local only
+                {t('history.localOnly')}
               </span>
             )}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
-            <span>{gen.nodeCount} paths</span>
+            <span>{t('history.paths', { count: gen.nodeCount })}</span>
             <span>•</span>
-            <span>{gen.executionTimeMs} ms</span>
+            <span>{t('history.ms', { count: gen.executionTimeMs })}</span>
             {showQuota && (
               <>
                 <span>•</span>
@@ -244,7 +246,10 @@ export function HistoryDrawer({
                       : 'text-emerald-400'
                   }
                 >
-                  {quota.generationsRemaining}/{quota.maxGenerations} gens left
+                  {t('history.gensLeft', {
+                    remaining: quota.generationsRemaining,
+                    max: quota.maxGenerations,
+                  })}
                 </span>
               </>
             )}
@@ -256,7 +261,7 @@ export function HistoryDrawer({
             type="button"
             onClick={(e) => handleCopy(e, gen)}
             className="rounded-md p-1.5 text-neutral-500 hover:text-white hover:bg-neutral-800 transition"
-            title={copiedId === gen.id ? 'Copied' : 'Copy SVG'}
+            title={copiedId === gen.id ? t('common.copied') : t('history.copySvg')}
           >
             {copiedId === gen.id ? (
               <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -268,7 +273,7 @@ export function HistoryDrawer({
             type="button"
             onClick={(e) => handleDownload(e, gen)}
             className="rounded-md p-1.5 text-neutral-500 hover:text-white hover:bg-neutral-800 transition"
-            title="Download SVG"
+            title={t('history.downloadSvg')}
           >
             <Download className="h-3.5 w-3.5" />
           </button>
@@ -276,12 +281,12 @@ export function HistoryDrawer({
             type="button"
             onClick={(e) => handleDeleteGeneration(e, entry, gen)}
             className="rounded-md p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition"
-            title="Delete generation"
+            title={t('history.deleteGeneration')}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           <span className="flex items-center gap-0.5 pl-1 text-[11px] text-indigo-400 font-medium group-hover:translate-x-0.5 transition">
-            Load <ArrowUpRight className="h-3 w-3" />
+            {t('history.load')} <ArrowUpRight className="h-3 w-3" />
           </span>
         </div>
       </div>
@@ -295,7 +300,7 @@ export function HistoryDrawer({
         <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-base font-semibold text-white">Traced History</h2>
+            <h2 className="text-base font-semibold text-white">{t('history.title')}</h2>
             <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
               {totalCount}
             </span>
@@ -313,7 +318,11 @@ export function HistoryDrawer({
                 }`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {isClearing ? 'Clearing…' : confirmingClear ? 'Confirm clear all?' : 'Clear all'}
+                {isClearing
+                  ? t('history.clearing')
+                  : confirmingClear
+                    ? t('history.confirmClearAll')
+                    : t('history.clearAll')}
               </button>
             )}
             <button
@@ -335,9 +344,9 @@ export function HistoryDrawer({
                 alt="vectorizerr"
                 className="h-12 w-12 mb-3 opacity-30 grayscale"
               />
-              <p className="text-sm font-medium">No history items yet</p>
+              <p className="text-sm font-medium">{t('history.emptyTitle')}</p>
               <p className="text-xs text-neutral-600 mt-1">
-                Validated SVG exports are saved to your history.
+                {t('history.emptySubtitle')}
               </p>
             </div>
           ) : (
@@ -362,12 +371,14 @@ export function HistoryDrawer({
                         </h3>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
                           <span>
-                            {new Date(entry.updatedAt || entry.createdAt).toLocaleDateString()}
+                            {new Date(entry.updatedAt || entry.createdAt).toLocaleDateString(locale)}
                           </span>
                           {gens && gens.length > 0 && (
                             <>
                               <span>•</span>
-                              <span>{gens.length} generation{gens.length === 1 ? '' : 's'}</span>
+                              <span>
+                                {t('history.generations', { count: gens.length })}
+                              </span>
                             </>
                           )}
                         </div>
@@ -390,7 +401,7 @@ export function HistoryDrawer({
                           gens.map((gen) => renderGeneration(entry, gen))
                         ) : (
                           <p className="py-4 text-center text-xs text-neutral-500">
-                            No generations found for this image.
+                            {t('history.noGenerations')}
                           </p>
                         )}
                       </div>
@@ -405,10 +416,10 @@ export function HistoryDrawer({
                           onDeleteEntry(entry);
                         }}
                         className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-red-400 transition"
-                        title="Delete this image and all its generations"
+                        title={t('history.deleteImageTitle')}
                       >
                         <Trash2 className="h-3 w-3" />
-                        <span>Delete image</span>
+                        <span>{t('history.deleteImage')}</span>
                       </button>
                     </div>
                   </div>
@@ -425,10 +436,10 @@ export function HistoryDrawer({
                   {isLoadingMore ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Loading…
+                      {t('history.loading')}
                     </span>
                   ) : (
-                    'Load more'
+                    t('common.loadMore')
                   )}
                 </button>
               )}

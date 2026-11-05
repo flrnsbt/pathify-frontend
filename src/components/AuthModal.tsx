@@ -13,6 +13,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
+import { useI18n } from '../lib/i18n';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
   const { user, profile, isConfigured, loginWithGoogle, loginWithGithub, logout, refreshProfile } = useAuth();
+  const { t } = useI18n();
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'github' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +63,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
         {/* Close Button */}
         <button
           onClick={onClose}
-          aria-label="Close dialog"
+          aria-label={t('modals.auth.closeDialog')}
           className="absolute right-4 top-4 rounded-xl p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
         >
           <X className="h-5 w-5" />
@@ -82,7 +84,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
             vectorizerr
           </h2>
           <p className="mt-1 text-xs text-neutral-400 max-w-xs">
-            High-fidelity raster to vector graphics studio
+            {t('modals.auth.tagline')}
           </p>
         </div>
 
@@ -115,16 +117,16 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-white truncate">
-                      {user.displayName || 'Account'}
+                      {user.displayName || t('modals.auth.account')}
                     </span>
                     {isAdmin && (
                       <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
-                        Admin
+                        {t('modals.auth.admin')}
                       </span>
                     )}
                     {!isAdmin && isSubscribed && (
                       <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-400 border border-purple-500/20">
-                        Active Pro
+                        {t('modals.auth.activePro')}
                       </span>
                     )}
                   </div>
@@ -136,26 +138,26 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-neutral-800/80">
                 <div className="rounded-xl bg-neutral-900/60 p-2.5 border border-neutral-800">
                   <span className="text-[11px] text-neutral-400 flex items-center gap-1">
-                    <Coins className="h-3 w-3 text-amber-400" /> Available Credits
+                    <Coins className="h-3 w-3 text-amber-400" /> {t('modals.auth.availableCredits')}
                   </span>
                   <div className="text-base font-bold text-white mt-0.5">
-                    {credits} <span className="text-xs font-normal text-neutral-400">credits</span>
+                    {credits} <span className="text-xs font-normal text-neutral-400">{t('modals.auth.credits')}</span>
                   </div>
                 </div>
 
                 <div className="rounded-xl bg-neutral-900/60 p-2.5 border border-neutral-800">
                   <span className="text-[11px] text-neutral-400 flex items-center gap-1">
-                    <Shield className="h-3 w-3 text-indigo-400" /> Account Tier
+                    <Shield className="h-3 w-3 text-indigo-400" /> {t('modals.auth.accountTier')}
                   </span>
                   <div className="text-base font-bold text-white mt-0.5 capitalize">
-                    {isAdmin ? 'Admin' : isSubscribed ? 'Pro' : 'Pay as you go'}
+                    {isAdmin ? t('modals.auth.tierAdmin') : isSubscribed ? t('modals.auth.tierPro') : t('modals.auth.tierPayg')}
                   </div>
                 </div>
               </div>
 
               {profile?.walletAddress && (
                 <div className="rounded-xl bg-neutral-900/40 p-2 border border-neutral-800/60 text-[11px] font-mono text-neutral-400 truncate">
-                  <span className="text-neutral-500">Linked Wallet:</span> {profile.walletAddress}
+                  <span className="text-neutral-500">{t('modals.auth.linkedWallet')}</span> {profile.walletAddress}
                 </div>
               )}
             </div>
@@ -172,7 +174,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-indigo-400" />
-                  <span>Get Crypto Credits via WalletConnect</span>
+                  <span>{t('modals.auth.getCredits')}</span>
                 </div>
                 <ChevronRight className="h-4 w-4 text-indigo-400" />
               </button>
@@ -187,7 +189,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-800 bg-neutral-800/60 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-800 hover:text-white transition"
             >
               <LogOut className="h-4 w-4" />
-              <span>Sign Out</span>
+              <span>{t('modals.auth.signOut')}</span>
             </button>
           </div>
         ) : (
@@ -198,19 +200,19 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
               <div className="flex items-start gap-2.5 text-xs text-neutral-300">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
                 <span>
-                  <strong>Infinite vector fidelity:</strong> Convert raster artwork into crisp, lossless SVG Bezier curves.
+                  <strong>{t('modals.auth.valueFidelityStrong')}</strong>{t('modals.auth.valueFidelityRest')}
                 </span>
               </div>
               <div className="flex items-start gap-2.5 text-xs text-neutral-300">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
                 <span>
-                  <strong>Cloud history sync:</strong> Seamlessly preserve your vector outputs and custom presets across devices.
+                  <strong>{t('modals.auth.valueHistoryStrong')}</strong>{t('modals.auth.valueHistoryRest')}
                 </span>
               </div>
               <div className="flex items-start gap-2.5 text-xs text-neutral-300">
                 <Lock className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
                 <span>
-                  <strong>100% Client-side privacy:</strong> Raster processing executes entirely in your local browser sandbox.
+                  <strong>{t('modals.auth.valuePrivacyStrong')}</strong>{t('modals.auth.valuePrivacyRest')}
                 </span>
               </div>
             </div>
@@ -244,7 +246,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                   />
                 </svg>
               )}
-              <span>{loadingProvider === 'google' ? 'Connecting with Google...' : 'Continue with Google'}</span>
+              <span>{loadingProvider === 'google' ? t('modals.auth.connectingGoogle') : t('modals.auth.continueGoogle')}</span>
             </button>
 
             {/* GitHub Sign In Button */}
@@ -261,17 +263,17 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                 </svg>
               )}
-              <span>{loadingProvider === 'github' ? 'Connecting with GitHub...' : 'Continue with GitHub'}</span>
+              <span>{loadingProvider === 'github' ? t('modals.auth.connectingGithub') : t('modals.auth.continueGithub')}</span>
             </button>
 
             {/* Note */}
             <p className="text-center text-[11px] text-neutral-500 leading-normal">
               {!isConfigured && (
                 <span className="text-amber-400 block mb-1">
-                  Local demo mode active: Google Sign-in creates an instant local session.
+                  {t('modals.auth.demoMode')}
                 </span>
               )}
-              By continuing, you agree to our <a href="/terms" className="underline hover:text-indigo-400">Terms of Service</a> and <a href="/privacy" className="underline hover:text-indigo-400">Privacy Policy</a>.
+              {t('modals.auth.agreePrefix')} <a href="/terms" className="underline hover:text-indigo-400">{t('modals.auth.terms')}</a> {t('modals.auth.and')} <a href="/privacy" className="underline hover:text-indigo-400">{t('modals.auth.privacy')}</a>.
             </p>
           </div>
         )}

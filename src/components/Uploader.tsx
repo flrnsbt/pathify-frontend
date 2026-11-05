@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { UploadCloud, Sparkles, AlertCircle, FileCheck } from 'lucide-react';
 import { computeImageHash } from '../lib/vtracer/compression';
+import { useI18n } from '../lib/i18n';
 
 export interface LoadedImageInfo {
   fileName: string;
@@ -20,6 +21,7 @@ interface UploaderProps {
 }
 
 export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
+  const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +30,7 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
     (file: File) => {
       setError(null);
       if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-        setError('Please upload a valid PNG, JPG, or WEBP image.');
+        setError(t('uploader.invalidType'));
         return;
       }
 
@@ -45,7 +47,7 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
             canvas.height = height;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (!ctx) {
-              setError('Failed to create canvas 2D rendering context');
+              setError(t('uploader.canvasError'));
               return;
             }
             ctx.clearRect(0, 0, width, height);
@@ -69,20 +71,20 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
             });
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
-            setError(`Error processing image pixels: ${msg}`);
+            setError(t('uploader.pixelError', { msg }));
           }
         };
         img.onerror = () => {
-          setError('Failed to load image file into browser image element');
+          setError(t('uploader.loadError'));
         };
         img.src = dataUrl;
       };
       reader.onerror = () => {
-        setError('Failed to read file from disk');
+        setError(t('uploader.readError'));
       };
       reader.readAsDataURL(file);
     },
-    [onImageLoaded]
+    [onImageLoaded, t]
   );
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -257,21 +259,21 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
             <div className="flex items-center justify-center gap-2 font-medium text-white text-sm">
               <span className="truncate max-w-[200px]">{currentImage.fileName}</span>
               <span className="text-xs text-neutral-400">
-                ({currentImage.width} × {currentImage.height} px)
+                ({t('uploader.dimensions', { width: currentImage.width, height: currentImage.height })})
               </span>
             </div>
             <p className="mt-1 text-xs text-neutral-400">
-              Click or drag another file to replace
+              {t('uploader.replace')}
             </p>
           </div>
         ) : (
           <div>
             <p className="text-sm font-medium text-neutral-200">
-              Drop your raster image here, or{' '}
-              <span className="text-indigo-400 hover:underline">browse</span>
+              {t('uploader.dropPrefix')}
+              <span className="text-indigo-400 hover:underline">{t('uploader.browse')}</span>
             </p>
             <p className="mt-1 text-xs text-neutral-500">
-              Supports PNG, JPG, and WEBP
+              {t('uploader.supports')}
             </p>
           </div>
         )}
@@ -289,7 +291,7 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
       <div className="flex items-center justify-between rounded-xl border border-neutral-850 bg-neutral-900/40 p-2.5">
         <span className="flex items-center gap-1.5 text-xs font-medium text-neutral-400">
           <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-          Try sample:
+          {t('uploader.trySample')}
         </span>
         <div className="flex items-center gap-1.5">
           <button
@@ -297,21 +299,21 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
             onClick={() => loadSample('logo')}
             className="rounded-md border border-neutral-800 bg-neutral-800/60 px-2.5 py-1 text-xs text-neutral-300 hover:border-neutral-700 hover:bg-neutral-700 hover:text-white transition"
           >
-            Geometric Logo
+            {t('uploader.sampleLogo')}
           </button>
           <button
             type="button"
             onClick={() => loadSample('pixel')}
             className="rounded-md border border-neutral-800 bg-neutral-800/60 px-2.5 py-1 text-xs text-neutral-300 hover:border-neutral-700 hover:bg-neutral-700 hover:text-white transition"
           >
-            Pixel Art
+            {t('uploader.samplePixel')}
           </button>
           <button
             type="button"
             onClick={() => loadSample('badge')}
             className="rounded-md border border-neutral-800 bg-neutral-800/60 px-2.5 py-1 text-xs text-neutral-300 hover:border-neutral-700 hover:bg-neutral-700 hover:text-white transition"
           >
-            Emblem Badge
+            {t('uploader.sampleBadge')}
           </button>
         </div>
       </div>
