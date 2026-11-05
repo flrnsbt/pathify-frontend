@@ -26,6 +26,7 @@ import {
   getSessionTicket,
 } from "../security/handshake";
 import { APP_CONFIG } from "@/config/app.config";
+import { buildApiHeaders } from "../api-headers";
 
 export interface VectorizationHistoryItem {
   id: string;
@@ -366,15 +367,11 @@ export async function saveVectorizationHistory(
 
   const endpoint = APP_CONFIG.api.saveHistoryUrl || "/api/save-history";
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
+    let idToken: string | undefined;
     const currentUser = auth.currentUser;
     if (currentUser) {
       try {
-        const idToken = await currentUser.getIdToken();
-        headers["Authorization"] = `Bearer ${idToken}`;
+        idToken = await currentUser.getIdToken();
       } catch (tokenErr) {
         console.warn("[History] Token retrieval failed:", tokenErr);
         await handleAuthExpired();
@@ -382,9 +379,7 @@ export async function saveVectorizationHistory(
     }
 
     const appCheckToken = await getAppCheckToken();
-    if (appCheckToken) {
-      headers["X-Firebase-AppCheck"] = appCheckToken;
-    }
+    const headers = buildApiHeaders({ appCheckToken, idToken });
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -589,15 +584,11 @@ export async function createCryptoTransaction(
   const endpoint =
     APP_CONFIG.api.createTransactionUrl || "/api/create-transaction";
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
+    let idToken: string | undefined;
     const currentUser = auth.currentUser;
     if (currentUser) {
       try {
-        const idToken = await currentUser.getIdToken();
-        headers["Authorization"] = `Bearer ${idToken}`;
+        idToken = await currentUser.getIdToken();
       } catch (tokenErr) {
         console.warn("[Transaction] Token retrieval failed:", tokenErr);
         await handleAuthExpired();
@@ -605,9 +596,7 @@ export async function createCryptoTransaction(
     }
 
     const appCheckToken = await getAppCheckToken();
-    if (appCheckToken) {
-      headers["X-Firebase-AppCheck"] = appCheckToken;
-    }
+    const headers = buildApiHeaders({ appCheckToken, idToken });
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -869,16 +858,12 @@ export async function refreshUserCredits(
 
   if (functionUrl && pending.length > 0) {
     try {
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
+      let idToken: string | undefined;
       // 1. Authenticate with Firebase Auth ID token if signed in
       const currentUser = auth.currentUser;
       if (currentUser) {
         try {
-          const idToken = await currentUser.getIdToken();
-          headers["Authorization"] = `Bearer ${idToken}`;
+          idToken = await currentUser.getIdToken();
         } catch (tokenErr) {
           console.warn(
             "[Firestore] Failed to obtain valid ID token, session expired:",
@@ -890,9 +875,7 @@ export async function refreshUserCredits(
 
       // 2. Attach App Check token
       const appCheckToken = await getAppCheckToken();
-      if (appCheckToken) {
-        headers["X-Firebase-AppCheck"] = appCheckToken;
-      }
+      const headers = buildApiHeaders({ appCheckToken, idToken });
 
       const res = await fetch(functionUrl, {
         method: "POST",

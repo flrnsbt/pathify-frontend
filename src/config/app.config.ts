@@ -3,9 +3,15 @@
  * Centralized settings for vectorizerr frontend and API routes.
  */
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+
 export const APP_CONFIG = {
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
   name: "vectorizerr",
   displayName: "Vectorizerr",
+  debugSecret: process.env.DEBUG_SECRET || "",
+  testnetSecret: process.env.TESTNET_SECRET || "",
   description:
     "High-performance vector graphics studio & lossless raster to SVG vectorizer",
 
@@ -24,12 +30,12 @@ export const APP_CONFIG = {
   // API Endpoints: All API calls go through Cloudflare Functions (/api/...)
   // which inject secrets server-side and forward to the backend Worker.
   api: {
-    configUrl: "/api/config",
-    handshakeUrl: "/api/handshake",
-    refreshCreditsUrl: "/api/refresh-credits",
-    supportUrl: "/api/support",
-    createTransactionUrl: "/api/create-transaction",
-    saveHistoryUrl: "/api/save-history",
+    configUrl: `${API_URL}/config`,
+    handshakeUrl: `${API_URL}/handshake`,
+    refreshCreditsUrl: `${API_URL}/refresh-credits`,
+    supportUrl: `${API_URL}/support`,
+    createTransactionUrl: `${API_URL}/create-transaction`,
+    saveHistoryUrl: `${API_URL}/save-history`,
   },
 
   // CORS allowed origins

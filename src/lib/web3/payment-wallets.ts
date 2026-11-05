@@ -5,6 +5,7 @@
 
 import { APP_CONFIG } from "@/config/app.config";
 import { getAppCheckToken } from "../firebase/app-check";
+import { buildApiHeaders } from "../api-headers";
 
 export interface BackendChainConfig {
   key: string;
@@ -48,10 +49,7 @@ export async function fetchBackendConfig(): Promise<BackendConfigResponse> {
         const url = APP_CONFIG.api.configUrl;
         const appCheckToken = await getAppCheckToken();
 
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'X-Firebase-AppCheck': appCheckToken || '',
-        };
+        const headers = buildApiHeaders({ appCheckToken });
         const response = await fetch(url, {
           method: 'GET',
           headers: headers

@@ -4,6 +4,7 @@ import { auth } from '../firebase/config';
 import { getAppCheckToken } from '../firebase/app-check';
 import { handleAuthExpired } from '../firebase/auth-context';
 import { APP_CONFIG } from '@/config/app.config';
+import { buildApiHeaders } from '../api-headers';
 
 export interface HandshakeTicket {
   ticketId: string;
@@ -114,14 +115,7 @@ export async function requestServerHandshake(
     const appCheckToken = await getAppCheckToken();
 
     // 3. Prepare client headers (no secret exposed to client)
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${idToken}`,
-    };
-
-    if (appCheckToken) {
-      headers['X-Firebase-AppCheck'] = appCheckToken;
-    }
+    const headers = buildApiHeaders({ appCheckToken, idToken });
 
     const endpoint = APP_CONFIG.api.handshakeUrl || '/api/handshake';
 

@@ -122,13 +122,12 @@ export const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
 
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = mainnetNetworks;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
 
 export const metadata = {
   name: APP_CONFIG.name,
   description: APP_CONFIG.description,
-  url: APP_URL,
-  icons: [`${APP_URL}${APP_CONFIG.iconUrl}`],
+  url: APP_CONFIG.appUrl,
+  icons: [`${APP_CONFIG.appUrl}${APP_CONFIG.iconUrl}`],
 };
 
 // Lazy-initialized on the client side only to avoid SSR issues with MetaMask origin detection

@@ -2,6 +2,7 @@ import { APP_CONFIG } from '@/config/app.config';
 import { getAppCheckToken } from '../firebase/app-check';
 import { auth } from '../firebase/config';
 import { handleAuthExpired } from '../firebase/auth-context';
+import { buildApiHeaders } from '../api-headers';
 
 export interface SupportTicketInput {
   name?: string;
@@ -32,33 +33,29 @@ export interface SupportTicketResponse {
 export async function submitSupportTicket(
   input: SupportTicketInput
 ): Promise<SupportTicketResponse> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
   // 1. Attach Firebase App Check token
+  let appCheckToken: string | null | undefined;
   try {
-    const appCheckToken = await getAppCheckToken();
-    if (appCheckToken) {
-      headers['X-Firebase-AppCheck'] = appCheckToken;
-    }
+    appCheckToken = await getAppCheckToken();
   } catch (err) {
     console.warn('[Support] Could not acquire App Check token:', err);
   }
 
-  // 3. Attach Firebase Auth token if user is signed in
+  // 2. Attach Firebase Auth token if user is signed in
   const currentUser = auth.currentUser;
   let userId: string | undefined;
+  let idToken: string | undefined;
   if (currentUser) {
     try {
       userId = currentUser.uid;
-      const idToken = await currentUser.getIdToken();
-      headers['Authorization'] = `Bearer ${idToken}`;
+      idToken = await currentUser.getIdToken();
     } catch (err) {
       console.warn('[Support] Could not acquire ID token, session expired:', err);
       await handleAuthExpired();
     }
   }
+
+  const headers = buildApiHeaders({ appCheckToken, idToken });
 
   const endpoint = APP_CONFIG.api.supportUrl || '/api/support';
 

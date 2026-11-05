@@ -1,9 +1,10 @@
 import type { EventContext } from '@cloudflare/workers-types';
+import { validateOrigin, handleOptions, getCorsHeaders } from '../../utils';
 
 interface Env {
   BACKEND_URL: string;
   API_SECRET?: string;
-  TESTNET_SECRET?: string;
+  DEBUG_SECRET?: string;
 }
 
 /**
@@ -11,6 +12,13 @@ interface Env {
  * Injects API_SECRET server-side and forwards App Check and testnet secret.
  */
 export async function onRequest(context: EventContext<Env, string, unknown>) {
+  if (context.request.method === 'OPTIONS') {
+    return handleOptions(context.request);
+  }
+
+  const originCheck = validateOrigin(context.request, context.env.DEBUG_SECRET);
+  if (originCheck) return originCheck;
+
   const backendUrl = context.env.BACKEND_URL;
   if (!backendUrl) {
     return new Response(JSON.stringify({ error: 'Backend URL not configured' }), {
@@ -28,7 +36,7 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   const appCheck = context.request.headers.get('X-Firebase-AppCheck');
   if (appCheck) headers.set('X-Firebase-AppCheck', appCheck);
 
-  const testnetSecret = context.env.TESTNET_SECRET;
+  const testnetSecret = context.request.headers.get('x-testnet-secret');
   if (testnetSecret) headers.set('x-testnet-secret', testnetSecret);
 
   const res = await fetch(`${backendUrl}/api/config`, {
@@ -37,8 +45,9 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   });
 
   const data = await res.text();
+  const corsHeaders = getCorsHeaders(context.request);
   return new Response(data, {
     status: res.status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...Object.fromEntries(corsHeaders.entries()) },
   });
 }
