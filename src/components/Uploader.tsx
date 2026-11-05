@@ -49,6 +49,10 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
               return;
             }
             ctx.clearRect(0, 0, width, height);
+            // 1:1 draw at natural resolution — disable smoothing so no
+            // resampling ever alters source pixels fed to the tracer
+            ctx.imageSmoothingEnabled = false;
+            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, width, height);
             const imageData = ctx.getImageData(0, 0, width, height);
 

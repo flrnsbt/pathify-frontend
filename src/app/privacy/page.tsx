@@ -121,7 +121,7 @@ export default function PrivacyPolicyPage() {
               <h3>4. Web3 & Blockchain Transparency</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              Cryptocurrency transactions conducted on public blockchains (Ethereum, BNB Smart Chain, Polygon, Base, Arbitrum) are immutable and publicly visible on decentralized ledgers. Vectorizerr does not custody your private keys or have access to your wallet funds. All transactions are signed by your own Web3 wallet provider (e.g. MetaMask, Coinbase Wallet, WalletConnect).
+              Cryptocurrency transactions conducted on public blockchains (Ethereum, BNB Smart Chain, Polygon, Base, Arbitrum, Bitcoin) are immutable and publicly visible on decentralized ledgers. Vectorizerr does not custody your private keys or have access to your wallet funds. All transactions are signed by your own Web3 wallet provider (e.g. MetaMask, Coinbase Wallet, WalletConnect).
             </p>
           </section>
 

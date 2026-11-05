@@ -1,6 +1,6 @@
 /**
- * Utility functions for image hashing, original image base64 compression,
- * and SVG gzip compression for compact, efficient history storage.
+ * Utility functions for image hashing and SVG gzip compression
+ * for compact, efficient history storage.
  */
 
 /**
@@ -38,60 +38,6 @@ export async function computeImageHash(
   } catch (err) {
     console.warn('computeImageHash error, using fallback:', err);
     return `img-${Date.now()}`;
-  }
-}
-
-/**
- * Compresses an image to a compact base64 data URL (WebP/JPEG)
- * with max bounding dimension to ensure it easily fits within Firestore and localStorage limits.
- */
-export async function compressImageToBase64(
-  imageData: ImageData,
-  maxDimension = 1024,
-  quality = 0.8
-): Promise<string> {
-  if (typeof document === 'undefined') return '';
-  try {
-    let { width, height } = imageData;
-    if (width > maxDimension || height > maxDimension) {
-      if (width > height) {
-        height = Math.round((height * maxDimension) / width);
-        width = maxDimension;
-      } else {
-        width = Math.round((width * maxDimension) / height);
-        height = maxDimension;
-      }
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, width);
-    canvas.height = Math.max(1, height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return '';
-
-    // Draw scaled image using offscreen temp canvas
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imageData.width;
-    tempCanvas.height = imageData.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    if (tempCtx) {
-      tempCtx.putImageData(imageData, 0, 0);
-      ctx.drawImage(tempCanvas, 0, 0, width, height);
-    }
-
-    // Try WebP compression first (best ratio)
-    try {
-      const webpUrl = canvas.toDataURL('image/webp', quality);
-      if (webpUrl && webpUrl.startsWith('data:image/webp')) {
-        return webpUrl;
-      }
-    } catch {}
-
-    // Fallback to JPEG
-    return canvas.toDataURL('image/jpeg', quality);
-  } catch (err) {
-    console.warn('compressImageToBase64 error:', err);
-    return '';
   }
 }
 

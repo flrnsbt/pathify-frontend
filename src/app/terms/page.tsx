@@ -125,16 +125,19 @@ export default function TermsOfServicePage() {
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong>On-Chain Confirmations:</strong> Transactions are processed on public decentralized blockchains (BNB Smart Chain, Ethereum, Polygon, Base, Arbitrum). Credits are credited to your account once the transaction attains the required on-chain block confirmations.
+                  <strong className="text-neutral-200">Non-Refundable Utility Credits:</strong> Cryptocurrency top-ups represent final, non-refundable purchases of platform execution credits used exclusively for vector processing. Credits are non-transferable, cannot be withdrawn back to external wallets, and carry no monetary store-of-value.
                 </li>
                 <li>
-                  <strong>Transaction Tracking & Auto-Refresh:</strong> Our Cloudflare Edge Worker monitors pending transactions every minute. You can also trigger immediate verification at any time via the "Refresh Credits" button on the Transactions page.
+                  <strong className="text-neutral-200">On-Chain Confirmations:</strong> Transactions are processed on public decentralized blockchains (BNB Smart Chain, Ethereum, Polygon, Base, Arbitrum, Bitcoin). Credits are credited to your account once the transaction attains the required on-chain block confirmations.
                 </li>
                 <li>
-                  <strong>Gas Fees & Irreversibility:</strong> Blockchain gas/network fees are paid directly to network validators and are non-refundable. Vectorizerr does not control network congestion or gas price fluctuations.
+                  <strong className="text-neutral-200">Transaction Tracking & Auto-Refresh:</strong> Our Cloudflare Edge Worker monitors pending transactions automatically. You can also trigger immediate verification at any time via the "Refresh Credits" button on the Transactions page.
                 </li>
                 <li>
-                  <strong>Missing or Delayed Transactions:</strong> If your transaction is confirmed on-chain but your credits do not appear automatically, you can submit your transaction hash through our{' '}
+                  <strong className="text-neutral-200">Gas Fees & Irreversibility:</strong> Blockchain gas/network fees are paid directly to network validators and are non-refundable. Vectorizerr does not control network congestion or gas price fluctuations.
+                </li>
+                <li>
+                  <strong className="text-neutral-200">Missing or Delayed Transactions:</strong> If your transaction is confirmed on-chain but your credits do not appear automatically, you can submit your transaction hash through our{' '}
                   <Link href="/support?category=crypto_transaction" className="text-indigo-400 underline underline-offset-4">
                     Support Assistance Portal
                   </Link>
