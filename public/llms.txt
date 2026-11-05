@@ -1,0 +1,41 @@
+# Vectorizerr
+
+> High-performance raster-to-SVG vectorizer studio. Upload a PNG, JPG, WebP or other raster image and convert it into clean, editable SVG vector graphics in the browser — powered by a WebAssembly port of VTracer.
+
+Vectorizerr is a client-side vectorization tool: images are processed locally in the browser via WebAssembly, and results can be previewed, downloaded as SVG, or exported as PNG/WebP. Paid generations are tracked server-side and stored in a per-user history.
+
+## Pages
+
+- [Home / Vectorizer](https://vectorizerr.pages.dev/): Main vectorization studio — upload an image, adjust trace parameters, preview the SVG, and export.
+- [Support](https://vectorizerr.pages.dev/support): Contact form for billing, transaction, and technical issues.
+- [Privacy Policy](https://vectorizerr.pages.dev/privacy): How user data, images, and transaction records are handled.
+- [Terms & Conditions](https://vectorizerr.pages.dev/terms): Terms of service.
+- [Conditions](https://vectorizerr.pages.dev/conditions): Usage conditions.
+- [Contact](https://vectorizerr.pages.dev/contact): Contact information.
+
+## How it works
+
+1. Upload a raster image (PNG, JPG, WebP, etc.).
+2. VTracer (WebAssembly) traces it into SVG paths — adjustable parameters include color mode, hierarchical detail level, splice/spoon settings, and more.
+3. Preview the result as vector, side-by-side, split, raster, or raw SVG code.
+4. Export: SVG download, SVG code copy, or free PNG/WebP raster export.
+
+## Pricing & credits
+
+- Vectorization preview is free.
+- Downloading or copying validated SVG output consumes 1 generation from an image unlock.
+- 1 credit unlocks an image for a fixed number of generations (configured server-side, currently 3).
+- Credits are purchased via cryptocurrency (USDC and other tokens across EVM chains and Bitcoin) sent to per-user deposit addresses or fallback wallets; transactions are verified on-chain before crediting.
+- Each validated generation is saved to the user's history (SVG + parameters); raw source images are stored only in the browser's local storage.
+- Active subscribers have unlimited generations.
+
+## Technical notes
+
+- Frontend: Next.js (static export) on Cloudflare Pages.
+- Backend: Cloudflare Worker API with Firestore persistence, on-chain transaction verification, and cryptographic handshake-based quota enforcement.
+- Vectorization engine: VTracer compiled to WebAssembly, runs entirely client-side.
+- Payments: EIP-1559 EVM transfers and Bitcoin, verified against per-chain contract/token/recipient configuration.
+
+## Optional
+
+- [Sign in](https://vectorizerr.pages.dev/signin): Google authentication required for purchases, history, and quota.

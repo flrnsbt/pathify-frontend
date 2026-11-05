@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Auth and transactional pages are user-specific — keep them out of the index
+Disallow: /transactions
+Disallow: /signin
+Disallow: /login
+
+Sitemap: https://vectorizerr.pages.dev/sitemap.xml

@@ -4,8 +4,23 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Scale, FileText, CheckCircle2, AlertTriangle, Shield, Coins, LifeBuoy } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { fetchAppConfig, getGenerationsPerUnlock } from '@/lib/app-config';
 
 export default function TermsOfServicePage() {
+  const [generationsPerUnlock, setGenerationsPerUnlock] = React.useState(getGenerationsPerUnlock());
+
+  React.useEffect(() => {
+    let active = true;
+    fetchAppConfig()
+      .catch(() => null)
+      .finally(() => {
+        if (active) setGenerationsPerUnlock(getGenerationsPerUnlock());
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100">
       {/* Top Navbar */}
@@ -92,7 +107,7 @@ export default function TermsOfServicePage() {
                   <strong className="text-neutral-200">Free Previews & Raster Downloads:</strong> High-resolution vectorization preview, split-screen comparison, and exports to PNG or WebP formats are completely free and do not require user login or credit consumption.
                 </li>
                 <li>
-                  <strong className="text-neutral-200">SVG Unlocks & Quotas:</strong> Exporting raw, scalable, lossless SVG files requires credits or an active plan. Unlocking an image with 1 credit grants a quota of up to 10 vector re-generations on that image hash, allowing you to fine-tune presets and parameters without redundant charges.
+                  <strong className="text-neutral-200">SVG Unlocks & Quotas:</strong> Exporting raw, scalable, lossless SVG files requires credits or an active plan. Unlocking an image with 1 credit grants a quota of up to {generationsPerUnlock} validated vector generations on that image, allowing you to fine-tune presets and parameters without redundant charges.
                 </li>
               </ul>
             </div>
