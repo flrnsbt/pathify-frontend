@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config';
 import { getUserProfile, UserProfile } from './firestore';
+import { ensureAppConfig } from '../app-config';
 
 interface AuthContextType {
   user: User | null;
@@ -56,6 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('Error fetching profile:', err);
     }
+  }, []);
+
+  // Fetch app-wide params (generation limits, etc.) once on mount
+  useEffect(() => {
+    ensureAppConfig();
   }, []);
 
   // Listen for global auth-token-expired events

@@ -30,7 +30,8 @@ export const APP_CONFIG = {
   // API Endpoints: All API calls go through Cloudflare Functions (/api/...)
   // which inject secrets server-side and forward to the backend Worker.
   api: {
-    configUrl: `${API_URL}/config`,
+    appConfigUrl: `${API_URL}/app-config`,
+    configUrl: `${API_URL}/crypto-config`,
     handshakeUrl: `${API_URL}/handshake`,
     refreshCreditsUrl: `${API_URL}/refresh-credits`,
     supportUrl: `${API_URL}/support`,

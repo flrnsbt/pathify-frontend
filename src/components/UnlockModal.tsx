@@ -68,7 +68,7 @@ export function UnlockModal({
           <ul className="text-[11px] text-neutral-400 space-y-1.5 pl-1">
             <li className="flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span><strong>10 Generations</strong> on this image to fine-tune presets &amp; sliders</span>
+              <span><strong>3 Generations</strong> on this image to fine-tune presets &amp; sliders</span>
             </li>
             <li className="flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />

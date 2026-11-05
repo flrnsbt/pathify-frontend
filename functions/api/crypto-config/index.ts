@@ -8,7 +8,7 @@ interface Env {
 }
 
 /**
- * Cloudflare Function proxy for /api/config
+ * Cloudflare Function proxy for /api/crypto-config
  * Injects API_SECRET server-side and forwards App Check and testnet secret.
  */
 export async function onRequest(context: EventContext<Env, string, unknown>) {
@@ -39,7 +39,7 @@ export async function onRequest(context: EventContext<Env, string, unknown>) {
   const testnetSecret = context.request.headers.get('X-Testnet-Secret');
   if (testnetSecret) headers.set('X-Testnet-Secret', testnetSecret);
 
-  const res = await fetch(`${backendUrl}/api/config`, {
+  const res = await fetch(`${backendUrl}/api/crypto-config`, {
     method: 'GET',
     headers,
   });

@@ -433,6 +433,7 @@ export default function Home() {
               executionTimeMs={executionTimeMs}
               isUnlocked={isCurrentUnlocked}
               generationsRemaining={unlockStatus.generationsRemaining}
+              generationsMax={unlockStatus.maxGenerations}
               isProcessing={isProcessing}
               statusText={statusText}
               onRequestDownload={handleRequestDownload}

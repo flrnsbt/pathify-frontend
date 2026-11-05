@@ -29,6 +29,7 @@ interface VisualizerProps {
   executionTimeMs: number;
   isUnlocked: boolean;
   generationsRemaining?: number;
+  generationsMax?: number;
   isProcessing?: boolean;
   statusText?: string;
   onRequestDownload: () => void;
@@ -352,6 +353,7 @@ export function Visualizer({
   executionTimeMs,
   isUnlocked,
   generationsRemaining,
+  generationsMax,
   isProcessing = false,
   statusText = '',
   onRequestDownload,
@@ -1004,7 +1006,7 @@ export function Visualizer({
                     </span>
                     {isUnlocked && (
                       <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
-                        Unlocked {typeof generationsRemaining === 'number' && generationsRemaining < 9000 ? `(${generationsRemaining}/10 left)` : ''}
+                        Unlocked {typeof generationsRemaining === 'number' && generationsRemaining < 9000 ? `(${generationsRemaining}/${generationsMax ?? generationsRemaining} left)` : ''}
                       </span>
                     )}
                   </div>

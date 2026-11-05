@@ -20,6 +20,7 @@ import { handleAuthExpired } from "./auth-context";
 import { VTracerOptions } from "../vtracer/types";
 import { compressSvgString, decompressSvgString } from "../vtracer/compression";
 import { SupportedChainKey, SupportedToken } from "../web3/payment-wallets";
+import { getGenerationsPerUnlock } from "../app-config";
 import {
   requestServerHandshake,
   hasValidSessionTicket,
@@ -121,7 +122,7 @@ function safeSetStorage(key: string, val: string): void {
 
 /**
  * Checks the unlock status and generation quota of an image by its hash.
- * Unlocking an image with 1 credit grants 10 generations.
+ * Unlocking an image with 1 credit grants a fixed number of generations.
  */
 export function getImageUnlockStatus(
   profile: UserProfile | null,
@@ -137,7 +138,7 @@ export function getImageUnlockStatus(
       isUnlocked: false,
       generationsRemaining: 0,
       generationsUsed: 0,
-      maxGenerations: 10,
+      maxGenerations: getGenerationsPerUnlock(),
     };
   }
 
@@ -170,11 +171,11 @@ export function getImageUnlockStatus(
       isUnlocked: false,
       generationsRemaining: 0,
       generationsUsed: 0,
-      maxGenerations: 10,
+      maxGenerations: getGenerationsPerUnlock(),
     };
   }
 
-  const maxGen = info.maxGenerations || 10;
+  const maxGen = info.maxGenerations || getGenerationsPerUnlock();
   const used = info.generationsUsed || 0;
   const remaining = Math.max(0, maxGen - used);
 
@@ -204,7 +205,7 @@ export function canAccessSvg(
  * Unlocks an image with 1 credit using a Cryptographic Server Handshake.
  * Protects against client-side exploitation by having the server verify App Check,
  * validate user authorization, deduct credit in Firestore, and sign a cryptographic ticket.
- * Grants the user the right to do 10 generations on the same image (identified by hash).
+ * Grants the user the right to do a fixed number of generations on the same image (identified by hash).
  */
 export async function unlockImageWithCredit(
   userId: string,
@@ -284,7 +285,7 @@ export async function consumeImageGeneration(
   }
 
   const newUsed = (currentInfo.generationsUsed || 0) + 1;
-  const maxGen = currentInfo.maxGenerations || 10;
+  const maxGen = currentInfo.maxGenerations || getGenerationsPerUnlock();
   return Math.max(0, maxGen - newUsed);
 }
 
