@@ -124,26 +124,32 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 320, 320);
 
-      // Gradient rounded diamond
-      const grad = ctx.createLinearGradient(60, 60, 260, 260);
-      grad.addColorStop(0, '#6366f1');
-      grad.addColorStop(0.5, '#a855f7');
-      grad.addColorStop(1, '#ec4899');
+      // Flat mountain badge — straight edges + one circle, vectorizes cleanly
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 320, 320);
 
-      ctx.fillStyle = grad;
+      // Sun
+      ctx.fillStyle = '#f59e0b';
       ctx.beginPath();
-      ctx.roundRect(60, 60, 200, 200, [40]);
+      ctx.arc(230, 90, 34, 0, Math.PI * 2);
       ctx.fill();
 
-      // Inner white star / polygon
-      ctx.fillStyle = '#ffffff';
+      // Back mountain
+      ctx.fillStyle = '#1e3a8a';
       ctx.beginPath();
-      ctx.arc(160, 160, 50, 0, Math.PI * 2);
+      ctx.moveTo(40, 260);
+      ctx.lineTo(160, 120);
+      ctx.lineTo(280, 260);
+      ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = '#6366f1';
+      // Front mountain
+      ctx.fillStyle = '#059669';
       ctx.beginPath();
-      ctx.arc(160, 160, 25, 0, Math.PI * 2);
+      ctx.moveTo(90, 260);
+      ctx.lineTo(200, 170);
+      ctx.lineTo(310, 260);
+      ctx.closePath();
       ctx.fill();
     } else if (type === 'pixel') {
       // 32x32 pixel art character scaled to 128x128

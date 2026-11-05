@@ -33,6 +33,7 @@ interface ControlsPanelProps {
   onCropToContent?: () => void;
   generationsRemaining?: number;
   generationsMax?: number;
+  locked?: boolean;
 }
 
 export function ControlsPanel({
@@ -47,6 +48,7 @@ export function ControlsPanel({
   onCropToContent,
   generationsRemaining,
   generationsMax,
+  locked = false,
 }: ControlsPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -73,7 +75,7 @@ export function ControlsPanel({
   };
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 shadow-xl backdrop-blur-sm">
+    <div className={`flex flex-col gap-5 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5 shadow-xl backdrop-blur-sm ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
       {/* Panel Header */}
       <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
         <div className="flex items-center gap-2">
@@ -90,6 +92,13 @@ export function ControlsPanel({
           <span>Reset</span>
         </button>
       </div>
+
+      {locked && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-300">
+          Source image not available in this browser — parameters are locked.
+          Upload the original file to re-trace.
+        </div>
+      )}
 
       {/* Engine Version Selector */}
       <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3">

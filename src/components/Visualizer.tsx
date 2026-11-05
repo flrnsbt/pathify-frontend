@@ -582,23 +582,46 @@ export function Visualizer({
   const renderedVectorImage =
     previewWebpUrl || (svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : null);
 
+  const hasRaster = Boolean(originalImage);
+
+  // Dimensions for preview-only mode (history item whose source isn't local)
+  const previewDims = React.useMemo(() => {
+    if (originalImage) return { w: originalImage.width, h: originalImage.height };
+    if (svg) {
+      const vb = svg.match(/viewBox\s*=\s*"([^"]+)"/);
+      if (vb) {
+        const nums = vb[1].trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n));
+        if (nums.length >= 4 && nums[2] > 0 && nums[3] > 0) {
+          return { w: nums[2], h: nums[3] };
+        }
+      }
+      const wh = svg.match(/<svg[^>]*\bwidth="([\d.]+)[^"]*"[^>]*\bheight="([\d.]+)[^"]*"/);
+      if (wh) return { w: parseFloat(wh[1]) || 800, h: parseFloat(wh[2]) || 800 };
+    }
+    return { w: 800, h: 800 };
+  }, [originalImage, svg]);
+
   return (
     <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 shadow-xl backdrop-blur-sm overflow-hidden h-full min-h-0">
       {/* Top Controls Bar */}
       <div className="flex flex-wrap items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-3 gap-2 shrink-0">
         {/* View Mode Selectors */}
         <div className="flex items-center gap-1 rounded-xl bg-neutral-950/80 p-1 border border-neutral-800">
-          <button
-            type="button"
-            onClick={() => handleSelectViewMode('side-by-side')}
-            title="Side-by-Side Comparison"
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-              viewMode === 'side-by-side' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Columns className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Side by Side</span>
-          </button>
+          {hasRaster && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSelectViewMode('side-by-side')}
+                title="Side-by-Side Comparison"
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                  viewMode === 'side-by-side' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Columns className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Side by Side</span>
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => handleSelectViewMode('vector')}
@@ -610,28 +633,32 @@ export function Visualizer({
             <Eye className="h-3.5 w-3.5" />
             <span>Vector View</span>
           </button>
-          <button
-            type="button"
-            onClick={() => handleSelectViewMode('split')}
-            title="Split-Screen Comparison Slider"
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-              viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Split className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Split Slider</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelectViewMode('raster')}
-            title="Original Raster Only"
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-              viewMode === 'raster' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            <span>Raster</span>
-          </button>
+          {hasRaster && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSelectViewMode('split')}
+                title="Split-Screen Comparison Slider"
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                  viewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Split className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Split Slider</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectViewMode('raster')}
+                title="Original Raster Only"
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                  viewMode === 'raster' ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <ImageIcon className="h-3.5 w-3.5" />
+                <span>Raster</span>
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={handleToggleCode}
@@ -956,7 +983,7 @@ export function Visualizer({
           onMouseDown={handlePanMouseDown}
           className={`relative flex-1 min-h-[380px] lg:min-h-0 overflow-hidden select-none cursor-grab active:cursor-grabbing ${bgClasses[bgMode]}`}
         >
-        {!originalImage ? (
+        {!originalImage && !svg ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-800/50 text-neutral-500 mb-3 border border-neutral-700/50">
               <ImageIcon className="h-8 w-8" />
@@ -974,8 +1001,22 @@ export function Visualizer({
               transformOrigin: 'center center',
             }}
           >
+            {/* Preview-only mode: SVG restored without its source image */}
+            {!hasRaster && svg && (
+              <div className="absolute inset-0 flex items-center justify-center p-4">
+                <VectorCanvas
+                  svg={svg}
+                  fallbackUrl={renderedVectorImage}
+                  width={previewDims.w}
+                  height={previewDims.h}
+                  zoom={zoom}
+                  className="max-h-full max-w-full object-contain rounded-xl"
+                />
+              </div>
+            )}
+
             {/* Side by Side Mode */}
-            {viewMode === 'side-by-side' && (
+            {originalImage && viewMode === 'side-by-side' && (
               <div className="flex items-center justify-center gap-4 sm:gap-6 p-2 sm:p-4 max-w-full max-h-full">
                 {/* Original */}
                 <div className="flex flex-col items-center shrink-0">
@@ -1046,7 +1087,7 @@ export function Visualizer({
             )}
 
             {/* Vector View Mode (HTML5 Canvas) */}
-            {viewMode === 'vector' && (
+            {originalImage && viewMode === 'vector' && (
               <div className="flex items-center justify-center">
                 {renderedVectorImage ? (
                   <VectorCanvas
@@ -1064,7 +1105,7 @@ export function Visualizer({
             )}
 
             {/* Split Slider Mode (HTML5 Canvas Split Rendering) */}
-            {viewMode === 'split' && (
+            {originalImage && viewMode === 'split' && (
               <div
                 ref={imageBoxRef}
                 className="relative flex items-center justify-center shadow-2xl select-none"
@@ -1111,7 +1152,7 @@ export function Visualizer({
             )}
 
             {/* Raster Only Mode */}
-            {viewMode === 'raster' && (
+            {originalImage && viewMode === 'raster' && (
               <div className="flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

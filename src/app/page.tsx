@@ -87,6 +87,7 @@ export default function Home() {
   const [enhanceProgress, setEnhanceProgress] = useState<number | null>(null);
   const [showEnhancePrompt, setShowEnhancePrompt] = useState(false);
   const [enhancePromptDontAsk, setEnhancePromptDontAsk] = useState(false);
+  const [paramsLocked, setParamsLocked] = useState(false);
   const [previewWebpUrl, setPreviewWebpUrl] = useState<string | null>(null);
 
   // Modals
@@ -265,6 +266,7 @@ export default function Home() {
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
       setSourceNotice(null);
+      setParamsLocked(false);
       // Auto-detect the best preset + enhance model for this source image.
       // AI Enhance defaults on only when it is likely to matter (detailed /
       // noisy sources); a stored user preference always wins.
@@ -514,6 +516,7 @@ export default function Home() {
       // No local source — SVG preview still loads, but re-tracing requires
       // the user to upload the original file again.
       setCurrentImage(null);
+      setParamsLocked(true);
       setSourceNotice(
         `The source image for "${item.fileName}" isn't stored in this browser. The SVG preview is restored, but you'll need to load the original file again to edit parameters and re-trace.`
       );
@@ -582,6 +585,7 @@ export default function Home() {
               onCropToContent={handleCropToContent}
               generationsRemaining={unlockStatus.generationsRemaining}
               generationsMax={unlockStatus.maxGenerations}
+              locked={paramsLocked}
             />
           </div>
 
@@ -680,8 +684,7 @@ export default function Home() {
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-neutral-400">
               This image looks clean already, so AI upscaling is off. You can
-              still enable it for extra sharpness — it runs Real-ESRGAN in
-              your browser before tracing.
+              still enable it for extra sharpness.
             </p>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
               <input

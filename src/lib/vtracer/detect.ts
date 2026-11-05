@@ -11,6 +11,7 @@ interface ImageStats {
   edgeFrac: number;
   darkFrac: number;
   lightFrac: number;
+  colorfulFrac: number;
 }
 
 function analyzeImage(imageData: ImageData): ImageStats {
@@ -25,6 +26,7 @@ function analyzeImage(imageData: ImageData): ImageStats {
   let sampled = 0;
   let dark = 0;
   let light = 0;
+  let colorful = 0;
 
   // Edge detection on a coarser grid
   const edgeStep = Math.max(1, Math.floor(Math.min(w, h) / 128));
@@ -47,6 +49,9 @@ function analyzeImage(imageData: ImageData): ImageStats {
       const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       if (lum < 64) dark++;
       else if (lum > 220) light++;
+      const cMax = Math.max(data[i], data[i + 1], data[i + 2]);
+      const cMin = Math.min(data[i], data[i + 1], data[i + 2]);
+      if (cMax - cMin > 30) colorful++;
     }
   }
 
@@ -69,6 +74,7 @@ function analyzeImage(imageData: ImageData): ImageStats {
     edgeFrac: edgeTotal > 0 ? edgeCount / edgeTotal : 0,
     darkFrac: dark / opaque,
     lightFrac: light / opaque,
+    colorfulFrac: colorful / opaque,
   };
 }
 
@@ -100,11 +106,11 @@ export function detectPreset(imageData: ImageData): DetectedPreset {
 
   // Very few colors + hard edges → pixel art / flat illustration
   if (s.uniqueColors <= 48 && s.edgeFrac > 0.12) {
-    return { preset: s.uniqueColors <= 12 ? 'line-art' : 'pixel-art', confidence: 'high' };
+    return { preset: s.uniqueColors <= 8 ? 'line-art' : 'pixel-art', confidence: 'high' };
   }
 
-  // Near-monochrome line art on solid background
-  if (s.uniqueColors <= 12) {
+  // Near-monochrome content: line art, sketches, receipts, documents
+  if (s.colorfulFrac < 0.15 && s.uniqueColors <= 64) {
     return { preset: 'line-art', confidence: 'medium' };
   }
 

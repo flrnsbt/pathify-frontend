@@ -271,7 +271,7 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
                   Local demo mode active: Google Sign-in creates an instant local session.
                 </span>
               )}
-              By continuing, your raster vectors are processed locally on your hardware. No images are uploaded to any remote server.
+              By continuing, you agree to our <a href="/terms" className="underline hover:text-indigo-400">Terms of Service</a> and <a href="/privacy" className="underline hover:text-indigo-400">Privacy Policy</a>.
             </p>
           </div>
         )}
