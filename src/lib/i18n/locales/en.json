@@ -39,7 +39,10 @@
     "localDataCleared": "Local data cleared",
     "clearLocalDataConfirm": "Clear all locally stored data? This removes cached source images and app preferences from this browser. Your account, credits and history are not affected.",
     "signOut": "Sign out",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "language": "Language",
+    "langEn": "English",
+    "langFr": "Français"
   },
   "footer": {
     "description": "High-performance raster to vector graphics (SVG) conversion studio. Uploaded data and vector assets are temporarily saved solely for user convenience, are never used for any external purposes, and remain strictly private and confidential.",

@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut, Database, ChevronDown } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut, Database, ChevronDown, Languages } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { clearLocalAppData } from '../lib/local-source-images';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit/react';
-import { useI18n } from '../lib/i18n';
+import { useI18n, SUPPORTED_LOCALES, LOCALE_NAMES } from '../lib/i18n';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -23,10 +23,11 @@ export function Header({
   historyCount,
 }: HeaderProps) {
   const { user, profile, logout } = useAuth();
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const { address, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [dataCleared, setDataCleared] = useState(false);
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
@@ -131,6 +132,49 @@ export function Header({
               </button>
             </div>
           )}
+
+          {/* Language Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setLangMenuOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
+              title={t('header.language')}
+              aria-label={t('header.language')}
+            >
+              <Languages className="h-4 w-4 text-neutral-400" />
+              <span className="hidden sm:inline font-mono uppercase">{locale}</span>
+            </button>
+            {langMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setLangMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-neutral-800 bg-neutral-950 py-1 shadow-2xl">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                    {t('header.language')}
+                  </div>
+                  {SUPPORTED_LOCALES.map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => {
+                        setLocale(code);
+                        setLangMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-xs transition ${
+                        locale === code
+                          ? 'bg-indigo-500/10 text-indigo-300'
+                          : 'text-neutral-300 hover:bg-neutral-900'
+                      }`}
+                    >
+                      <span>{LOCALE_NAMES[code] ?? code}</span>
+                      {locale === code && <span className="text-indigo-400">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Account Button + Menu */}
           <div className="relative">
