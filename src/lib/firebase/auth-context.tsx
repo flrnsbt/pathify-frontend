@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   GoogleAuthProvider,
+  GithubAuthProvider,
   signOut as fbSignOut,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config';
@@ -19,6 +20,7 @@ interface AuthContextType {
   loading: boolean;
   isConfigured: boolean;
   loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   handleAuthExpired: () => Promise<void>;
@@ -107,6 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithPopup(auth, provider);
   }, [fetchProfile]);
 
+  const loginWithGithub = useCallback(async () => {
+    const provider = new GithubAuthProvider();
+    await signInWithPopup(auth, provider);
+  }, [fetchProfile]);
+
   const logout = useCallback(async () => {
     if (isFirebaseConfigured && auth) {
       await fbSignOut(auth);
@@ -132,11 +139,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       isConfigured: isFirebaseConfigured,
       loginWithGoogle,
+      loginWithGithub,
       logout,
       refreshProfile,
       handleAuthExpired,
     }),
-    [user, profile, loading, loginWithGoogle, logout, refreshProfile]
+    [user, profile, loading, loginWithGoogle, loginWithGithub, logout, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
