@@ -145,9 +145,15 @@ async function runTile(
   return (output.data as Float32Array);
 }
 
+// Cache of upscaled results per source ImageData + model. The enhancement
+// depends only on the input pixels and model — VTracer parameter changes
+// reuse the cached result instead of re-running inference.
+const enhanceCache = new WeakMap<ImageData, Map<UpscaleModelId, Promise<ImageData>>>();
+
 /**
  * Upscales an ImageData 4x using a Real-ESRGAN ONNX model via onnxruntime-web.
  * Processes the image in overlapping tiles to bound GPU/CPU memory.
+ * Results are cached per (source pixels, model) for the session.
  */
 export async function upscaleImageData(
   imageData: ImageData,
@@ -156,6 +162,25 @@ export async function upscaleImageData(
 ): Promise<ImageData> {
   const model = UPSCALE_MODELS.find((m) => m.id === modelId) ?? UPSCALE_MODELS[0];
 
+  let perImage = enhanceCache.get(imageData);
+  if (!perImage) {
+    perImage = new Map();
+    enhanceCache.set(imageData, perImage);
+  }
+  const cached = perImage.get(model.id);
+  if (cached) return cached;
+
+  const promise = upscaleWithFallback(model, imageData, onProgress);
+  perImage.set(model.id, promise);
+  promise.catch(() => perImage!.delete(model.id));
+  return promise;
+}
+
+async function upscaleWithFallback(
+  model: UpscaleModelInfo,
+  imageData: ImageData,
+  onProgress?: (fraction: number) => void
+): Promise<ImageData> {
   try {
     return await upscaleWithSession(model, imageData, onProgress);
   } catch (err) {
