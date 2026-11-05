@@ -111,25 +111,51 @@ export default function Home() {
   // Generations already counted this session (dedupe across repeated exports)
   const validatedGenerationsRef = useRef<Set<string>>(new Set());
 
+  // Hash of the currently displayed SVG — identifies whether this exact
+  // generation was already validated (paid), independent of remaining quota.
+  const [currentSvgHash, setCurrentSvgHash] = useState<string>('');
+  useEffect(() => {
+    let cancelled = false;
+    if (!svg) {
+      setCurrentSvgHash('');
+      return;
+    }
+    hashSvgContent(svg).then((h) => {
+      if (!cancelled) setCurrentSvgHash(h);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [svg]);
+
+  // True when the SVG on screen is already a validated (paid) generation —
+  // re-exporting it is always free, even if the image quota is exhausted.
+  const isCurrentGenerationOwned = Boolean(
+    currentSvgHash &&
+    (validatedGenerationsRef.current.has(currentSvgHash) ||
+      historyItems.some((i) => i.generationId === currentSvgHash))
+  );
+
   // A generation is "validated" when the user exports it (download SVG / copy SVG code).
   // Uniqueness is defined by SVG content: the first export of a given SVG consumes
   // 1 quota and writes the history entry; re-exports of identical SVG content are free.
   const recordValidatedGeneration = useCallback(async (): Promise<boolean> => {
     if (!user || user.isAnonymous || !currentImage || !svg) return false;
     try {
+      // Dedupe key = hash of the SVG content itself. An already-validated
+      // generation is always re-exportable, even with exhausted quota.
+      const svgHash = await hashSvgContent(svg);
+      const alreadyCounted =
+        validatedGenerationsRef.current.has(svgHash) ||
+        historyItems.some((i) => i.generationId === svgHash);
+      if (alreadyCounted) return true;
+
       const freshProfile = await getUserProfile(user.uid);
       const isPaidPath = Boolean(
         freshProfile.subscription?.status === 'active' ||
         getImageUnlockStatus(freshProfile, currentImage.imageHash).isUnlocked
       );
       if (!isPaidPath) return false;
-
-      // Dedupe key = hash of the SVG content itself
-      const svgHash = await hashSvgContent(svg);
-      const alreadyCounted =
-        validatedGenerationsRef.current.has(svgHash) ||
-        historyItems.some((i) => i.generationId === svgHash);
-      if (alreadyCounted) return true;
 
       // Fail closed: only proceed when the server confirms the quota consumption
       const remaining = await consumeImageGeneration(user.uid, currentImage.imageHash);
@@ -306,8 +332,9 @@ export default function Home() {
       return;
     }
 
-    // 2. If Subscribed or Already Unlocked -> validate then download
-    if (isCurrentUnlocked || profile?.subscription?.status === 'active') {
+    // 2. If Subscribed, Already Unlocked, or this generation was already
+    //    validated -> validate then download
+    if (isCurrentUnlocked || isCurrentGenerationOwned || profile?.subscription?.status === 'active') {
       const validated = await recordValidatedGeneration();
       if (!validated) {
         await routeAfterValidationFailure();
@@ -326,7 +353,7 @@ export default function Home() {
     // 4. If No Credits -> Prompt to purchase via WalletConnect / Web3
     setCreditReason('You need at least 1 credit to unlock and download this SVG. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
-  }, [svg, currentImage, user, isCurrentUnlocked, profile, triggerSvgDownload, recordValidatedGeneration, routeAfterValidationFailure]);
+  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, triggerSvgDownload, recordValidatedGeneration, routeAfterValidationFailure]);
 
   // Handle Copy / View Code Action with permission checks.
   // Returns true when the generation was validated and the caller may export it.
@@ -338,7 +365,7 @@ export default function Home() {
       return false;
     }
 
-    if (isCurrentUnlocked || profile?.subscription?.status === 'active') {
+    if (isCurrentUnlocked || isCurrentGenerationOwned || profile?.subscription?.status === 'active') {
       const validated = await recordValidatedGeneration();
       if (!validated) {
         await routeAfterValidationFailure();
@@ -355,7 +382,7 @@ export default function Home() {
     setCreditReason('You need at least 1 credit to inspect and copy the raw SVG markup. Purchase credits with crypto below.');
     setIsCreditsOpen(true);
     return false;
-  }, [svg, currentImage, user, isCurrentUnlocked, profile, recordValidatedGeneration, routeAfterValidationFailure]);
+  }, [svg, currentImage, user, isCurrentUnlocked, isCurrentGenerationOwned, profile, recordValidatedGeneration, routeAfterValidationFailure]);
 
   // Confirm Unlock with 1 Credit: grants 10 generations on currentImage.imageHash
   const handleConfirmUnlock = async () => {
@@ -367,9 +394,14 @@ export default function Home() {
         await refreshProfile();
         setIsUnlockOpen(false);
         if (svg) {
-          // This download is the first validated generation: consumes 1 quota + saves history
-          await recordValidatedGeneration();
-          triggerSvgDownload(svg, currentImage.fileName);
+          // This download is the first validated generation: consumes 1 quota + saves history.
+          // Fail closed — no download when quota consumption can't be confirmed.
+          const validated = await recordValidatedGeneration();
+          if (validated) {
+            triggerSvgDownload(svg, currentImage.fileName);
+          } else {
+            await routeAfterValidationFailure();
+          }
         }
       }
     } catch (err) {
@@ -498,7 +530,7 @@ export default function Home() {
               previewWebpUrl={previewWebpUrl}
               nodeCount={nodeCount}
               executionTimeMs={executionTimeMs}
-              isUnlocked={isCurrentUnlocked}
+              isUnlocked={isCurrentUnlocked || isCurrentGenerationOwned}
               generationsRemaining={unlockStatus.generationsRemaining}
               generationsMax={unlockStatus.maxGenerations}
               isProcessing={isProcessing}
