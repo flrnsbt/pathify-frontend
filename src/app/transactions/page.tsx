@@ -62,9 +62,7 @@ export default function TransactionsPage() {
     const result = await refreshCredits();
     await refreshProfile();
     if (result) {
-      if (result.cloudFunctionNotified) {
-        setStatusNotice('Cloud function triggered! Checking blockchain receipts...');
-      } else {
+      if (!result.cloudFunctionNotified) {
         setStatusNotice(`Credits refreshed! Current balance: ${result.updatedCredits} credits.`);
       }
     }
@@ -397,16 +395,16 @@ export default function TransactionsPage() {
                   key={tab.key}
                   onClick={() => setFilterStatus(tab.key)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${isActive
-                      ? 'bg-neutral-800 text-white shadow-sm'
-                      : 'text-neutral-400 hover:text-white'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white'
                     }`}
                 >
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
                     <span
                       className={`rounded-full px-1.5 py-0.2 text-[10px] ${tab.key === 'pending'
-                          ? 'bg-amber-500/20 text-amber-300'
-                          : 'bg-neutral-700 text-neutral-300'
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-neutral-700 text-neutral-300'
                         }`}
                     >
                       {tab.count}

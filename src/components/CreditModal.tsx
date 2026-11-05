@@ -506,9 +506,32 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
       }
       const block = await publicClient.getBlock();
       const baseFee = block.baseFeePerGas ?? BigInt(0);
-      // Use a minimal priority fee (1 Gwei) and set maxFeePerGas just above base fee
-      const maxPriorityFeePerGas = BigInt(1000000000); // 1 Gwei
-      const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+
+      // Estimate EIP-1559 fees from the network; fall back to baseFee + 1 Gwei tip
+      let maxFeePerGas: bigint;
+      let maxPriorityFeePerGas: bigint;
+      try {
+        const fees = await publicClient.estimateFeesPerGas();
+        maxPriorityFeePerGas = fees.maxPriorityFeePerGas ?? BigInt(1000000000);
+        maxFeePerGas = fees.maxFeePerGas ?? baseFee + maxPriorityFeePerGas;
+      } catch {
+        maxPriorityFeePerGas = BigInt(1000000000); // 1 Gwei
+        maxFeePerGas = baseFee + maxPriorityFeePerGas;
+      }
+
+      // Some networks enforce a minimum priority fee (e.g. Polygon ~25 gwei)
+      const MIN_PRIORITY_FEE_WEI: Record<number, bigint> = {
+        137: BigInt(30_000_000_000),
+        80002: BigInt(30_000_000_000),
+      };
+      const minTip = MIN_PRIORITY_FEE_WEI[targetChainId];
+      if (minTip != null && maxPriorityFeePerGas < minTip) {
+        maxPriorityFeePerGas = minTip;
+        const requiredMaxFee = baseFee + maxPriorityFeePerGas;
+        if (maxFeePerGas < requiredMaxFee) {
+          maxFeePerGas = requiredMaxFee;
+        }
+      }
 
       // 3. Perform transaction
       let txHash = '';
