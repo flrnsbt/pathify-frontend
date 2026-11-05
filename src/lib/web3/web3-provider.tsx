@@ -3,9 +3,10 @@
 import React, { useEffect, useSyncExternalStore, useRef } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getWagmiConfig, getAppKit } from './config';
+import { getWagmiConfig, getAppKit, sepolia, bsc } from './config';
 import { useAuth } from '../firebase/auth-context';
 import { linkWalletToUser } from '../firebase/firestore';
+import { fetchBackendConfig } from './payment-wallets';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,31 @@ function WalletSync() {
   return null;
 }
 
+function NetworkInitializer() {
+  const appKitRef = useRef(getAppKit());
+
+  useEffect(() => {
+    // Fetch backend config and switch to the appropriate default network
+    fetchBackendConfig()
+      .then((config) => {
+        const appKit = appKitRef.current;
+        if (!appKit) return;
+
+        // Switch to a testnet or mainnet default network based on backend config
+        // Use Sepolia for testnet, BSC mainnet for mainnet as defaults
+        const targetNetwork = config.isTestnet ? sepolia : bsc;
+        appKit.switchNetwork(targetNetwork).catch((err) => {
+          console.warn('[Web3Provider] Failed to switch to default network:', err);
+        });
+      })
+      .catch((err) => {
+        console.warn('[Web3Provider] Failed to fetch backend config for network initialization:', err);
+      });
+  }, []);
+
+  return null;
+}
+
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const configRef = useRef(getWagmiConfig());
@@ -46,6 +72,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={configRef.current}>
       <QueryClientProvider client={queryClient}>
         {mounted && <WalletSync />}
+        {mounted && <NetworkInitializer />}
         {children}
       </QueryClientProvider>
     </WagmiProvider>

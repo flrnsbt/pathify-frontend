@@ -10,8 +10,8 @@ export const APP_CONFIG = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
   name: "vectorizerr",
   displayName: "Vectorizerr",
-  debugSecret: process.env.DEBUG_SECRET || "",
-  testnetSecret: process.env.TESTNET_SECRET || "",
+  debugSecret: process.env.NEXT_PUBLIC_DEBUG_SECRET || "",
+  testnetSecret: process.env.NEXT_PUBLIC_TESTNET_SECRET || "",
   description:
     "High-performance vector graphics studio & lossless raster to SVG vectorizer",
 

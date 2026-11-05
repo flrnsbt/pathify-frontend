@@ -120,8 +120,13 @@ export const allNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   plasmaTestnet,
 ];
 
-export const networks: [AppKitNetwork, ...AppKitNetwork[]] = mainnetNetworks;
+// Pass all networks to createAppKit so both testnet and mainnet chains are available.
+// The WagmiAdapter already receives allNetworks, so the modal can show any chain.
+// After backend config loads, we'll switch to the appropriate default network.
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = allNetworks;
 
+// Re-export commonly used networks for use in other modules
+export { sepolia, bsc, bscTestnet, polygonAmoy, baseSepolia, arbitrumSepolia, optimismSepolia, avalancheFuji, plasmaTestnet, mainnet, polygon, base, arbitrum, optimism, avalanche, plasma };
 
 export const metadata = {
   name: APP_CONFIG.name,

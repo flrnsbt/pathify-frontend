@@ -210,6 +210,17 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     SUPPORTED_CHAINS['bsc'];
   const isEvm = chainMeta?.isEvm ?? true;
 
+  // React to wallet-initiated chain changes (e.g., user switches network in MetaMask)
+  // Auto-sync selectedChainKey to match the wallet's current chain
+  useEffect(() => {
+    if (isConnected && currentChainId) {
+      const matchingChain = availableChains.find((c) => c.chainId === currentChainId);
+      if (matchingChain && matchingChain.key !== selectedChainKey) {
+        setSelectedChainKey(matchingChain.key);
+      }
+    }
+  }, [isConnected, currentChainId, availableChains, selectedChainKey]);
+
   // Clear failed switch notice if wallet successfully switches to selected chain
   useEffect(() => {
     if (currentChainId === chainMeta.chainId) {
@@ -762,7 +773,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setSelectedChainKey(key)}
+                    onClick={() => handleSelectChain(key)}
                     style={{
                       backgroundColor: isSelected ? chain.bgGlow : undefined,
                       borderColor: isSelected ? chain.color : undefined,
