@@ -103,7 +103,7 @@ export default function PrivacyPolicyPage() {
                 <strong className="text-neutral-200">Account Credentials:</strong> If you sign in via Google Sign-In or email/password authentication, your user identifier (UID), email address, and profile name are securely stored via Google Firebase Authentication.
               </li>
               <li>
-                <strong className="text-neutral-200">Vectorization History (Optional):</strong> If you choose to save vector results to your history while signed in, compressed SVG paths and metadata are stored in your private Firestore record (<code className="text-neutral-300 font-mono">users/{'{userId}'}/history</code>) protected by security rules allowing only you to access them.
+                <strong className="text-neutral-200">Vectorization History (Optional):</strong> If you choose to save vector results to your history while signed in, compressed SVG paths and metadata are stored in your private Firestore record (<code className="text-neutral-300 font-mono">users/{'{userId}'}/history</code>, grouped per source image with a <code className="text-neutral-300 font-mono">generations</code> subcollection) protected by security rules allowing only you to access them.
               </li>
               <li>
                 <strong className="text-neutral-200">Crypto Payment Receipts:</strong> When purchasing credit packs via cryptocurrency, public on-chain identifiers (transaction hash, blockchain network, credit amount, timestamp) are recorded to automatically credit your balance upon block confirmation.

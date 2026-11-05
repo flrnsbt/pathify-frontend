@@ -40,6 +40,14 @@ export const APP_CONFIG = {
     saveHistoryUrl: `${API_URL}/save-history`,
   },
 
+  // Official social/community profiles. Empty strings hide the links —
+  // only fill in URLs for accounts that actually exist.
+  socials: {
+    twitter: "",
+    github: "",
+    discord: "",
+  },
+
   // CORS allowed origins
   allowedOrigins: [
     "https://vectorizerr.pages.dev",

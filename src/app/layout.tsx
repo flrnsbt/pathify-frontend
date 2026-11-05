@@ -13,10 +13,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://vectorizerr.pages.dev";
+const SITE_TITLE = "vectorizerr | Raster to SVG Vector Graphics";
+const SITE_DESCRIPTION =
+  "High-performance raster to SVG vector graphics converter studio.";
+
 export const metadata: Metadata = {
-  title: "vectorizerr | Raster to SVG Vector Graphics",
-  description:
-    "High-performance raster to SVG vector graphics converter studio.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "vectorizerr",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "vectorizerr — Raster to SVG Vector Graphics Studio",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
