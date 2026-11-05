@@ -579,10 +579,11 @@ export async function createCryptoTransaction(
   };
 
   let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
+  let backendSuccess = false;
 
   // 1. Post to backend server endpoint (service account writes to transactions collection)
   const endpoint =
-    APP_CONFIG.api.createTransactionUrl || "/api/create-transaction";
+    APP_CONFIG.api.createTransactionUrl ;
   try {
     let idToken: string | undefined;
     const currentUser = auth.currentUser;
@@ -597,12 +598,15 @@ export async function createCryptoTransaction(
 
     const appCheckToken = await getAppCheckToken();
     const headers = buildApiHeaders({ appCheckToken, idToken });
+    console.info('[Transaction] Creating transaction via backend:', { endpoint, hasIdToken: !!idToken, hasAppCheck: !!appCheckToken, txData });
 
     const res = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(txData),
     });
+
+    console.info('[Transaction] Backend response:', res.status, res.statusText);
 
     if (res.status === 401) {
       const errData = (await res
@@ -630,19 +634,26 @@ export async function createCryptoTransaction(
       const resJson = (await res.json().catch(() => ({}))) as any;
       if (resJson.transactionId) {
         createdId = resJson.transactionId;
+        backendSuccess = true;
       }
+      console.info('[Transaction] Backend confirmed transaction:', createdId);
     } else {
-      console.warn(
-        "Backend transaction creation returned error status:",
-        res.status,
-      );
+      const errorBody = await res.text().catch(() => '');
+      console.error('[Transaction] Backend returned error:', res.status, errorBody);
+      throw new Error(`Failed to create transaction: backend returned ${res.status} ${res.statusText}`);
     }
   } catch (err) {
-    console.warn("Failed to save transaction to backend:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    // Re-throw if the error is not already about backend failure (avoid double-wrapping)
+    if (!msg.startsWith('Failed to create transaction:')) {
+      console.error('[Transaction] Failed to save transaction to backend:', err);
+      throw new Error(`Failed to create transaction: ${msg}`);
+    }
+    throw err;
   }
 
   // 3. Trigger backend lazy scheduler for transaction verification
-  if (data.userId) {
+  if (data.userId && backendSuccess) {
     refreshUserCredits(data.userId).catch(() => { });
   }
 
