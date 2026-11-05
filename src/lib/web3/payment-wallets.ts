@@ -25,9 +25,15 @@ export interface BackendWalletConfig {
   address: string;
 }
 
+export interface BackendTokenContract {
+  address: string;
+  decimals: number;
+}
+
 export interface BackendConfigResponse {
   chains: Record<string, BackendChainConfig>;
   wallets: BackendWalletConfig[];
+  erc20Contracts: Record<number, Record<string, BackendTokenContract>>;
   isTestnet: boolean;
 }
 
@@ -103,229 +109,104 @@ export interface ChainMetadata {
   bgGlow: string;
 }
 
-// Default chain metadata with UI colors/badges - will be merged with backend config
-export const DEFAULT_MAINNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
+/**
+ * UI-only styling data per chain key. This is the only frontend-specific data
+ * that doesn't belong in the backend — colors, badges, and short display names.
+ */
+const UI_CHAIN_STYLING: Record<SupportedChainKey, {
+  color: string;
+  bgGlow: string;
+  badge: string;
+  shortName: string;
+}> = {
   bsc: {
-    key: "bsc",
-    name: "BNB Smart Chain",
+    color: "#F3BA2F",
+    bgGlow: "rgba(243, 186, 47, 0.12)",
+    badge: "BEP-20",
     shortName: "BNB Chain",
-    badge: "BEP-20",
-    chainId: 56,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "BNB"],
-    nativeToken: "BNB",
-    explorerUrl: "https://bscscan.com",
-    color: "#F3BA2F",
-    bgGlow: "rgba(243, 186, 47, 0.12)",
   },
   eth: {
-    key: "eth",
-    name: "Ethereum",
+    color: "#627EEA",
+    bgGlow: "rgba(98, 126, 234, 0.12)",
+    badge: "ERC-20",
     shortName: "Ethereum",
-    badge: "ERC-20",
-    chainId: 1,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://etherscan.io",
-    color: "#627EEA",
-    bgGlow: "rgba(98, 126, 234, 0.12)",
   },
   pol: {
-    key: "pol",
-    name: "Polygon",
+    color: "#8247E5",
+    bgGlow: "rgba(130, 71, 229, 0.12)",
+    badge: "PoS",
     shortName: "Polygon",
-    badge: "PoS",
-    chainId: 137,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "POL"],
-    nativeToken: "POL",
-    explorerUrl: "https://polygonscan.com",
-    color: "#8247E5",
-    bgGlow: "rgba(130, 71, 229, 0.12)",
   },
   base: {
-    key: "base",
-    name: "Base",
+    color: "#0052FF",
+    bgGlow: "rgba(0, 82, 255, 0.12)",
+    badge: "L2",
     shortName: "Base",
-    badge: "L2",
-    chainId: 8453,
-    isEvm: true,
-    tokens: ["ETH", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://basescan.org",
-    color: "#0052FF",
-    bgGlow: "rgba(0, 82, 255, 0.12)",
   },
   arbitrum: {
-    key: "arbitrum",
-    name: "Arbitrum One",
+    color: "#28A0F0",
+    bgGlow: "rgba(40, 160, 240, 0.12)",
+    badge: "L2",
     shortName: "Arbitrum",
-    badge: "L2",
-    chainId: 42161,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://arbiscan.io",
-    color: "#28A0F0",
-    bgGlow: "rgba(40, 160, 240, 0.12)",
   },
   op: {
-    key: "op",
-    name: "Optimism",
+    color: "#FF0420",
+    bgGlow: "rgba(255, 4, 32, 0.12)",
+    badge: "L2",
     shortName: "Optimism",
-    badge: "L2",
-    chainId: 10,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://optimistic.etherscan.io",
-    color: "#FF0420",
-    bgGlow: "rgba(255, 4, 32, 0.12)",
   },
   avax: {
-    key: "avax",
-    name: "Avalanche",
+    color: "#E84142",
+    bgGlow: "rgba(232, 65, 66, 0.12)",
+    badge: "C-Chain",
     shortName: "Avalanche",
-    badge: "C-Chain",
-    chainId: 43114,
-    isEvm: true,
-    tokens: ["AVAX", "USDT", "USDC"],
-    nativeToken: "AVAX",
-    explorerUrl: "https://snowtrace.io",
-    color: "#E84142",
-    bgGlow: "rgba(232, 65, 66, 0.12)",
   },
   plasma: {
-    key: "plasma",
-    name: "Plasma",
+    color: "#7C3AED",
+    bgGlow: "rgba(124, 58, 237, 0.12)",
+    badge: "L2",
     shortName: "Plasma",
-    badge: "L2",
-    chainId: 9745,
-    isEvm: true,
-    tokens: ["XPL", "USDC"],
-    nativeToken: "XPL",
-    explorerUrl: "https://plasmascan.to",
-    color: "#7C3AED",
-    bgGlow: "rgba(124, 58, 237, 0.12)",
   },
 };
 
-export const DEFAULT_TESTNET_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> = {
-  bsc: {
-    key: "bsc",
-    name: "BNB Smart Chain Testnet",
-    shortName: "BSC Testnet",
-    badge: "BEP-20",
-    chainId: 97,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "BNB"],
-    nativeToken: "BNB",
-    explorerUrl: "https://testnet.bscscan.com",
-    color: "#F3BA2F",
-    bgGlow: "rgba(243, 186, 47, 0.12)",
-  },
-  eth: {
-    key: "eth",
-    name: "Ethereum Sepolia",
-    shortName: "Sepolia",
-    badge: "ERC-20",
-    chainId: 11155111,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.etherscan.io",
-    color: "#627EEA",
-    bgGlow: "rgba(98, 126, 234, 0.12)",
-  },
-  pol: {
-    key: "pol",
-    name: "Polygon Amoy",
-    shortName: "Amoy",
-    badge: "PoS",
-    chainId: 80002,
-    isEvm: true,
-    tokens: ["USDT", "USDC", "POL"],
-    nativeToken: "POL",
-    explorerUrl: "https://amoy.polygonscan.com",
-    color: "#8247E5",
-    bgGlow: "rgba(130, 71, 229, 0.12)",
-  },
-  base: {
-    key: "base",
-    name: "Base Sepolia",
-    shortName: "Base Sepolia",
-    badge: "L2",
-    chainId: 84532,
-    isEvm: true,
-    tokens: ["ETH", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.basescan.org",
-    color: "#0052FF",
-    bgGlow: "rgba(0, 82, 255, 0.12)",
-  },
-  arbitrum: {
-    key: "arbitrum",
-    name: "Arbitrum Sepolia",
-    shortName: "Arb Sepolia",
-    badge: "L2",
-    chainId: 421614,
-    isEvm: true,
-    tokens: ["ETH", "USDT", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://sepolia.arbiscan.io",
-    color: "#28A0F0",
-    bgGlow: "rgba(40, 160, 240, 0.12)",
-  },
-  op: {
-    key: "op",
-    name: "Optimism Sepolia",
-    shortName: "OP Sepolia",
-    badge: "L2",
-    chainId: 11155420,
-    isEvm: true,
-    tokens: ["ETH", "USDC"],
-    nativeToken: "ETH",
-    explorerUrl: "https://optimism-sepolia.blockscout.com",
-    color: "#FF0420",
-    bgGlow: "rgba(255, 4, 32, 0.12)",
-  },
-  avax: {
-    key: "avax",
-    name: "Avalanche Fuji",
-    shortName: "Fuji",
-    badge: "C-Chain",
-    chainId: 43113,
-    isEvm: true,
-    tokens: ["AVAX", "USDT", "USDC"],
-    nativeToken: "AVAX",
-    explorerUrl: "https://testnet.snowtrace.io",
-    color: "#E84142",
-    bgGlow: "rgba(232, 65, 66, 0.12)",
-  },
-  plasma: {
-    key: "plasma",
-    name: "Plasma Testnet",
-    shortName: "Plasma Testnet",
-    badge: "L2",
-    chainId: 9746,
-    isEvm: true,
-    tokens: ["XPL", "USDC"],
-    nativeToken: "XPL",
-    explorerUrl: "https://testnet.plasmascan.to",
-    color: "#7C3AED",
-    bgGlow: "rgba(124, 58, 237, 0.12)",
-  },
-};
-
-const DEFAULT_CHAIN_METADATA: Record<SupportedChainKey, ChainMetadata> =
-  DEFAULT_MAINNET_CHAIN_METADATA;
-
-let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null =
-  null;
+let supportedChainsCache: Record<SupportedChainKey, ChainMetadata> | null = null;
 
 /**
- * Get supported chains by merging backend config with UI metadata
+ * Build ChainMetadata from backend config, merging with UI-only styling.
+ * The backend is the single source of truth for all chain data.
+ */
+function buildChainMetadataFromBackend(
+  backendConfig: BackendConfigResponse,
+): Record<SupportedChainKey, ChainMetadata> {
+  const chains: Record<SupportedChainKey, ChainMetadata> = {} as Record<SupportedChainKey, ChainMetadata>;
+
+  for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
+    const chainKey = key as SupportedChainKey;
+    const uiStyle = UI_CHAIN_STYLING[chainKey];
+
+    if (uiStyle) {
+      chains[chainKey] = {
+        key: chainKey,
+        name: backendChain.name,
+        shortName: uiStyle.shortName,
+        badge: uiStyle.badge,
+        chainId: backendChain.chainId ?? 0,
+        isEvm: backendChain.isEvm,
+        tokens: backendChain.tokens as SupportedToken[],
+        nativeToken: backendChain.nativeToken as SupportedToken,
+        explorerUrl: backendChain.explorerUrl,
+        color: uiStyle.color,
+        bgGlow: uiStyle.bgGlow,
+      };
+    }
+  }
+
+  return chains;
+}
+
+/**
+ * Get supported chains from backend config, merged with UI styling.
+ * The backend is the single source of truth for all chain data.
  */
 export async function getSupportedChains(): Promise<
   Record<SupportedChainKey, ChainMetadata>
@@ -336,263 +217,97 @@ export async function getSupportedChains(): Promise<
 
   try {
     const backendConfig = await fetchBackendConfig();
-    const isTestnet = backendConfig.isTestnet ?? false;
-    const defaultMetadata = isTestnet
-      ? DEFAULT_TESTNET_CHAIN_METADATA
-      : DEFAULT_MAINNET_CHAIN_METADATA;
-    const chains: Record<SupportedChainKey, ChainMetadata> = { ...defaultMetadata };
+    supportedChainsCache = buildChainMetadataFromBackend(backendConfig);
+    return supportedChainsCache;
+  } catch (err) {
+    console.warn("Failed to load chains from backend:", err);
+    throw err;
+  }
+}
 
-    for (const [key, backendChain] of Object.entries(backendConfig.chains)) {
-      const chainKey = key as SupportedChainKey;
-      const defaultMeta = defaultMetadata[chainKey];
+// Cached ERC20 contracts from backend
+let cachedErc20Contracts: Record<number, Record<string, { address: `0x${string}`; decimals: number }>> | null = null;
 
-      if (defaultMeta) {
-        chains[chainKey] = {
-          ...defaultMeta,
-          name: backendChain.name || defaultMeta.name,
-          chainId: backendChain.chainId || defaultMeta.chainId,
-          isEvm: backendChain.isEvm ?? defaultMeta.isEvm,
-          tokens: (backendChain.tokens as SupportedToken[]) || defaultMeta.tokens,
-          nativeToken: (backendChain.nativeToken as SupportedToken) || defaultMeta.nativeToken,
-          explorerUrl: backendChain.explorerUrl || defaultMeta.explorerUrl,
+/**
+ * Get ERC20 contract addresses from backend config.
+ * The backend is the single source of truth for contract data.
+ */
+export function getERC20Contracts(): Record<number, Record<string, { address: `0x${string}`; decimals: number }>> {
+  if (cachedErc20Contracts) {
+    return cachedErc20Contracts;
+  }
+  if (backendConfigCache?.erc20Contracts) {
+    // Convert backend contracts to the expected type
+    const contracts: Record<number, Record<string, { address: `0x${string}`; decimals: number }>> = {};
+    for (const [chainIdStr, tokens] of Object.entries(backendConfigCache.erc20Contracts)) {
+      const chainId = Number(chainIdStr);
+      contracts[chainId] = {};
+      for (const [token, contract] of Object.entries(tokens)) {
+        contracts[chainId][token] = {
+          address: contract.address as `0x${string}`,
+          decimals: contract.decimals,
         };
       }
     }
-
-    supportedChainsCache = chains;
-    return chains as Record<SupportedChainKey, ChainMetadata>;
-  } catch (err) {
-    console.warn("Using fallback default chain metadata:", err);
-    supportedChainsCache = DEFAULT_CHAIN_METADATA;
-    return DEFAULT_CHAIN_METADATA;
+    cachedErc20Contracts = contracts;
+    return cachedErc20Contracts;
   }
+  return {};
 }
 
 /**
- * Get the explorer URL for a given chain key from the backend config.
- * Falls back to the static defaults if the backend config hasn't been loaded yet.
- * This ensures the backend is the single source of truth for explorer URLs.
- */
-export function getExplorerUrlForChain(
-  chainKey: SupportedChainKey,
-  isTestnet: boolean,
-): string {
-  // Prefer backend config if available
-  if (backendConfigCache) {
-    const backendChain = backendConfigCache.chains[chainKey];
-    if (backendChain?.explorerUrl) {
-      return backendChain.explorerUrl;
-    }
-  }
-  // Fallback to static defaults
-  const metadata = isTestnet
-    ? DEFAULT_TESTNET_CHAIN_METADATA[chainKey]
-    : DEFAULT_MAINNET_CHAIN_METADATA[chainKey];
-  return metadata?.explorerUrl || "";
-}
-
-/**
- * Get the full chain metadata for a transaction, using backend config as the source of truth
- * for explorer URLs and falling back to static defaults for UI styling.
+ * Get the full chain metadata for a transaction using chainId as the single source of truth.
+ * Uses backend config cache directly, with UI styling merged in.
  */
 export function getChainMetadataForTransaction(
   chainKey: SupportedChainKey,
-  isTestnet: boolean,
+  chainId?: number,
 ): ChainMetadata | undefined {
-  const defaultMeta = (isTestnet
-    ? DEFAULT_TESTNET_CHAIN_METADATA
-    : DEFAULT_MAINNET_CHAIN_METADATA)[chainKey];
-
-  if (!defaultMeta) return undefined;
-
-  // Override explorerUrl from backend config if available
+  // If we have the cached supported chains, look up by chainId
+  if (supportedChainsCache) {
+    for (const meta of Object.values(supportedChainsCache)) {
+      if (chainId != null && meta.chainId === chainId) {
+        return meta;
+      }
+    }
+    // Fallback to chain key
+    return supportedChainsCache[chainKey];
+  }
+  // If backend config is cached but supportedChainsCache is not built yet, build from backend
   if (backendConfigCache) {
     const backendChain = backendConfigCache.chains[chainKey];
-    if (backendChain?.explorerUrl) {
-      return { ...defaultMeta, explorerUrl: backendChain.explorerUrl };
+    const uiStyle = UI_CHAIN_STYLING[chainKey];
+    if (backendChain && uiStyle) {
+      return {
+        key: chainKey,
+        name: backendChain.name,
+        shortName: uiStyle.shortName,
+        badge: uiStyle.badge,
+        chainId: backendChain.chainId ?? 0,
+        isEvm: backendChain.isEvm,
+        tokens: backendChain.tokens as SupportedToken[],
+        nativeToken: backendChain.nativeToken as SupportedToken,
+        explorerUrl: backendChain.explorerUrl,
+        color: uiStyle.color,
+        bgGlow: uiStyle.bgGlow,
+      };
     }
   }
-
-  return defaultMeta;
+  return undefined;
 }
 
-// Fallback to static chains if backend config fails
-export const SUPPORTED_CHAINS: Record<SupportedChainKey, ChainMetadata> =
-  DEFAULT_CHAIN_METADATA;
-
-const MAINNET_ERC20_CONTRACTS: Record<
-  number,
-  Partial<Record<SupportedToken, { address: `0x${string}`; decimals: number }>>
-> = {
-  1: {
-    USDT: {
-      address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      decimals: 6,
-    },
-  },
-  56: {
-    USDT: {
-      address: "0x55d398326f99059fF775485246999027B3197955",
-      decimals: 18,
-    },
-    USDC: {
-      address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
-      decimals: 18,
-    },
-  },
-  137: {
-    USDT: {
-      address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-      decimals: 6,
-    },
-  },
-  8453: {
-    USDC: {
-      address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      decimals: 6,
-    },
-  },
-  42161: {
-    USDT: {
-      address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-      decimals: 6,
-    },
-  },
-  10: {
-    USDT: {
-      address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-      decimals: 6,
-    },
-  },
-  43114: {
-    USDT: {
-      address: "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
-      decimals: 6,
-    },
-  },
-  9745: {
-    USDC: {
-      address: "0x2d661C89D812261039AF9764eceaAee884f5F67F",
-      decimals: 6,
-    },
-  },
-};
-
-const TESTNET_ERC20_CONTRACTS: Record<
-  number,
-  Partial<Record<SupportedToken, { address: `0x${string}`; decimals: number }>>
-> = {
-  11155111: {
-    USDT: {
-      address: "0x7169d38820dfd117c3fa1f22a697dba58d90ba06",
-      decimals: 18,
-    },
-    USDC: {
-      address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-      decimals: 6,
-    },
-  },
-  97: {
-    USDT: {
-      address: "0xf4B41a53b67652E83f59df082F3CA342252b7E20",
-      decimals: 18,
-    },
-    USDC: {
-      address: "0x64544969ed7EBf5f083679233325356EbE738930",
-      decimals: 18,
-    },
-  },
-  80002: {
-    USDT: {
-      address: "0x056Fd409E1d491d221329E89416B166c23615001",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582",
-      decimals: 6,
-    },
-  },
-  84532: {
-    USDC: {
-      address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      decimals: 6,
-    },
-  },
-  421614: {
-    USDC: {
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-      decimals: 6,
-    },
-  },
-  11155420: {
-    USDC: {
-      address: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
-      decimals: 6,
-    },
-    USDT: {
-      address: "0xDCa91575A8bb40a1EbC4C8985d0d05fbfb16D9d6",
-      decimals: 6,
-    },
-  },
-  43113: {
-    USDT: {
-      address: "0x04A5d3a6eDb6c2cb0A17B3BF2cD0D25efCB38679",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0x5425890298aed601595a70ab815c96711a31bc65",
-      decimals: 6,
-    },
-  },
-  9745: {
-    USDT: {
-      address: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0xE67Fb267022cBA8064Dd388CC2FED724F3120D9D",
-      decimals: 6,
-    },
-  },
-  9746: {
-    USDT: {
-      address: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
-      decimals: 6,
-    },
-    USDC: {
-      address: "0xE67Fb267022cBA8064Dd388CC2FED724F3120D9D",
-      decimals: 6,
-    },
-  },
-};
-
-export const ERC20_CONTRACTS: Record<
-  number,
-  Partial<Record<SupportedToken, { address: `0x${string}`; decimals: number }>>
-> = {
-  ...MAINNET_ERC20_CONTRACTS,
-  ...TESTNET_ERC20_CONTRACTS,
-};
+/**
+ * Refresh the cached data when backend config is reloaded.
+ * Call this after fetchBackendConfig() if the config was reset.
+ */
+export function refreshCachedData(): void {
+  supportedChainsCache = null;
+  cachedErc20Contracts = null;
+  if (backendConfigCache) {
+    supportedChainsCache = buildChainMetadataFromBackend(backendConfigCache);
+    cachedErc20Contracts = null; // Force re-read from backendConfigCache
+  }
+}
 
 export interface RawWalletConfig {
   chainId?: number | string;
@@ -746,26 +461,18 @@ export async function loadPaymentWallets(): Promise<ParsedPaymentWallet[]> {
 }
 
 /**
- * Parses payment wallets from:
- * 1. Explicit rawEnv string
- * 2. NEXT_PUBLIC_PAYMENT_WALLETS environment variable
- * 3. Cached payment wallets loaded asynchronously
+ * Parses payment wallets from an explicit raw JSON string.
+ * Used only for manual overrides; wallets normally come from the backend.
  */
 export function parsePaymentWallets(rawEnv?: string): ParsedPaymentWallet[] {
-  const content =
-    rawEnv ||
-    (typeof process !== "undefined"
-      ? process.env.NEXT_PUBLIC_PAYMENT_WALLETS || ""
-      : "");
-
-  if (!content.trim()) {
+  if (!rawEnv?.trim()) {
     return cachedWallets || [];
   }
 
   // Check if standard JSON array
-  if (content.trim().startsWith("[")) {
+  if (rawEnv.trim().startsWith("[")) {
     try {
-      const arr = JSON.parse(content) as RawWalletConfig[];
+      const arr = JSON.parse(rawEnv) as RawWalletConfig[];
       return parseWalletList(arr);
     } catch {
       // Fallback to line by line parsing
@@ -774,7 +481,7 @@ export function parsePaymentWallets(rawEnv?: string): ParsedPaymentWallet[] {
 
   // Parse JSON Lines
   const results: ParsedPaymentWallet[] = [];
-  const lines = content.split("\n");
+  const lines = rawEnv.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//"))
@@ -814,9 +521,7 @@ export function getRecipientWallet(
   const wallets =
     configuredWallets && configuredWallets.length > 0
       ? configuredWallets
-      : cachedWallets && cachedWallets.length > 0
-        ? cachedWallets
-        : parsePaymentWallets();
+      : cachedWallets || [];
 
   const validWallets = wallets.filter((w) => isValidWalletAddress(w.wallet));
 
@@ -855,7 +560,10 @@ export function getRecipientWallet(
 export function getAvailableChains(
   wallets: ParsedPaymentWallet[],
 ): ChainMetadata[] {
-  return Object.values(SUPPORTED_CHAINS).filter((chain) => {
+  const chains = supportedChainsCache
+    ? Object.values(supportedChainsCache)
+    : [];
+  return chains.filter((chain) => {
     return wallets.some((w) => {
       if (!isValidWalletAddress(w.wallet)) return false;
       if (w.chainId && chain.chainId && w.chainId === chain.chainId)

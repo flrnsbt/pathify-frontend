@@ -29,8 +29,6 @@ import { getAccount } from '@wagmi/core';
 import { parseEther, parseUnits, formatUnits, type Address } from 'viem';
 import { CHAIN_ID_TO_VIEM_CHAIN, CHAIN_KEY_TO_VIEM_CHAIN, getWagmiConfig } from '../lib/web3/config';
 import {
-  SUPPORTED_CHAINS,
-  ERC20_CONTRACTS,
   CREDIT_PACKS,
   CreditPack,
   SupportedChainKey,
@@ -45,6 +43,7 @@ import {
   getCachedTokenPrices,
   calculateCryptoAmount,
   getSupportedChains,
+  getERC20Contracts,
   fetchBackendConfig,
 } from '../lib/web3/payment-wallets';
 import { ChainIcon, TokenIcon } from './ChainIcons';
@@ -117,8 +116,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   const [isLoadingWallets, setIsLoadingWallets] = useState<boolean>(() => !getCachedPaymentWallets());
 
   // Chains loaded asynchronously from backend
-  const [supportedChains, setSupportedChains] = useState<Record<SupportedChainKey, ChainMetadata>>(SUPPORTED_CHAINS);
-  const [isLoadingChains, setIsLoadingChains] = useState<boolean>(false);
+  const [supportedChains, setSupportedChains] = useState<Record<SupportedChainKey, ChainMetadata> | null>(null);
+  const [isLoadingChains, setIsLoadingChains] = useState<boolean>(true);
 
   // Testnet mode from backend config
   const [isTestnet, setIsTestnet] = useState<boolean>(false);
@@ -205,9 +204,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   }, [isOpen, isConnected, currentChainId, availableChains]);
 
   const chainMeta =
-    supportedChains[selectedChainKey] ||
-    availableChains[0] ||
-    SUPPORTED_CHAINS['bsc'];
+    supportedChains?.[selectedChainKey] ||
+    availableChains[0];
   const isEvm = chainMeta?.isEvm ?? true;
 
   // React to wallet-initiated chain changes (e.g., user switches network in MetaMask)
@@ -234,7 +232,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     setErrorMsg(null);
     setSwitchFailedChainId(null);
 
-    const targetChain = supportedChains[key] || availableChains.find((c) => c.key === key);
+    const targetChain = supportedChains?.[key] || availableChains.find((c) => c.key === key);
     if (!targetChain || !targetChain.chainId) return;
 
     // If wallet is connected and on a different network, automatically switch to it
@@ -312,7 +310,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     return chainMeta.tokens
       .filter((t) => t !== chainMeta.nativeToken)
       .map((token) => {
-        const contract = ERC20_CONTRACTS[chainMeta.chainId]?.[token];
+        const contract = getERC20Contracts()[chainMeta.chainId]?.[token];
         if (!contract) return null;
         return {
           address: contract.address,
@@ -514,7 +512,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         txHash = tx;
       } else {
         // ERC-20 token transfer (USDT, USDC)
-        const tokenConfig = ERC20_CONTRACTS[targetChainId]?.[activeToken];
+        const tokenConfig = getERC20Contracts()[targetChainId]?.[activeToken];
         if (!tokenConfig) {
           throw new Error(
             `Direct Web3 transfer not configured for ${activeToken} on ${chainMeta.name}. Please use Direct Transfer / QR Code below.`
@@ -535,8 +533,6 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
       // 4. Record transaction in Firestore with status 'pending'
       const txId = await createCryptoTransaction({
-        userId: user.uid,
-        userEmail: user.email,
         packId: selectedPack.id,
         credits: selectedPack.credits,
         usdPrice: selectedPack.usdPrice,
@@ -550,7 +546,6 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         txHash,
         status: 'pending',
         statusMessage: `Submitted on ${chainMeta.name}. Awaiting blockchain confirmation.`,
-        isTestnet,
       });
 
       // Listen for transaction confirmation in real-time
@@ -597,8 +592,6 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
 
       // Record transaction in Firestore with status 'pending'
       const txId = await createCryptoTransaction({
-        userId: user.uid,
-        userEmail: user.email,
         packId: selectedPack.id,
         credits: selectedPack.credits,
         usdPrice: selectedPack.usdPrice,
@@ -611,7 +604,6 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         txHash: txHashInput.trim() || undefined,
         status: 'pending',
         statusMessage: 'Direct network transfer submitted. Awaiting verification.',
-        isTestnet,
       });
 
       // Listen for transaction confirmation

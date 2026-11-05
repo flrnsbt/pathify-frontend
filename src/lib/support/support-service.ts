@@ -65,7 +65,6 @@ export async function submitSupportTicket(
       headers,
       body: JSON.stringify({
         ...input,
-        userId,
       }),
     });
 
@@ -87,7 +86,6 @@ export async function submitSupportTicket(
         headers,
         body: JSON.stringify({
           ...input,
-          userId,
         }),
       });
       data = await response.json().catch(() => ({}));

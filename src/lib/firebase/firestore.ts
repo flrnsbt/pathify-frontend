@@ -81,7 +81,6 @@ export type PaymentMethod = "web3" | "direct";
 export interface CryptoTransaction {
   id: string;
   userId: string;
-  userEmail?: string | null;
   packId: string;
   credits: number;
   usdPrice: number;
@@ -98,7 +97,6 @@ export interface CryptoTransaction {
   createdAt: number;
   updatedAt: number;
   confirmedAt?: number;
-  isTestnet?: boolean;
 }
 
 const LOCAL_STORAGE_HISTORY_KEY = "vtracer_local_history";
@@ -356,10 +354,10 @@ export async function saveVectorizationHistory(
   // Gzip-compress SVG for compact storage
   const compressedSvg = await compressSvgString(data.svg);
 
+  // Exclude userId from the API body — the backend extracts it from the Firebase ID token
   const itemToStore = {
     ...data,
     svg: compressedSvg,
-    userId,
     createdAt: Date.now(),
   };
 
@@ -563,19 +561,19 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
  * Falls back to localStorage if offline/guest mode.
  */
 export async function createCryptoTransaction(
-  data: Omit<CryptoTransaction, "id" | "createdAt" | "updatedAt" | "status"> & {
+  data: Omit<CryptoTransaction, "id" | "createdAt" | "updatedAt" | "status" | "userId"> & {
     status?: TransactionStatus;
   },
 ): Promise<string> {
   const now = Date.now();
   const status: TransactionStatus = data.status || "pending";
 
+  // userId is excluded from the API body — the backend extracts it from the Firebase ID token
   const txData = {
     ...data,
     status,
     createdAt: now,
     updatedAt: now,
-    isTestnet: data.isTestnet || false,
   };
 
   let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
@@ -653,8 +651,11 @@ export async function createCryptoTransaction(
   }
 
   // 3. Trigger backend lazy scheduler for transaction verification
-  if (data.userId && backendSuccess) {
-    refreshUserCredits(data.userId).catch(() => { });
+  if (backendSuccess) {
+    const currentUser = auth.currentUser;
+    if (currentUser && !currentUser.isAnonymous) {
+      refreshUserCredits(currentUser.uid).catch(() => { });
+    }
   }
 
   return createdId;
@@ -676,7 +677,6 @@ export async function fetchUserTransactions(
     items.push({
       id: docSnap.id,
       userId: d.userId,
-      userEmail: d.userEmail,
       packId: d.packId,
       credits: d.credits || 0,
       usdPrice: d.usdPrice || 0,
@@ -693,7 +693,6 @@ export async function fetchUserTransactions(
       createdAt: d.createdAt || Date.now(),
       updatedAt: d.updatedAt || Date.now(),
       confirmedAt: d.confirmedAt,
-      isTestnet: Boolean(d.isTestnet),
     });
   });
   items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -720,7 +719,6 @@ export function listenToUserTransactions(
         items.push({
           id: docSnap.id,
           userId: d.userId,
-          userEmail: d.userEmail,
           packId: d.packId,
           credits: d.credits || 0,
           usdPrice: d.usdPrice || 0,
@@ -737,7 +735,6 @@ export function listenToUserTransactions(
           createdAt: d.createdAt || Date.now(),
           updatedAt: d.updatedAt || Date.now(),
           confirmedAt: d.confirmedAt,
-          isTestnet: Boolean(d.isTestnet),
         });
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -785,7 +782,6 @@ export function listenToTransaction(
       onUpdate({
         id: docSnap.id,
         userId: d.userId,
-        userEmail: d.userEmail,
         packId: d.packId,
         credits: d.credits || 0,
         usdPrice: d.usdPrice || 0,
@@ -802,7 +798,6 @@ export function listenToTransaction(
         createdAt: d.createdAt || Date.now(),
         updatedAt: d.updatedAt || Date.now(),
         confirmedAt: d.confirmedAt,
-        isTestnet: Boolean(d.isTestnet),
       });
     },
     (err) => {
@@ -892,7 +887,6 @@ export async function refreshUserCredits(
         method: "POST",
         headers,
         body: JSON.stringify({
-          userId,
           pendingTransactions: pending.map((t) => ({
             id: t.id,
             chainKey: t.chainKey,

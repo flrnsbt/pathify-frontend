@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { submitSupportTicket } from '@/lib/support/support-service';
-import { SUPPORTED_CHAINS } from '@/lib/web3/payment-wallets';
+import { getSupportedChains, SupportedChainKey, ChainMetadata } from '@/lib/web3/payment-wallets';
 import { Footer } from '@/components/Footer';
 
 function SupportContent() {
@@ -35,6 +35,7 @@ function SupportContent() {
   const [txHash, setTxHash] = useState('');
   const [chainKey, setChainKey] = useState('bsc');
   const [walletAddress, setWalletAddress] = useState('');
+  const [supportedChains, setSupportedChains] = useState<Record<SupportedChainKey, ChainMetadata> | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,6 +70,9 @@ function SupportContent() {
     if (chainParam) {
       setChainKey(chainParam.toLowerCase());
     }
+
+    // Load chains from backend
+    getSupportedChains().then(setSupportedChains).catch(() => {});
   }, [user, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -417,7 +421,7 @@ function SupportContent() {
                       onChange={(e) => setChainKey(e.target.value)}
                       className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none transition"
                     >
-                      {Object.values(SUPPORTED_CHAINS).map((c) => (
+                      {Object.values(supportedChains || {}).map((c) => (
                         <option key={c.key} value={c.key}>
                           {c.name} ({c.nativeToken})
                         </option>

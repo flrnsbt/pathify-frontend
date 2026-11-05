@@ -467,7 +467,7 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
                   {filteredTxs.map((tx) => {
-                    const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.isTestnet ?? false);
+                    const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.chainId);
                     const dateStr = new Date(tx.createdAt).toLocaleString(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -650,7 +650,7 @@ function TransactionDetailsModal({
   copiedField,
 }: DetailsModalProps) {
   const [checking, setChecking] = useState(false);
-  const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.isTestnet ?? false);
+  const chainMeta = getChainMetadataForTransaction(tx.chainKey as SupportedChainKey, tx.chainId);
 
   const handleCheckNow = async () => {
     setChecking(true);
