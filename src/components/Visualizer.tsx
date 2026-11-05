@@ -1005,9 +1005,16 @@ export function Visualizer({
                     <span className="rounded bg-indigo-500/10 px-1.5 py-0.2 text-[10px] font-medium text-indigo-300 border border-indigo-500/20">
                       HTML5 Canvas
                     </span>
-                    {isUnlocked && (
-                      <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[10px] font-medium text-emerald-300 border border-emerald-500/30">
-                        Unlocked {typeof generationsRemaining === 'number' && generationsRemaining < 9000 ? `(${generationsRemaining}/${generationsMax ?? generationsRemaining} left)` : ''}
+                    {typeof generationsRemaining === 'number' && generationsRemaining < 9000 && (
+                      <span
+                        className={`rounded px-1.5 py-0.2 text-[10px] font-medium border ${
+                          isUnlocked
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            : 'bg-neutral-800/60 text-neutral-400 border-neutral-700'
+                        }`}
+                      >
+                        {isUnlocked ? 'Unlocked ' : ''}
+                        {generationsRemaining}/{generationsMax ?? generationsRemaining} gens left
                       </span>
                     )}
                   </div>

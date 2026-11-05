@@ -31,6 +31,8 @@ interface ControlsPanelProps {
   autoTrace: boolean;
   onToggleAutoTrace: (enabled: boolean) => void;
   onCropToContent?: () => void;
+  generationsRemaining?: number;
+  generationsMax?: number;
 }
 
 export function ControlsPanel({
@@ -43,6 +45,8 @@ export function ControlsPanel({
   autoTrace,
   onToggleAutoTrace,
   onCropToContent,
+  generationsRemaining,
+  generationsMax,
 }: ControlsPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -531,6 +535,25 @@ export function ControlsPanel({
 
       {/* Auto-trace toggle & Action Button */}
       <div className="space-y-3 pt-2">
+        {hasImage &&
+          typeof generationsRemaining === 'number' &&
+          (generationsMax ?? generationsRemaining) < 9000 && (
+            <div
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs font-medium ${
+                generationsRemaining > 0
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
+                Generations left
+              </span>
+              <span className="font-bold">
+                {generationsRemaining}/{generationsMax ?? generationsRemaining}
+              </span>
+            </div>
+          )}
         <div className="flex items-center justify-between rounded-lg bg-neutral-800/30 px-3 py-2 border border-neutral-800">
           <label className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
             <Zap className="h-3.5 w-3.5 text-amber-400" />

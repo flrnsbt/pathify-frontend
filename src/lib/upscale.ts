@@ -155,6 +155,15 @@ const enhanceCache = new WeakMap<ImageData, Map<UpscaleModelId, Promise<ImageDat
  * Processes the image in overlapping tiles to bound GPU/CPU memory.
  * Results are cached per (source pixels, model) for the session.
  */
+/** True when an enhanced result is already cached for this source + model. */
+export function isEnhancementCached(
+  imageData: ImageData,
+  modelId: UpscaleModelId
+): boolean {
+  const model = UPSCALE_MODELS.find((m) => m.id === modelId) ?? UPSCALE_MODELS[0];
+  return enhanceCache.get(imageData)?.has(model.id) ?? false;
+}
+
 export async function upscaleImageData(
   imageData: ImageData,
   modelId: UpscaleModelId,

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { X, Clock, Layers, Download, Trash2, ArrowUpRight, Copy, Check, Shield } from 'lucide-react';
-import { VectorizationHistoryItem } from '../lib/firebase/firestore';
+import { VectorizationHistoryItem, UserProfile, getImageUnlockStatus } from '../lib/firebase/firestore';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface HistoryDrawerProps {
   onDelete: (id: string) => void;
   onDeleteAll: () => void;
   isAdmin: boolean;
+  profile?: UserProfile | null;
 }
 
 export function HistoryDrawer({
@@ -22,6 +23,7 @@ export function HistoryDrawer({
   onDelete,
   onDeleteAll,
   isAdmin,
+  profile,
 }: HistoryDrawerProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [confirmingClear, setConfirmingClear] = React.useState(false);
@@ -124,6 +126,10 @@ export function HistoryDrawer({
             </div>
           ) : (
             items.map((item) => {
+              const quota = item.imageHash
+                ? getImageUnlockStatus(profile ?? null, item.imageHash)
+                : null;
+              const showQuota = quota !== null && quota.maxGenerations < 9000;
               return (
                 <div
                   key={item.id}
@@ -146,6 +152,20 @@ export function HistoryDrawer({
                         <span>{item.nodeCount} paths</span>
                         <span>•</span>
                         <span>{item.executionTimeMs} ms</span>
+                        {showQuota && (
+                          <>
+                            <span>•</span>
+                            <span
+                              className={
+                                quota.generationsRemaining === 0
+                                  ? 'text-red-400'
+                                  : 'text-emerald-400'
+                              }
+                            >
+                              {quota.generationsRemaining}/{quota.maxGenerations} gens left
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
 

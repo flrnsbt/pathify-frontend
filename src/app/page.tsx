@@ -37,7 +37,7 @@ import {
   getUserProfile,
 } from '../lib/firebase/firestore';
 import { saveSourceImage, getSourceImage } from '../lib/local-source-images';
-import { upscaleImageData, UpscaleModelId } from '../lib/upscale';
+import { upscaleImageData, isEnhancementCached, UpscaleModelId } from '../lib/upscale';
 
 const AI_ENHANCE_PREF_KEY = 'vtracer_ai_enhance_pref';
 type AiEnhancePref = 'on' | 'off';
@@ -232,10 +232,13 @@ export default function Home() {
         let traceH = img.height;
 
         if (opts.aiEnhance) {
-          setEnhanceProgress(0);
+          const modelId = (opts.aiEnhanceModel ?? 'anime') as UpscaleModelId;
+          if (!isEnhancementCached(img.imageData, modelId)) {
+            setEnhanceProgress(0);
+          }
           const enhanced = await upscaleImageData(
             img.imageData,
-            (opts.aiEnhanceModel ?? 'anime') as UpscaleModelId,
+            modelId,
             setEnhanceProgress
           );
           traceImage = enhanced;
@@ -567,12 +570,18 @@ export default function Home() {
               options={options}
               onChange={handleOptionsChange}
               onTrace={() => handleTrace()}
-              isProcessing={isProcessing}
-              statusText={statusText}
+              isProcessing={isProcessing || enhanceProgress !== null}
+              statusText={
+                enhanceProgress !== null
+                  ? `AI enhancing… ${Math.round(enhanceProgress * 100)}%`
+                  : statusText
+              }
               hasImage={Boolean(currentImage)}
               autoTrace={autoTrace}
               onToggleAutoTrace={setAutoTrace}
               onCropToContent={handleCropToContent}
+              generationsRemaining={unlockStatus.generationsRemaining}
+              generationsMax={unlockStatus.maxGenerations}
             />
           </div>
 
@@ -624,6 +633,7 @@ export default function Home() {
         onDelete={handleDeleteHistoryItem}
         onDeleteAll={handleDeleteAllHistory}
         isAdmin={Boolean(profile?.isAdmin)}
+        profile={profile}
       />
 
       {isCreditsOpen && (
