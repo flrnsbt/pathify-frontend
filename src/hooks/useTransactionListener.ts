@@ -24,6 +24,9 @@ export function useTransactionListener({
   const pendingSetRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
   const refreshInFlightRef = useRef(false);
+  // Live pending count from the onSnapshot listener — lets refreshUserCredits
+  // skip re-fetching transaction docs on every poll.
+  const pendingCountRef = useRef(0);
 
   // Keep callback refs up to date so changing callback references never re-trigger listener effect
   const onTransactionFinishedRef = useRef(onTransactionFinished);
@@ -41,7 +44,9 @@ export function useTransactionListener({
     refreshInFlightRef.current = true;
     setIsRefreshing(true);
     try {
-      const result = await refreshUserCredits(userId);
+      const result = await refreshUserCredits(userId, {
+        pendingCount: pendingCountRef.current,
+      });
       onRefreshCompletedRef.current?.(result);
       return result;
     } catch (err) {
@@ -60,6 +65,7 @@ export function useTransactionListener({
     if (!userId) {
       setRawTransactions([]);
       pendingSetRef.current.clear();
+      pendingCountRef.current = 0;
       initialLoadRef.current = true;
       return;
     }
@@ -73,6 +79,7 @@ export function useTransactionListener({
       const currentPendingIds = new Set(
         txList.filter((t) => t.status === 'pending').map((t) => t.id)
       );
+      pendingCountRef.current = currentPendingIds.size;
 
       // Detect any transactions that were pending and have now finished (confirmed, failed, cancelled)
       if (!initialLoadRef.current) {

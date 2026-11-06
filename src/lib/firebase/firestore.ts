@@ -892,10 +892,11 @@ export async function createCryptoTransaction(
  */
 export async function fetchUserTransactions(
   userId: string,
+  limitCount: number = 100,
 ): Promise<CryptoTransaction[]> {
 
   const txCollection = collection(db, "transactions");
-  const q = query(txCollection, where("userId", "==", userId), limit(100));
+  const q = query(txCollection, where("userId", "==", userId), limit(limitCount));
   const snapshot = await getDocs(q);
   const items: CryptoTransaction[] = [];
   snapshot.forEach((docSnap) => {
@@ -1077,10 +1078,21 @@ export interface RefreshCreditsResult {
  */
 export async function refreshUserCredits(
   userId: string,
+  opts?: { pendingCount?: number },
 ): Promise<RefreshCreditsResult> {
-  const transactions = await fetchUserTransactions(userId);
+  // When the caller already knows the pending count (e.g. from the live
+  // onSnapshot listener), skip re-fetching transaction docs entirely — the
+  // backend re-queries pending transactions itself. Otherwise fetch a
+  // bounded recent window: pending txs are virtually always the newest, and
+  // the DO scheduler verifies anything older regardless.
+  const transactions =
+    opts?.pendingCount !== undefined
+      ? []
+      : await fetchUserTransactions(userId, 30);
   const pending = transactions.filter((t) => t.status === "pending");
   const confirmed = transactions.filter((t) => t.status === "confirmed");
+  const hasPending =
+    opts?.pendingCount !== undefined ? opts.pendingCount > 0 : pending.length > 0;
 
   let cloudFunctionNotified = false;
 
@@ -1088,7 +1100,7 @@ export async function refreshUserCredits(
   const functionUrl =
     APP_CONFIG.api.refreshCreditsUrl || "/api/refresh-credits";
 
-  if (functionUrl && pending.length > 0) {
+  if (functionUrl && hasPending) {
     try {
       let idToken: string | undefined;
       // 1. Authenticate with Firebase Auth ID token if signed in

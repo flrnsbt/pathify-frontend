@@ -275,14 +275,12 @@ export default function Home() {
         return;
       }
       const sessionKey = `${currentImage.imageHash}:${currentSvgHash}`;
+      // The account-scoped validated marker is written on every quota
+      // consume and covers all paid paths — historyGenerationExists would
+      // only add coverage for generations saved before markers existed.
       const owned =
         sessionValidatedGenerations.has(sessionKey) ||
         (await localGenerationExists(currentImage.imageHash, currentSvgHash)) ||
-        (await historyGenerationExists(
-          user.uid,
-          currentImage.imageHash,
-          currentSvgHash,
-        )) ||
         (await validatedGenerationExists(user.uid, currentSvgHash));
       if (!cancelled && owned) {
         setRemoteOwnedGeneration({
