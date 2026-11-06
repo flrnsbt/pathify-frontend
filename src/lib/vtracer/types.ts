@@ -131,6 +131,22 @@ export const PRESET_OPTIONS: Record<Exclude<PresetOption, 'custom'>, Partial<VTr
   },
 };
 
+export type SampleType = 'logo' | 'pixel' | 'badge';
+
+/**
+ * Hand-tuned vectorization parameters attached to each "Try sample" demo
+ * image, so a 1-click demo produces the best-looking trace out of the box.
+ * These override auto-detection when a sample is loaded — edit the values
+ * here to re-tune how each sample vectorizes.
+ */
+export const SAMPLE_OPTIONS: Record<SampleType, Partial<VTracerOptions>> = {
+  // Emblem badge & geometric logo: photo-style rich color tracing
+  badge: { ...PRESET_OPTIONS.photo, preset: 'photo' },
+  logo: { ...PRESET_OPTIONS.photo, preset: 'photo' },
+  // Pixel art: logo-style flat-color tracing
+  pixel: { ...PRESET_OPTIONS.logo, preset: 'logo' },
+};
+
 export interface WorkerInputPayload {
   id: string;
   pixels: Uint8ClampedArray | Uint8Array;

@@ -526,6 +526,8 @@ export default function Home() {
         ...PRESET_OPTIONS[detected.preset as Exclude<PresetOption, 'custom'>],
         preset: detected.preset,
         aiEnhance,
+        // Demo samples carry hand-tuned params that beat auto-detection.
+        ...(info.vectorizeOptions ?? {}),
       };
       setOptions(detectedOptions);
       if (pref === null && !worthwhile) {

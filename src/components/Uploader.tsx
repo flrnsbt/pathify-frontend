@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { UploadCloud, Sparkles, AlertCircle, FileCheck, Eraser } from 'lucide-react';
 import { computeImageHash } from '../lib/vtracer/compression';
+import { SAMPLE_OPTIONS, SampleType, VTracerOptions } from '../lib/vtracer/types';
 import { useI18n } from '../lib/i18n';
 
 export interface LoadedImageInfo {
@@ -13,6 +14,8 @@ export interface LoadedImageInfo {
   imageData: ImageData;
   dataUrl: string;
   imageHash: string;
+  /** Hand-tuned trace params attached to demo samples (overrides auto-detect). */
+  vectorizeOptions?: Partial<VTracerOptions>;
 }
 
 interface UploaderProps {
@@ -22,7 +25,7 @@ interface UploaderProps {
 }
 
 // Generate synthetic sample presets for immediate 1-click testing
-export async function generateSampleImage(type: 'logo' | 'pixel' | 'badge'): Promise<LoadedImageInfo | null> {
+export async function generateSampleImage(type: SampleType): Promise<LoadedImageInfo | null> {
   if (typeof window === 'undefined') return null;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -127,6 +130,7 @@ export async function generateSampleImage(type: 'logo' | 'pixel' | 'badge'): Pro
     imageData,
     dataUrl,
     imageHash,
+    vectorizeOptions: SAMPLE_OPTIONS[type],
   };
 }
 
@@ -222,7 +226,7 @@ export function Uploader({ onImageLoaded, currentImage, onClearImage }: Uploader
     }
   };
 
-  const loadSample = async (type: 'logo' | 'pixel' | 'badge') => {
+  const loadSample = async (type: SampleType) => {
     setError(null);
     try {
       const sample = await generateSampleImage(type);
