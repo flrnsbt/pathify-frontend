@@ -18,6 +18,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import type { DocumentSnapshot, QueryConstraint, QueryDocumentSnapshot } from "firebase/firestore";
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { db, auth, getAppCheckToken } from "./config";
 import { handleAuthExpired } from "./auth-context";
 import { VTracerOptions } from "../vtracer/types";
@@ -699,6 +700,64 @@ export async function linkWalletToUser(
     safeSetStorage(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(profile));
   } catch (err) {
     console.error("Error linking wallet locally:", err);
+  }
+}
+
+let fingerprintAgentPromise: ReturnType<typeof FingerprintJS.load> | null = null;
+
+/**
+ * Returns the FingerprintJS visitorId for this browser, or null when it
+ * cannot be computed (privacy settings, blockers, unsupported browser).
+ * The agent is loaded lazily and cached for the session.
+ */
+async function getFingerprintId(): Promise<string | null> {
+  try {
+    fingerprintAgentPromise ??= FingerprintJS.load();
+    const agent = await fingerprintAgentPromise;
+    const result = await agent.get();
+    return result.visitorId || null;
+  } catch (err) {
+    console.warn("[WelcomeCredits] Fingerprint unavailable:", err);
+    return null;
+  }
+}
+
+/**
+ * Claims the one-time welcome credit bonus for a new account.
+ * The backend grant is idempotent and fingerprint-gated, so this is safe
+ * to call on every login. Returns true when credits were actually granted.
+ */
+export async function claimWelcomeCredits(): Promise<boolean> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) return false;
+
+  try {
+    let idToken: string;
+    try {
+      idToken = await currentUser.getIdToken();
+    } catch {
+      return false;
+    }
+
+    const fingerprintId = await getFingerprintId();
+    const appCheckToken = await getAppCheckToken();
+    const res = await fetch(APP_CONFIG.api.claimWelcomeCreditsUrl, {
+      method: "POST",
+      headers: buildApiHeaders({ appCheckToken, idToken }),
+      body: JSON.stringify({ fingerprintId }),
+    });
+
+    if (res.status === 401) {
+      await handleAuthExpired();
+      return false;
+    }
+    if (!res.ok) return false;
+
+    const data = (await res.json().catch(() => ({}))) as { granted?: boolean };
+    return Boolean(data.granted);
+  } catch (err) {
+    console.warn("[WelcomeCredits] Claim failed:", err);
+    return false;
   }
 }
 

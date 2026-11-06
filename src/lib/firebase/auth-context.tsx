@@ -10,7 +10,7 @@ import {
   signOut as fbSignOut,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config';
-import { getUserProfile, UserProfile } from './firestore';
+import { claimWelcomeCredits, getUserProfile, UserProfile } from './firestore';
 import { ensureAppConfig } from '../app-config';
 import { ensureUserWalletAddress, resetUserWalletAddress } from '../user-wallet';
 
@@ -88,6 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        // Claim the one-time welcome credit grant before reading the profile
+        // so a fresh account's balance already includes it. Idempotent —
+        // existing accounts get a cheap no-op from the backend.
+        await claimWelcomeCredits();
         await fetchProfile(currentUser.uid);
         // Ensure the user's EVM deposit wallet exists (generated on first login)
         ensureUserWalletAddress();

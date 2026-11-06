@@ -146,6 +146,8 @@
             "lastRevised": "Dernière révision : novembre 2026 • En vigueur immédiate pour tous les visiteurs et utilisateurs inscrits.",
             "liCredsBody": " Si vous vous connectez via Google Sign-In ou l'authentification email/mot de passe, votre identifiant utilisateur (UID), adresse email et nom de profil sont stockés en toute sécurité via Google Firebase Authentication.",
             "liCredsLabel": "Identifiants de compte :",
+            "liFingerprintBody": " Pour prévenir les abus de crédits promotionnels, un identifiant d'empreinte d'appareil (généré localement par FingerprintJS à partir des caractéristiques du navigateur) et son association avec les comptes ayant reçu le bonus sont stockés côté serveur. Il est utilisé uniquement pour des vérifications anti-fraude et jamais pour le pistage ou la publicité.",
+            "liFingerprintLabel": "Empreinte d'appareil anti-abus :",
             "liHistoryA": " Si vous choisissez d'enregistrer les résultats vectoriels dans votre historique pendant que vous êtes connecté, les chemins SVG compressés et les métadonnées sont stockés dans votre enregistrement Firestore privé (",
             "liHistoryB": ", regroupés par image source avec une sous-collection ",
             "liHistoryC": ") protégée par des règles de sécurité ne permettant que votre propre accès.",

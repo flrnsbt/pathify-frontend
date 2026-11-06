@@ -38,6 +38,7 @@ export const APP_CONFIG = {
     supportUrl: `${API_URL}/support`,
     createTransactionUrl: `${API_URL}/create-transaction`,
     saveHistoryUrl: `${API_URL}/save-history`,
+    claimWelcomeCreditsUrl: `${API_URL}/claim-welcome-credits`,
   },
 
   // Official social/community profiles. Empty strings hide the links —

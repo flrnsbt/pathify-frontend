@@ -146,6 +146,8 @@
       "lastRevised": "Last revised: November 2026 • Effective immediately for all visitors and registered users.",
       "liCredsBody": " If you sign in via Google Sign-In or email/password authentication, your user identifier (UID), email address, and profile name are securely stored via Google Firebase Authentication.",
       "liCredsLabel": "Account Credentials:",
+      "liFingerprintBody": " To prevent promo-credit abuse, a device fingerprint identifier (generated locally by FingerprintJS from browser characteristics) and its association with granted accounts are stored server-side. It is used solely for anti-fraud checks and is never used for tracking or advertising.",
+      "liFingerprintLabel": "Anti-Abuse Device Fingerprint:",
       "liHistoryA": " If you choose to save vector results to your history while signed in, compressed SVG paths and metadata are stored in your private Firestore record (",
       "liHistoryB": ", grouped per source image with a ",
       "liHistoryC": " subcollection) protected by security rules allowing only you to access them.",

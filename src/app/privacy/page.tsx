@@ -105,6 +105,9 @@ export default function PrivacyPolicyPage() {
                 <strong className="text-neutral-200">{t('legal.privacy.liCredsLabel')}</strong>{t('legal.privacy.liCredsBody')}
               </li>
               <li>
+                <strong className="text-neutral-200">{t('legal.privacy.liFingerprintLabel')}</strong>{t('legal.privacy.liFingerprintBody')}
+              </li>
+              <li>
                 <strong className="text-neutral-200">{t('legal.privacy.liHistoryLabel')}</strong>{t('legal.privacy.liHistoryA')}<code className="text-neutral-300 font-mono">users/{'{userId}'}/history</code>{t('legal.privacy.liHistoryB')}<code className="text-neutral-300 font-mono">generations</code>{t('legal.privacy.liHistoryC')}
               </li>
               <li>
