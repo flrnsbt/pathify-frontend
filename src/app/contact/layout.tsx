@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 
 // Alias of /support — canonicalize so search engines consolidate signals.
 export const metadata: Metadata = {
-  title: 'Support | Vectorizerr',
+  title: 'Support | Pathify',
   description:
-    'Get help with Vectorizerr — billing, crypto transactions, vectorization issues, and account questions.',
+    'Get help with Pathify — billing, crypto transactions, vectorization issues, and account questions.',
   alternates: { canonical: '/support' },
 };
 

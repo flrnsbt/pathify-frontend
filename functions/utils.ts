@@ -1,4 +1,4 @@
-const ALLOWED_ORIGINS = ['https://vectorizerr.pages.dev', 'http://localhost:3000'];
+const ALLOWED_ORIGINS = ['https://pathify.art', 'https://vectorizerr.pages.dev', 'http://localhost:3000'];
 const ALLOWED_HEADERS = ['Content-Type', 'Authorization', 'X-Firebase-AppCheck', 'X-Debug-Secret', 'X-Testnet-Secret'];
 const ALLOWED_METHODS = ['GET', 'POST', 'OPTIONS'];
 
@@ -30,7 +30,7 @@ export function handleOptions(request: Request): Response {
  * Validates the request origin against allowed origins.
  *
  * Allowed origins:
- * - vectorizerr.pages.dev (always allowed)
+ * - pathify.art / vectorizerr.pages.dev (always allowed)
  * - localhost:3000 (only allowed if DEBUG_SECRET header matches env var)
  *
  * Returns null if the origin is allowed, or a 403 Response if rejected.
@@ -45,8 +45,8 @@ export function validateOrigin(
     return null;
   }
 
-  // Always allow production origin
-  if (origin === 'https://vectorizerr.pages.dev') {
+  // Always allow production origins
+  if (origin === 'https://pathify.art' || origin === 'https://vectorizerr.pages.dev') {
     return null;
   }
 

@@ -6,9 +6,9 @@
   "vars": {
 		"NEXT_PUBLIC_REOWN_PROJECT_ID": "999540aa30a493f16113a745c6ba1ef9",
     "NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY": "6LedpQ0uAAAAANOj8BRr5anBwWDUAR1MTS1FIBPA",
-    "BACKEND_URL": "https://api.vectorizerr.workers.dev",
-    "NEXT_PUBLIC_BACKEND_URL": "https://api.vectorizerr.workers.dev",
+    "BACKEND_URL": "https://api.pathify.art",
+    "NEXT_PUBLIC_BACKEND_URL": "https://api.pathify.art",
     "OUTPUT_MODE": "export",
-    "NEXT_PUBLIC_APP_URL": "https://vectorizerr.pages.dev"
+    "NEXT_PUBLIC_APP_URL": "https://pathify.art"
 	}
 }

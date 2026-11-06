@@ -139,12 +139,12 @@ function SupportContent() {
               className="flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white transition"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Back to Vectorizer</span>
+              <span>Back to Pathify</span>
             </Link>
             <Link href="/" className="flex items-center gap-2 group transition">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
-              <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+              <img src="/icon.svg" alt="pathify logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+              <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">pathify</span>
             </Link>
             <Link
               href="/transactions"
@@ -169,7 +169,7 @@ function SupportContent() {
             Sign In to Contact Support
           </h1>
           <p className="mt-3 text-sm text-neutral-400 leading-relaxed">
-            Please sign in with your Vectorizerr account to submit support requests, report crypto transaction issues, or receive priority assistance.
+            Please sign in with your Pathify account to submit support requests, report crypto transaction issues, or receive priority assistance.
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3">
@@ -223,12 +223,12 @@ function SupportContent() {
             className="flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white transition"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Vectorizer</span>
+            <span>Back to Pathify</span>
           </Link>
           <Link href="/" className="flex items-center gap-2 group transition">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
-            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+            <img src="/icon.svg" alt="pathify logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">pathify</span>
           </Link>
           <Link
             href="/transactions"

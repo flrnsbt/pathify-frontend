@@ -692,7 +692,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon.svg"
-              alt="vectorizerr"
+              alt="pathify"
               className="h-10 w-10 rounded-xl border border-neutral-700/80 bg-neutral-950 p-1 object-contain shadow-md"
             />
             <div>

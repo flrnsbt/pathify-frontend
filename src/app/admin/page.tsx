@@ -63,7 +63,7 @@ export default function AdminPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `vectorizerr-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `pathify-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

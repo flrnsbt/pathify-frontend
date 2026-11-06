@@ -347,7 +347,7 @@ export function HistoryDrawer({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
-                alt="vectorizerr"
+                alt="pathify"
                 className="h-12 w-12 mb-3 opacity-30 grayscale"
               />
               <p className="text-sm font-medium">{t('history.emptyTitle')}</p>

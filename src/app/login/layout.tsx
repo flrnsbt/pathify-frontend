@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 // Alias of /signin — noindex like the primary auth page.
 export const metadata: Metadata = {
-  title: 'Sign In | Vectorizerr',
+  title: 'Sign In | Pathify',
   robots: { index: false, follow: false },
 };
 

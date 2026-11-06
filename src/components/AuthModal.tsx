@@ -76,12 +76,12 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon.svg"
-              alt="vectorizerr placeholder logo"
+              alt="pathify placeholder logo"
               className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 shadow-xl object-contain"
             />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight text-white">
-            vectorizerr
+            pathify
           </h2>
           <p className="mt-1 text-xs text-neutral-400 max-w-xs">
             {t('modals.auth.tagline')}

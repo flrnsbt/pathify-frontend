@@ -32,7 +32,7 @@ export function UnlockModal({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon.svg"
-              alt="vectorizerr"
+              alt="pathify"
               className="h-8 w-8 rounded-lg border border-neutral-700/80 bg-neutral-950 p-0.5 object-contain"
             />
             <h3 className="text-sm font-semibold text-white">{t('modals.unlock.title')}</h3>

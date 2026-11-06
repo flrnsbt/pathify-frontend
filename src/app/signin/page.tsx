@@ -56,11 +56,11 @@ export default function SignInPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon.svg"
-              alt="vectorizerr logo"
+              alt="pathify logo"
               className="h-9 w-9 rounded-xl shadow-lg shadow-indigo-500/20 object-contain group-hover:scale-105 transition-transform"
             />
             <span className="font-bold tracking-tight text-white text-lg bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent">
-              vectorizerr
+              pathify
             </span>
           </Link>
 
@@ -88,12 +88,12 @@ export default function SignInPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
-                alt="vectorizerr logo"
+                alt="pathify logo"
                 className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 p-1.5 shadow-xl object-contain"
               />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              vectorizerr
+              pathify
             </h1>
             <p className="mt-1 text-xs text-neutral-400 max-w-xs">
               {t('signin.tagline')}

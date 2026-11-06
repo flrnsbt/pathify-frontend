@@ -44,13 +44,13 @@ export function Header({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/icon.svg"
-            alt="vectorizerr logo"
+            alt="pathify logo"
             className="h-10 w-10 rounded-xl shadow-lg shadow-indigo-500/25 object-contain group-hover:scale-105 group-hover:shadow-indigo-500/40 transition-all duration-200"
           />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold tracking-tight text-white text-lg bg-gradient-to-r from-white via-neutral-100 to-neutral-300 bg-clip-text text-transparent group-hover:from-white group-hover:to-indigo-200 transition-colors">
-                vectorizerr
+                pathify
               </span>
               <span className="hidden sm:inline-block rounded border border-indigo-500/30 bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-300">
                 Studio

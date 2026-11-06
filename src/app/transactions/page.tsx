@@ -127,11 +127,11 @@ export default function TransactionsPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/icon.svg"
-                  alt="vectorizerr"
+                  alt="pathify"
                   className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain group-hover:scale-105 transition-transform"
                 />
                 <span className="font-bold tracking-tight text-white text-base group-hover:text-indigo-200 transition-colors">
-                  vectorizerr
+                  pathify
                 </span>
                 <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
                   {t('transactions.title')}
@@ -218,11 +218,11 @@ export default function TransactionsPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
-                alt="vectorizerr"
+                alt="pathify"
                 className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain group-hover:scale-105 transition-transform"
               />
               <span className="font-bold tracking-tight text-white text-base group-hover:text-indigo-200 transition-colors">
-                vectorizerr
+                pathify
               </span>
               <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
                 {t('transactions.title')}

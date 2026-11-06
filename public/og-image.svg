@@ -125,6 +125,7 @@
       <circle cx="256" cy="256" r="128" fill="none" stroke-dasharray="4 6"/>
       <line x1="256" y1="44" x2="256" y2="468" stroke-dasharray="4 4"/>
       <line x1="44" y1="256" x2="468" y2="256" stroke-dasharray="4 4"/>
+      <!-- Diagonal 45-deg construction guides -->
       <line x1="120" y1="120" x2="392" y2="392" stroke-dasharray="2 6"/>
       <line x1="392" y1="120" x2="120" y2="392" stroke-dasharray="2 6"/>
     </g>
@@ -132,98 +133,112 @@
     <!-- Ambient Radiant Core Glow -->
     <circle cx="256" cy="272" r="185" fill="url(#v3-ambient)"/>
 
-    <!-- MAIN VECTOR V -->
+    <!-- ==================== MAIN VECTOR P ==================== -->
     <g filter="url(#v3-shadow)">
-      <!-- LEFT WING: Seamless flowing ribbon -->
-      <path d="M 108 128
-               C 108 248, 184 356, 256 404
-               C 246 360, 218 300, 198 246
-               C 182 202, 172 160, 172 128
+      <!-- STEM: Vertical flowing ribbon -->
+      <path d="M 124 128
+               C 114 220, 114 320, 124 396
+               L 186 396
+               C 196 320, 196 220, 186 128
                Z"
             fill="url(#v3-wing-left)"/>
 
-      <!-- Left Wing Outer Specular Bevel Line -->
-      <path d="M 108 128 C 108 248, 184 356, 256 404"
+      <!-- Stem Outer Specular Bevel Line -->
+      <path d="M 124 128 C 114 220, 114 320, 124 396"
             fill="none"
             stroke="url(#v3-specular)"
             stroke-width="2.5"
             opacity="0.9"/>
 
-      <!-- Left Wing Centerline Trace (Dotted precision vector guide) -->
-      <path d="M 140 128 C 140 220, 201 328, 256 404"
+      <!-- Stem Centerline Trace (Dotted precision vector guide) -->
+      <path d="M 150 132 C 143 224, 143 316, 150 392"
             fill="none"
             stroke="#ffffff"
             stroke-width="1.2"
             stroke-dasharray="3 4"
             opacity="0.45"/>
 
-      <!-- RIGHT WING: Soaring ribbon overlapping at bottom vertex -->
-      <path d="M 256 404
-               C 328 356, 404 248, 404 128
-               L 340 128
-               C 340 160, 330 202, 314 246
-               C 294 300, 266 360, 256 404
-               Z"
-            fill="url(#v3-wing-right)"/>
+      <!-- BOWL: Soaring ribbon arc returning to the stem -->
+      <path d="M 182 138
+               C 300 100, 398 162, 400 246
+               C 402 314, 352 352, 288 348
+               C 252 346, 224 330, 202 306"
+            fill="none"
+            stroke="url(#v3-wing-right)"
+            stroke-width="64"
+            stroke-linecap="round"/>
 
-      <!-- Right Wing Outer Specular Bevel Line -->
-      <path d="M 404 128 C 404 248, 328 356, 256 404"
+      <!-- Bowl Outer Specular Bevel Arc -->
+      <path d="M 236 108 C 322 96, 392 152, 402 226"
             fill="none"
             stroke="url(#v3-specular)"
-            stroke-width="2.5"
-            opacity="0.9"/>
+            stroke-width="3"
+            opacity="0.85"/>
 
-      <!-- Right Wing Centerline Trace (Dotted precision vector guide) -->
-      <path d="M 372 128 C 372 220, 311 328, 256 404"
+      <!-- Bowl Centerline Trace (Dotted precision vector guide) -->
+      <path d="M 182 138
+               C 300 100, 398 162, 400 246
+               C 402 314, 352 352, 288 348
+               C 252 346, 224 330, 202 306"
             fill="none"
             stroke="#ffffff"
             stroke-width="1.2"
             stroke-dasharray="3 4"
             opacity="0.45"/>
 
-      <!-- Center Fold Depth Crease -->
-      <path d="M 256 404
-               C 260 380, 274 334, 290 286
-               L 256 324
-               Z"
-            fill="url(#v3-fold)"
-            opacity="0.55"/>
+      <!-- Bowl Counter Inner Edge Hint -->
+      <path d="M 214 190 C 262 168, 322 190, 344 240 C 358 276, 344 306, 312 318"
+            fill="none"
+            stroke="url(#v3-fold)"
+            stroke-width="10"
+            stroke-linecap="round"
+            opacity="0.5"/>
 
       <!-- Central Illuminated Vector Spark / Diamond Facet -->
-      <polygon points="256,236 278,284 256,332 234,284"
+      <polygon points="298,208 322,238 298,268 274,238"
                fill="#ffffff"
                opacity="0.18"/>
-      <polygon points="256,254 268,284 256,314 244,284"
+      <polygon points="298,224 310,238 298,252 286,238"
                fill="#ffffff"
                opacity="0.4"/>
     </g>
 
-    <!-- PRECISION BÉZIER NODES & HANDLES -->
-    <!-- Left Vertex Tangent Arm & Control Handle Endpoints -->
-    <line x1="72" y1="168" x2="144" y2="88" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
-    <circle cx="72" cy="168" r="5" fill="#22d3ee" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
-    <circle cx="144" cy="88" r="5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <!-- ==================== PRECISION BÉZIER NODES & HANDLES ==================== -->
 
-    <!-- Left Main Anchor Node -->
-    <rect x="100" y="120" width="16" height="16" rx="2" transform="rotate(45 108 128)"
+    <!-- Stem Top Tangent Arm & Control Handle Endpoints -->
+    <line x1="70" y1="142" x2="138" y2="86" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="70" cy="142" r="5" fill="#22d3ee" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="138" cy="86" r="5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Stem Top Anchor Node (Diamond with glowing white center) -->
+    <rect x="145" y="118" width="16" height="16" rx="2" transform="rotate(45 155 128)"
           fill="#ffffff" stroke="#0284c7" stroke-width="3" filter="url(#v3-node-glow)"/>
 
-    <!-- Right Vertex Tangent Arm & Control Handle Endpoints -->
-    <line x1="368" y1="88" x2="440" y2="168" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
-    <circle cx="368" cy="88" r="5" fill="#d946ef" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
-    <circle cx="440" cy="168" r="5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <!-- Bowl Top-Right Tangent Arm & Control Handle Endpoints -->
+    <line x1="368" y1="104" x2="436" y2="168" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="368" cy="104" r="5" fill="#d946ef" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="436" cy="168" r="5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
 
-    <!-- Right Main Anchor Node -->
-    <rect x="396" y="120" width="16" height="16" rx="2" transform="rotate(45 404 128)"
+    <!-- Bowl Top-Right Anchor Node (Diamond with glowing white center) -->
+    <rect x="380" y="196" width="16" height="16" rx="2" transform="rotate(45 388 204)"
           fill="#ffffff" stroke="#c026d3" stroke-width="3" filter="url(#v3-node-glow)"/>
 
-    <!-- Bottom Apex Tangent Handle Arm & Endpoints -->
-    <line x1="186" y1="404" x2="326" y2="404" stroke="#c084fc" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
-    <circle cx="186" cy="404" r="5.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
-    <circle cx="326" cy="404" r="5.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <!-- Bowl-to-Stem Join Tangent Arm & Control Handle Endpoints -->
+    <line x1="146" y1="336" x2="206" y2="312" stroke="#c084fc" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="146" cy="336" r="5.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="206" cy="312" r="5.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
 
-    <!-- Bottom Apex Main Anchor Node -->
-    <rect x="246" y="394" width="20" height="20" rx="2" transform="rotate(45 256 404)"
+    <!-- Bowl-to-Stem Join Anchor Node (Diamond with glowing white center) -->
+    <rect x="192" y="296" width="18" height="18" rx="2" transform="rotate(45 201 305)"
+          fill="#ffffff" stroke="#7c3aed" stroke-width="3.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Stem Baseline Tangent Handle Arm & Endpoints -->
+    <line x1="92" y1="404" x2="222" y2="404" stroke="#c084fc" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="92" cy="404" r="5.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="222" cy="404" r="5.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Stem Baseline Anchor Node (Diamond with glowing white center) -->
+    <rect x="145" y="386" width="20" height="20" rx="2" transform="rotate(45 155 396)"
           fill="#ffffff" stroke="#7c3aed" stroke-width="3.5" filter="url(#v3-node-glow)"/>
   </svg>
 
@@ -236,7 +251,7 @@
   </g>
 
   <!-- Brand Title -->
-  <text x="480" y="260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" fill="url(#textGrad)" letter-spacing="-2">vectorizerr</text>
+  <text x="480" y="260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" fill="url(#textGrad)" letter-spacing="-2">pathify</text>
   
   <!-- Subtitle -->
   <text x="482" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="600" fill="url(#taglineGrad)">Raster to SVG Vector Graphics Studio</text>
@@ -258,6 +273,6 @@
 
   <!-- Domain URL in Bottom Bar -->
   <g transform="translate(482, 510)">
-    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="600" fill="#818cf8">vectorizerr.pages.dev</text>
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="600" fill="#818cf8">pathify.art</text>
   </g>
 </svg>

@@ -22,8 +22,8 @@ export default function PrivacyPolicyPage() {
           </Link>
           <Link href="/" className="flex items-center gap-2 group transition">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
-            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+            <img src="/icon.svg" alt="pathify logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">pathify</span>
           </Link>
           <Link
             href="/support"

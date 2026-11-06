@@ -1,4 +1,4 @@
-# vectorizerr
+# pathify
 
 High-performance raster to vector graphics (SVG) converter studio. Data is temporarily saved for convenience, is never used for any secondary purposes, and remains strictly private and confidential. Powered by **Next.js**, **Web Workers**, **VTracer**, **Firebase Auth & Firestore**, and **Web3 WalletConnect / Reown AppKit**.
 
@@ -22,7 +22,7 @@ High-performance raster to vector graphics (SVG) converter studio. Data is tempo
 - **Firebase App Check**: All calls to Firestore, Firebase Auth, and our backend edge worker are attested with App Check (reCAPTCHA Enterprise & v3) verified cryptographically against Google's public JWKS endpoint (`https://firebaseappcheck.googleapis.com/v1/jwks`).
 - **Cryptographic Server Handshake**: Image unlock tickets and generation counters are signed with HMAC-SHA256 (`ticketId:userId:imageHash:generationsRemaining:expiresAt:nonce`), preventing client-side tamper or bypass via browser DevTools.
 - **Backend API Secret (`x-api-secret`)**: Requests to backend worker endpoints must include a valid API secret header matching `env.API_SECRET`.
-- **CORS Protection**: Edge endpoints are strictly restricted to authorized origins: `https://vectorizerr.pages.dev`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
+- **CORS Protection**: Edge endpoints are strictly restricted to authorized origins: `https://pathify.art`, `https://vectorizerr.pages.dev`, `http://localhost:3000`, and `http://127.0.0.1:3000`.
 
 ### 4. Legal & Customer Assistance Portal
 - **Privacy Policy (`/privacy` & `/policy`)**: Comprehensive privacy documentation detailing our zero-upload architecture, data retention, and user rights.
@@ -55,11 +55,11 @@ NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_KEY=your-recaptcha-key
 # Cloudflare Functions Secrets (injected server-side, never exposed to browser)
 HANDSHAKE_SECRET=your-32-char-random-secret
 API_SECRET=your-backend-api-secret
-BACKEND_URL=https://api.vectorizerr.workers.dev
+BACKEND_URL=https://api.pathify.art
 TESTNET_SECRET=your-localhost-only-secret
 
 # Application Settings
-NEXT_PUBLIC_APP_URL=https://vectorizerr.pages.dev
+NEXT_PUBLIC_APP_URL=https://pathify.art
 ```
 
 ### 4. Run Development Server
@@ -87,14 +87,14 @@ Deploys the static output and Cloudflare Functions to Cloudflare Pages. The Func
 ### Architecture
 - **Frontend**: Static Next.js app served by Cloudflare Pages (`.pages.dev` domain)
 - **API Routes**: Cloudflare Functions (`_functions/api/*`) inject `API_SECRET`, `App Check`, and `TESTNET_SECRET` server-side, then forward to the backend Worker
-- **Backend**: Cloudflare Worker (`api.vectorizerr.workers.dev`) handles all business logic, auth, and Firestore operations
+- **Backend**: Cloudflare Worker (`api.pathify.art`) handles all business logic, auth, and Firestore operations
 
 ---
 
 ## 📂 Project Structure
 
 ```
-vectorizerr-frontend/
+frontend/
 ├── _functions/
 │   └── api/                       # Cloudflare Functions for API proxying
 │       ├── config/                # Proxies to backend /api/config
@@ -105,7 +105,7 @@ vectorizerr-frontend/
 │       └── support/               # Proxies to backend /api/support
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx               # Main Vectorizer Studio with Split-Screen & Controls
+│   │   ├── page.tsx               # Main Pathify Studio with Split-Screen & Controls
 │   │   ├── transactions/          # Crypto Transactions History & On-Demand Reconcile
 │   │   ├── support/               # Customer Assistance & Transaction Inquiries
 │   │   ├── contact/               # Alias for /support
@@ -136,5 +136,5 @@ vectorizerr-frontend/
 │       └── vtracer.worker.ts      # Offscreen background vectorization worker
 └── public/
     ├── wasm/vtracer.wasm          # VTracer WebAssembly binary
-    └── icon.svg                   # Vectorizerr logo
+    └── icon.svg                   # Pathify logo
 ```

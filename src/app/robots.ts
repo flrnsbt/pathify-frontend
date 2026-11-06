@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export const dynamic = 'force-static';
 
-const SITE_URL = 'https://vectorizerr.pages.dev';
+const SITE_URL = 'https://pathify.art';
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -2,33 +2,33 @@
   "@context": [
     "https://www.w3.org/ns/did/v1"
   ],
-  "id": "did:web:vectorizerr.pages.dev",
+  "id": "did:web:pathify.art",
   "verificationMethod": [
     {
-      "id": "did:web:vectorizerr.pages.dev#keys-1",
+      "id": "did:web:pathify.art#keys-1",
       "type": "Ed25519VerificationKey2020",
-      "controller": "did:web:vectorizerr.pages.dev",
+      "controller": "did:web:pathify.art",
       "publicKeyMultibase": "zGszSDEax4mcaTtUVruQeYpb8yUSDzQg7csMD76HCiYpj"
     }
   ],
   "authentication": [
-    "did:web:vectorizerr.pages.dev#keys-1"
+    "did:web:pathify.art#keys-1"
   ],
   "assertionMethod": [
-    "did:web:vectorizerr.pages.dev#keys-1"
+    "did:web:pathify.art#keys-1"
   ],
   "keyAgreement": [],
   "capabilityInvocation": [
-    "did:web:vectorizerr.pages.dev#keys-1"
+    "did:web:pathify.art#keys-1"
   ],
   "capabilityDelegation": [
-    "did:web:vectorizerr.pages.dev#keys-1"
+    "did:web:pathify.art#keys-1"
   ],
   "service": [
     {
-      "id": "#vectorizerr-studio",
+      "id": "#pathify-studio",
       "type": "LinkedDomains",
-      "serviceEndpoint": "https://vectorizerr.pages.dev"
+      "serviceEndpoint": "https://pathify.art"
     }
   ]
 }

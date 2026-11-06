@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://vectorizerr.pages.dev";
-const SITE_TITLE = "Vectorizerr | Raster to SVG Vector Graphics";
+const SITE_URL = "https://pathify.art";
+const SITE_TITLE = "Pathify | Raster to SVG Vector Graphics";
 const SITE_DESCRIPTION =
   "Convert raster images (PNG, JPG, WebP) into clean, scalable SVG vector graphics entirely in your browser. Powered by VTracer WebAssembly — free previews, no uploads, no AI training on your images.";
 
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SITE_TITLE,
-    template: "%s | Vectorizerr",
+    template: "%s | Pathify",
   },
   description: SITE_DESCRIPTION,
   keywords: [
@@ -37,9 +37,9 @@ export const metadata: Metadata = {
     "vtracer",
     "free svg converter",
   ],
-  authors: [{ name: "vectorizerr" }],
-  creator: "vectorizerr",
-  publisher: "vectorizerr",
+  authors: [{ name: "pathify" }],
+  creator: "pathify",
+  publisher: "pathify",
   category: "Multimedia",
   alternates: {
     canonical: "/",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "/",
-    siteName: "vectorizerr",
+    siteName: "pathify",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     locale: "en_US",
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "vectorizerr — Raster to SVG Vector Graphics Studio",
+        alt: "pathify — Raster to SVG Vector Graphics Studio",
       },
     ],
   },
@@ -96,14 +96,14 @@ const jsonLd = {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
-      name: "Vectorizerr",
+      name: "Pathify",
       description: SITE_DESCRIPTION,
       inLanguage: ["en", "fr", "es", "it", "de", "pt", "zh", "ja", "ko"],
     },
     {
       "@type": "SoftwareApplication",
       "@id": `${SITE_URL}/#app`,
-      name: "Vectorizerr",
+      name: "Pathify",
       url: SITE_URL,
       applicationCategory: "MultimediaApplication",
       operatingSystem: "Web",
@@ -151,7 +151,7 @@ export default function RootLayout({
               JavaScript is required
             </h1>
             <p className="max-w-md text-sm text-neutral-400">
-              Vectorizerr runs entirely in your browser using WebAssembly, so
+              Pathify runs entirely in your browser using WebAssembly, so
               it needs JavaScript enabled to work. Please enable JavaScript in
               your browser settings and refresh the page.
             </p>

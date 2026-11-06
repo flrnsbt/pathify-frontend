@@ -51,11 +51,11 @@ export function Footer() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
-                alt="vectorizerr logo"
+                alt="pathify logo"
                 className="h-7 w-7 rounded-lg shadow shadow-indigo-500/20 object-contain"
               />
               <span className="font-bold text-white text-base tracking-tight bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent">
-                vectorizerr
+                pathify
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-relaxed max-w-md">

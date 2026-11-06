@@ -1003,7 +1003,7 @@ export function Visualizer({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
-                alt="vectorizerr studio"
+                alt="pathify studio"
                 className="relative h-16 w-16 rounded-2xl shadow-xl shadow-indigo-500/25 border border-white/10 p-0.5 object-contain hover:scale-105 transition-transform"
               />
             </div>

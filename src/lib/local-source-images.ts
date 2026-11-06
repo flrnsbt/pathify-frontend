@@ -76,7 +76,7 @@ export function clearLocalAppData(): void {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith("vtracer_") || k.startsWith("vectorizerr_"))) {
+      if (k && (k.startsWith("vtracer_") || k.startsWith("vectorizerr_") || k.startsWith("pathify_"))) {
         keys.push(k);
       }
     }

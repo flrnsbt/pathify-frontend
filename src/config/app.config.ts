@@ -1,6 +1,6 @@
 /**
  * Application Configuration & Feature Flags
- * Centralized settings for vectorizerr frontend and API routes.
+ * Centralized settings for pathify frontend and API routes.
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -8,8 +8,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export const APP_CONFIG = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
-  name: "vectorizerr",
-  displayName: "Vectorizerr",
+  name: "pathify",
+  displayName: "Pathify",
   debugSecret: process.env.NEXT_PUBLIC_DEBUG_SECRET || "",
   testnetSecret: process.env.NEXT_PUBLIC_TESTNET_SECRET || "",
   description:
@@ -53,6 +53,7 @@ export const APP_CONFIG = {
 
   // CORS allowed origins
   allowedOrigins: [
+    "https://pathify.art",
     "https://vectorizerr.pages.dev",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
