@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Monochrome silhouette for Safari pinned tabs (mask-icon) -->
+  <g fill="#000000">
+    <!-- Stem -->
+    <path d="M 124 128 C 114 220, 114 320, 124 396 L 186 396 C 196 320, 196 220, 186 128 Z"/>
+    <!-- Bowl -->
+    <path d="M 182 138 C 300 100, 398 162, 400 246 C 402 314, 352 352, 288 348 C 252 346, 224 330, 202 306"
+          fill="none" stroke="#000000" stroke-width="64" stroke-linecap="round"/>
+  </g>
+</svg>
