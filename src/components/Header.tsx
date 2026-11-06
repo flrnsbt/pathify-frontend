@@ -59,7 +59,8 @@ export function Header({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* History Button */}
+          {/* History Button — account-scoped, signed-in users only */}
+          {user && (
           <button
             onClick={onOpenHistory}
             className="relative flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 transition"
@@ -72,6 +73,7 @@ export function Header({
               </span>
             )}
           </button>
+          )}
 
           {/* Support Link */}
           <Link
