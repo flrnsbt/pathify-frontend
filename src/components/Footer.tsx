@@ -140,7 +140,7 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-neutral-850/80 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-neutral-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-neutral-400">
           <div>
             {t('footer.allRightsReserved', { year: new Date().getFullYear() })}
           </div>
@@ -162,17 +162,7 @@ export function Footer() {
                   </a>
                 );
               })}
-            <Link href="/privacy" className="hover:text-neutral-300 transition">
-              {t('footer.privacy')}
-            </Link>
-            <span className="text-neutral-800">•</span>
-            <Link href="/terms" className="hover:text-neutral-300 transition">
-              {t('footer.termsConditions')}
-            </Link>
-            <span className="text-neutral-800">•</span>
-            <Link href="/support" className="hover:text-neutral-300 transition">
-              {t('footer.supportPortal')}
-            </Link>
+           
           </div>
         </div>
       </div>
