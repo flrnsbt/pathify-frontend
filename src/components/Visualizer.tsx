@@ -36,6 +36,7 @@ interface VisualizerProps {
   onRequestDownload: () => void;
   // Validates the generation (quota + history) — resolves true when export is allowed
   onRequestCopyCode: () => Promise<boolean>;
+  onLoadSample?: (type: 'logo' | 'pixel' | 'badge') => void;
 }
 
 type ViewMode = 'vector' | 'side-by-side' | 'split' | 'raster' | 'code';
@@ -360,6 +361,7 @@ export function Visualizer({
   statusText = '',
   onRequestDownload,
   onRequestCopyCode,
+  onLoadSample,
 }: VisualizerProps) {
   const { t } = useI18n();
   // Default to full 'vector' or 'side-by-side' mode so user does not see split cut
@@ -986,14 +988,82 @@ export function Visualizer({
           className={`relative flex-1 min-h-[380px] lg:min-h-0 overflow-hidden select-none cursor-grab active:cursor-grabbing ${bgClasses[bgMode]}`}
         >
         {!originalImage && !svg ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-800/50 text-neutral-500 mb-3 border border-neutral-700/50">
-              <ImageIcon className="h-8 w-8" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none overflow-y-auto bg-neutral-950">
+            {/* Decorative ambient glows */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -top-24 left-[15%] h-72 w-72 rounded-full bg-indigo-600/15 blur-3xl" />
+              <div className="absolute -bottom-24 right-[15%] h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+              <div className="absolute left-1/2 top-1/2 h-64 w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/10 blur-3xl" />
             </div>
-            <h3 className="font-semibold text-neutral-300 text-base">{t('visualizer.noImage')}</h3>
-            <p className="mt-1 max-w-sm text-xs text-neutral-500">
+
+            <div className="relative flex flex-col items-center">
+            {/* Ambient Backlight Glow */}
+            <div className="relative mb-4 flex items-center justify-center">
+              <div className="absolute h-24 w-24 rounded-full bg-indigo-500/20 blur-xl animate-pulse" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icon.svg"
+                alt="vectorizerr studio"
+                className="relative h-16 w-16 rounded-2xl shadow-xl shadow-indigo-500/25 border border-white/10 p-0.5 object-contain hover:scale-105 transition-transform"
+              />
+            </div>
+
+            <h3 className="font-bold text-white text-lg tracking-tight">
+              {t('visualizer.noImage')}
+            </h3>
+            <p className="mt-1 max-w-md text-xs text-neutral-400 leading-relaxed">
               {t('visualizer.emptyDesc')}
             </p>
+
+            {/* Quick-test Presets directly in workspace */}
+            {onLoadSample && (
+              <div className="mt-6 flex flex-col items-center gap-2.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                  {t('uploader.trySample')}
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onLoadSample('logo')}
+                    className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-indigo-500/50 hover:bg-neutral-850 hover:text-white transition shadow-sm"
+                  >
+                    <span>🏞️</span>
+                    <span>{t('uploader.sampleLogo')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onLoadSample('pixel')}
+                    className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-indigo-500/50 hover:bg-neutral-850 hover:text-white transition shadow-sm"
+                  >
+                    <span>👾</span>
+                    <span>{t('uploader.samplePixel')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onLoadSample('badge')}
+                    className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-indigo-500/50 hover:bg-neutral-850 hover:text-white transition shadow-sm"
+                  >
+                    <span>🛡️</span>
+                    <span>{t('uploader.sampleBadge')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Studio Capabilities Strip */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[11px] text-neutral-500 border-t border-neutral-850/80 pt-4 max-w-lg">
+              <span className="text-neutral-700">•</span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                <span>True Bézier Paths</span>
+              </span>
+              <span className="text-neutral-700">•</span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                <span>100% Client-Side Privacy</span>
+              </span>
+            </div>
+            </div>
           </div>
         ) : (
           <div
@@ -1129,16 +1199,19 @@ export function Visualizer({
                   className="w-full h-full object-contain"
                 />
 
-                {/* Vertical Divider Handle (Instant tracking without transition lag) */}
+                {/* Vertical Divider Handle */}
                 {renderedVectorImage && (
                   <div
                     onMouseDown={handleSplitMouseDown}
                     onTouchStart={handleSplitTouchStart}
-                    className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-2xl z-20 group"
+                    className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-cyan-400 via-indigo-500 to-purple-500 cursor-ew-resize flex items-center justify-center shadow-[0_0_12px_rgba(99,102,241,0.7)] z-20 group"
                     style={{ left: `${splitPos}%`, transform: 'translateX(-50%)' }}
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-white shadow-2xl border-2 border-indigo-500 text-xs font-bold ring-4 ring-black/40 group-hover:scale-110 active:scale-95 transition-transform cursor-ew-resize">
-                      ↔
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-950/95 text-white shadow-2xl border-2 border-indigo-400/90 text-xs font-bold ring-4 ring-black/60 group-hover:scale-110 group-hover:border-indigo-300 group-hover:shadow-indigo-500/50 active:scale-95 transition-all cursor-ew-resize backdrop-blur-md">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-indigo-300">
+                        <polyline points="8 7 3 12 8 17" />
+                        <polyline points="16 7 21 12 16 17" />
+                      </svg>
                     </div>
                   </div>
                 )}

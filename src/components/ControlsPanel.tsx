@@ -585,11 +585,11 @@ export function ControlsPanel({
           type="button"
           disabled={!hasImage || isProcessing}
           onClick={onTrace}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition shadow-lg ${!hasImage
+          className={`relative group flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all duration-200 shadow-lg ${!hasImage
             ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
             : isProcessing
               ? 'bg-indigo-700 text-white cursor-wait animate-pulse'
-              : 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/25'
+              : 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 hover:shadow-indigo-500/35 active:scale-[0.99]'
             }`}
         >
           {isProcessing ? (

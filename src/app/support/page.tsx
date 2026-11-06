@@ -25,15 +25,26 @@ function SupportContent() {
   const searchParams = useSearchParams();
   const { user, loading, loginWithGoogle } = useAuth();
 
+  const searchCategory = searchParams.get('category');
+  const initialCategory =
+    searchCategory === 'crypto_transaction' ||
+    searchCategory === 'credits_billing' ||
+    searchCategory === 'technical' ||
+    searchCategory === 'general'
+      ? searchCategory
+      : searchParams.get('txHash')
+        ? 'crypto_transaction'
+        : 'crypto_transaction';
+
   const [category, setCategory] = useState<
     'crypto_transaction' | 'credits_billing' | 'technical' | 'general'
-  >('crypto_transaction');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  >(initialCategory);
+  const [name, setName] = useState(user?.displayName || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [txHash, setTxHash] = useState('');
-  const [chainKey, setChainKey] = useState('bsc');
+  const [txHash, setTxHash] = useState(searchParams.get('txHash') || '');
+  const [chainKey, setChainKey] = useState(searchParams.get('chain')?.toLowerCase() || 'bsc');
   const [walletAddress, setWalletAddress] = useState('');
   const [supportedChains, setSupportedChains] = useState<Record<SupportedChainKey, ChainMetadata> | null>(null);
 
@@ -41,39 +52,20 @@ function SupportContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successTicketId, setSuccessTicketId] = useState<string | null>(null);
 
-  // Initialize from search params and auth
+  // Initialize from auth and load chains
   useEffect(() => {
     if (user?.email) {
-      setEmail(user.email);
+      const emailVal = user.email;
+      setTimeout(() => setEmail((prev) => prev || emailVal), 0);
     }
     if (user?.displayName) {
-      setName(user.displayName);
-    }
-
-    const catParam = searchParams.get('category');
-    if (
-      catParam === 'crypto_transaction' ||
-      catParam === 'credits_billing' ||
-      catParam === 'technical' ||
-      catParam === 'general'
-    ) {
-      setCategory(catParam);
-    }
-
-    const hashParam = searchParams.get('txHash');
-    if (hashParam) {
-      setTxHash(hashParam);
-      setCategory('crypto_transaction');
-    }
-
-    const chainParam = searchParams.get('chain');
-    if (chainParam) {
-      setChainKey(chainParam.toLowerCase());
+      const nameVal = user.displayName;
+      setTimeout(() => setName((prev) => prev || nameVal), 0);
     }
 
     // Load chains from backend
     getSupportedChains().then(setSupportedChains).catch(() => {});
-  }, [user, searchParams]);
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,8 +100,9 @@ function SupportContent() {
       } else {
         setErrorMessage(res.error || 'Failed to submit ticket. Please try again.');
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Unexpected error occurred.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(msg || 'Unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -148,11 +141,11 @@ function SupportContent() {
               <ArrowLeft className="h-4 w-4" />
               <span>Back to Vectorizer</span>
             </Link>
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 group transition">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md" />
-              <span className="font-bold text-sm tracking-tight text-white">vectorizerr</span>
-            </div>
+              <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+              <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+            </Link>
             <Link
               href="/transactions"
               className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white transition"
@@ -232,11 +225,11 @@ function SupportContent() {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Vectorizer</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 group transition">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md" />
-            <span className="font-bold text-sm tracking-tight text-white">vectorizerr</span>
-          </div>
+            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+          </Link>
           <Link
             href="/transactions"
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white transition"

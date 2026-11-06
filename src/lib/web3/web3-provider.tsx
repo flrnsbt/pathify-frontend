@@ -21,8 +21,8 @@ function WalletSync() {
   useEffect(() => {
     // Listen for account changes from wagmiConfig
     const unsubscribe = configRef.current.subscribe(
-      (state: any) => state.current,
-      (current: any) => {
+      (state: { current?: string | null }) => state.current,
+      (current: string | null | undefined) => {
         const address = configRef.current.state.connections.get(current || '')?.accounts[0];
         if (user && address) {
           linkWalletToUser(user.uid, address).catch((err) =>
@@ -81,13 +81,13 @@ function NetworkInitializer() {
   return null;
 }
 
+const wagmiConfig = getWagmiConfig();
+
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
-  const configRef = useRef(getWagmiConfig());
-  const appKitRef = useRef(getAppKit());
 
   return (
-    <WagmiProvider config={configRef.current}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         {mounted && <WalletSync />}
         {mounted && <WalletDisconnectHandler />}

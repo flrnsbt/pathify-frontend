@@ -30,13 +30,8 @@ export function useTransactionListener({
 
   // Keep callback refs up to date so changing callback references never re-trigger listener effect
   const onTransactionFinishedRef = useRef(onTransactionFinished);
-  onTransactionFinishedRef.current = onTransactionFinished;
-
   const onRefreshCompletedRef = useRef(onRefreshCompleted);
-  onRefreshCompletedRef.current = onRefreshCompleted;
-
-  // Derive active transactions based on current userId
-  const transactions = userId ? rawTransactions : [];
+  const triggerRefreshRef = useRef<(() => Promise<RefreshCreditsResult | null>) | null>(null);
 
   // Manual or automatic refresh trigger
   const triggerRefresh = useCallback(async () => {
@@ -58,12 +53,17 @@ export function useTransactionListener({
     }
   }, [userId]);
 
-  const triggerRefreshRef = useRef(triggerRefresh);
-  triggerRefreshRef.current = triggerRefresh;
+  useEffect(() => {
+    onTransactionFinishedRef.current = onTransactionFinished;
+    onRefreshCompletedRef.current = onRefreshCompleted;
+    triggerRefreshRef.current = triggerRefresh;
+  });
+
+  // Derive active transactions based on current userId
+  const transactions = userId ? rawTransactions : [];
 
   useEffect(() => {
     if (!userId) {
-      setRawTransactions([]);
       pendingSetRef.current.clear();
       pendingCountRef.current = 0;
       initialLoadRef.current = true;
@@ -88,7 +88,7 @@ export function useTransactionListener({
             const finishedTx = txList.find((t) => t.id === prevId);
             if (finishedTx && finishedTx.status !== 'pending') {
               // Trigger cloud function / refresh logic
-              triggerRefreshRef.current();
+              triggerRefreshRef.current?.();
               onTransactionFinishedRef.current?.(finishedTx);
             }
           }
@@ -112,7 +112,7 @@ export function useTransactionListener({
   useEffect(() => {
     if (!hasPending) return;
     const interval = setInterval(() => {
-      triggerRefreshRef.current();
+      triggerRefreshRef.current?.();
     }, 15000);
     return () => clearInterval(interval);
   }, [hasPending]);

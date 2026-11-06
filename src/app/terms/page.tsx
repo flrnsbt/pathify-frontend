@@ -35,11 +35,11 @@ export default function TermsOfServicePage() {
             <ArrowLeft className="h-4 w-4" />
             <span>{t('legal.common.backToVectorizer')}</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 group transition">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md" />
-            <span className="font-bold text-sm tracking-tight text-white">vectorizerr</span>
-          </div>
+            <img src="/icon.svg" alt="vectorizerr logo" className="h-6 w-6 rounded-md group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-200 transition-colors">vectorizerr</span>
+          </Link>
           <Link
             href="/support"
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white transition"

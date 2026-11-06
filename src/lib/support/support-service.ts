@@ -43,11 +43,9 @@ export async function submitSupportTicket(
 
   // 2. Attach Firebase Auth token if user is signed in
   const currentUser = auth.currentUser;
-  let userId: string | undefined;
   let idToken: string | undefined;
   if (currentUser) {
     try {
-      userId = currentUser.uid;
       idToken = await currentUser.getIdToken();
     } catch (err) {
       console.warn('[Support] Could not acquire ID token, session expired:', err);
@@ -118,11 +116,12 @@ export async function submitSupportTicket(
       ticketId: data.ticketId,
       message: data.message,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Support] Network error submitting support ticket:', err);
+    const msg = err instanceof Error ? err.message : String(err);
     return {
       success: false,
-      error: err?.message || 'Network error connecting to support server. Please try again.',
+      error: msg || 'Network error connecting to support server. Please try again.',
     };
   }
 }

@@ -21,6 +21,115 @@ interface UploaderProps {
   onClearImage?: () => void;
 }
 
+// Generate synthetic sample presets for immediate 1-click testing
+export async function generateSampleImage(type: 'logo' | 'pixel' | 'badge'): Promise<LoadedImageInfo | null> {
+  if (typeof window === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  if (type === 'logo') {
+    canvas.width = 320;
+    canvas.height = 320;
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 320, 320);
+
+    // Flat mountain badge — straight edges + one circle, vectorizes cleanly
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 320, 320);
+
+    // Sun
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(230, 90, 34, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Back mountain
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.moveTo(40, 260);
+    ctx.lineTo(160, 120);
+    ctx.lineTo(280, 260);
+    ctx.closePath();
+    ctx.fill();
+
+    // Front mountain
+    ctx.fillStyle = '#059669';
+    ctx.beginPath();
+    ctx.moveTo(90, 260);
+    ctx.lineTo(200, 170);
+    ctx.lineTo(310, 260);
+    ctx.closePath();
+    ctx.fill();
+  } else if (type === 'pixel') {
+    // 32x32 pixel art character scaled to 128x128
+    canvas.width = 128;
+    canvas.height = 128;
+    ctx.imageSmoothingEnabled = false;
+
+    // Draw pixel art character
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(0, 0, 128, 128);
+
+    const pSize = 8;
+    const drawPix = (x: number, y: number, color: string) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * pSize, y * pSize, pSize, pSize);
+    };
+
+    // Heart / Sword pixel art
+    const heartCoords = [
+      [4, 4], [5, 4], [7, 4], [8, 4],
+      [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5],
+      [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6],
+      [4, 7], [5, 7], [6, 7], [7, 7], [8, 7],
+      [5, 8], [6, 8], [7, 8],
+      [6, 9],
+    ];
+    for (const [x, y] of heartCoords) {
+      drawPix(x + 1, y + 1, '#ef4444');
+    }
+  } else {
+    // Emblem Badge
+    canvas.width = 280;
+    canvas.height = 280;
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 280, 280);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(140, 140, 100, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(140, 80);
+    ctx.lineTo(190, 180);
+    ctx.lineTo(90, 180);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const imageHash = await computeImageHash(imageData);
+
+  return {
+    fileName: `sample-${type}.png`,
+    fileSize: Math.round(dataUrl.length * 0.75),
+    width: canvas.width,
+    height: canvas.height,
+    imageData,
+    dataUrl,
+    imageHash,
+  };
+}
+
 export function Uploader({ onImageLoaded, currentImage, onClearImage }: UploaderProps) {
   const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
@@ -113,114 +222,15 @@ export function Uploader({ onImageLoaded, currentImage, onClearImage }: Uploader
     }
   };
 
-  // Generate synthetic sample presets for immediate 1-click testing
-  const loadSample = (type: 'logo' | 'pixel' | 'badge') => {
+  const loadSample = async (type: 'logo' | 'pixel' | 'badge') => {
     setError(null);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-
-    if (type === 'logo') {
-      canvas.width = 320;
-      canvas.height = 320;
-      // White background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 320, 320);
-
-      // Flat mountain badge — straight edges + one circle, vectorizes cleanly
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, 320, 320);
-
-      // Sun
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.arc(230, 90, 34, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Back mountain
-      ctx.fillStyle = '#1e3a8a';
-      ctx.beginPath();
-      ctx.moveTo(40, 260);
-      ctx.lineTo(160, 120);
-      ctx.lineTo(280, 260);
-      ctx.closePath();
-      ctx.fill();
-
-      // Front mountain
-      ctx.fillStyle = '#059669';
-      ctx.beginPath();
-      ctx.moveTo(90, 260);
-      ctx.lineTo(200, 170);
-      ctx.lineTo(310, 260);
-      ctx.closePath();
-      ctx.fill();
-    } else if (type === 'pixel') {
-      // 32x32 pixel art character scaled to 128x128
-      canvas.width = 128;
-      canvas.height = 128;
-      ctx.imageSmoothingEnabled = false;
-
-      // Draw pixel art character
-      ctx.fillStyle = '#18181b';
-      ctx.fillRect(0, 0, 128, 128);
-
-      const pSize = 8;
-      const drawPix = (x: number, y: number, color: string) => {
-        ctx.fillStyle = color;
-        ctx.fillRect(x * pSize, y * pSize, pSize, pSize);
-      };
-
-      // Heart / Sword pixel art
-      const heartCoords = [
-        [4, 4], [5, 4], [7, 4], [8, 4],
-        [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5],
-        [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6],
-        [4, 7], [5, 7], [6, 7], [7, 7], [8, 7],
-        [5, 8], [6, 8], [7, 8],
-        [6, 9],
-      ];
-      for (const [x, y] of heartCoords) {
-        drawPix(x + 1, y + 1, '#ef4444');
-      }
-    } else {
-      // Emblem Badge
-      canvas.width = 280;
-      canvas.height = 280;
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(0, 0, 280, 280);
-
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(140, 140, 100, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 8;
-      ctx.stroke();
-
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.moveTo(140, 80);
-      ctx.lineTo(190, 180);
-      ctx.lineTo(90, 180);
-      ctx.closePath();
-      ctx.fill();
+    try {
+      const sample = await generateSampleImage(type);
+      if (sample) onImageLoaded(sample);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
     }
-
-    const dataUrl = canvas.toDataURL('image/png');
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    computeImageHash(imageData).then((imageHash) => {
-      onImageLoaded({
-        fileName: `sample-${type}.png`,
-        fileSize: Math.round(dataUrl.length * 0.75),
-        width: canvas.width,
-        height: canvas.height,
-        imageData,
-        dataUrl,
-        imageHash,
-      });
-    });
   };
 
   return (

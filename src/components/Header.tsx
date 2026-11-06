@@ -40,22 +40,27 @@ export function Header({
     <header className="sticky top-0 z-40 w-full border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo and Brand */}
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 group transition">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/icon.svg"
             alt="vectorizerr logo"
-            className="h-10 w-10 rounded-xl shadow-lg shadow-indigo-500/20 object-contain hover:scale-105 transition-transform"
+            className="h-10 w-10 rounded-xl shadow-lg shadow-indigo-500/25 object-contain group-hover:scale-105 group-hover:shadow-indigo-500/40 transition-all duration-200"
           />
           <div>
-            <span className="font-bold tracking-tight text-white text-lg bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent">
-              vectorizerr
-            </span>
-            <p className="hidden sm:block text-xs text-neutral-400">
+            <div className="flex items-center gap-2">
+              <span className="font-bold tracking-tight text-white text-lg bg-gradient-to-r from-white via-neutral-100 to-neutral-300 bg-clip-text text-transparent group-hover:from-white group-hover:to-indigo-200 transition-colors">
+                vectorizerr
+              </span>
+              <span className="hidden sm:inline-block rounded border border-indigo-500/30 bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-300">
+                Studio
+              </span>
+            </div>
+            <p className="hidden sm:block text-xs text-neutral-400 group-hover:text-neutral-300 transition-colors">
               {t('header.brandTagline')}
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">

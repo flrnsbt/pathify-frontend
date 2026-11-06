@@ -123,20 +123,20 @@ export default function TransactionsPage() {
                 <span>{t('transactions.backToEditor')}</span>
               </Link>
               <div className="h-4 w-px bg-neutral-800" />
-              <div className="flex items-center gap-2.5">
+              <Link href="/" className="flex items-center gap-2.5 group transition">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/icon.svg"
                   alt="vectorizerr"
-                  className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain"
+                  className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain group-hover:scale-105 transition-transform"
                 />
-                <span className="font-bold tracking-tight text-white text-base">
+                <span className="font-bold tracking-tight text-white text-base group-hover:text-indigo-200 transition-colors">
                   vectorizerr
                 </span>
                 <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
                   {t('transactions.title')}
                 </span>
-              </div>
+              </Link>
             </div>
           </div>
         </header>
@@ -214,20 +214,20 @@ export default function TransactionsPage() {
 
             <div className="h-4 w-px bg-neutral-800" />
 
-            <div className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5 group transition">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"
                 alt="vectorizerr"
-                className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain"
+                className="h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900 p-0.5 object-contain group-hover:scale-105 transition-transform"
               />
-              <span className="font-bold tracking-tight text-white text-base">
+              <span className="font-bold tracking-tight text-white text-base group-hover:text-indigo-200 transition-colors">
                 vectorizerr
               </span>
               <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
                 {t('transactions.title')}
               </span>
-            </div>
+            </Link>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">

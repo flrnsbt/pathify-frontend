@@ -1,30 +1,263 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <radialGradient id="glow" cx="50%" cy="42%" r="65%">
-      <stop offset="0%" stop-color="#312e81" stop-opacity="0.55"/>
-      <stop offset="55%" stop-color="#1e1b4b" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="textGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#a5b4fc"/>
+    <!-- Background Gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07090e"/>
+      <stop offset="50%" stop-color="#0a0f1d"/>
+      <stop offset="100%" stop-color="#030508"/>
     </linearGradient>
+
+    <!-- Ambient Radial Glow Behind Logo -->
+    <radialGradient id="glow" cx="24%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
+      <stop offset="45%" stop-color="#8b5cf6" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Secondary Accent Glow on Right -->
+    <radialGradient id="glowRight" cx="80%" cy="30%" r="45%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.15"/>
+      <stop offset="60%" stop-color="#6366f1" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Wordmark Title Gradient -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+
+    <!-- Tagline Gradient -->
+    <linearGradient id="taglineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+
+    <!-- ==================== LOGO DEFINITIONS (INLINED) ==================== -->
+    <linearGradient id="v3-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f1322"/>
+      <stop offset="40%" stop-color="#0a0d18"/>
+      <stop offset="100%" stop-color="#030509"/>
+    </linearGradient>
+
+    <linearGradient id="v3-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="25%" stop-color="#818cf8" stop-opacity="0.5"/>
+      <stop offset="70%" stop-color="#c084fc" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+
+    <radialGradient id="v3-ambient" cx="50%" cy="54%" r="56%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.42"/>
+      <stop offset="45%" stop-color="#8b5cf6" stop-opacity="0.22"/>
+      <stop offset="80%" stop-color="#06b6d4" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="v3-wing-left" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="30%" stop-color="#38bdf8"/>
+      <stop offset="65%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+
+    <linearGradient id="v3-wing-right" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="30%" stop-color="#8b5cf6"/>
+      <stop offset="65%" stop-color="#d946ef"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+
+    <linearGradient id="v3-specular" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="v3-fold" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#0f172a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <filter id="v3-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.75"/>
+    </filter>
+
+    <filter id="v3-node-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <!-- Deep Base -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glowRight)"/>
 
-  <!-- Logo -->
-  <image href="icon.svg" x="80" y="165" width="300" height="300" preserveAspectRatio="xMidYMid meet"/>
+  <!-- Subtle Precision Vector Background Grid -->
+  <g opacity="0.06" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
 
-  <!-- Wordmark -->
-  <text x="430" y="290" font-family="Helvetica, Arial, sans-serif" font-size="76" font-weight="700" fill="url(#textGrad)" letter-spacing="-1">vectorizerr</text>
-  <text x="432" y="350" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="400" fill="#a3a3a3">Raster to SVG Vector Graphics Studio</text>
+  <!-- ==================== INLINED LOGO (100% Self-Contained) ==================== -->
+  <svg x="100" y="155" width="320" height="320" viewBox="0 0 512 512">
+    <!-- Squircle Base Frame -->
+    <rect x="20" y="20" width="472" height="472" rx="112" fill="url(#v3-bg)" stroke="url(#v3-rim)" stroke-width="2.5"/>
 
-  <!-- Divider -->
-  <rect x="432" y="392" width="420" height="2" fill="#3f3f46"/>
+    <!-- Precision Vector Grid System (Subtle Background Geometry) -->
+    <g opacity="0.08" stroke="#ffffff" stroke-width="1.2">
+      <circle cx="256" cy="256" r="192" fill="none" stroke-dasharray="6 6"/>
+      <circle cx="256" cy="256" r="128" fill="none" stroke-dasharray="4 6"/>
+      <line x1="256" y1="44" x2="256" y2="468" stroke-dasharray="4 4"/>
+      <line x1="44" y1="256" x2="468" y2="256" stroke-dasharray="4 4"/>
+      <line x1="120" y1="120" x2="392" y2="392" stroke-dasharray="2 6"/>
+      <line x1="392" y1="120" x2="120" y2="392" stroke-dasharray="2 6"/>
+    </g>
 
-  <!-- Tagline + URL -->
-  <text x="432" y="438" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#d4d4d8">High-performance, private vectorization</text>
-  <text x="432" y="478" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="400" fill="#6366f1">vectorizerr.pages.dev</text>
+    <!-- Ambient Radiant Core Glow -->
+    <circle cx="256" cy="272" r="185" fill="url(#v3-ambient)"/>
+
+    <!-- MAIN VECTOR V -->
+    <g filter="url(#v3-shadow)">
+      <!-- LEFT WING: Seamless flowing ribbon -->
+      <path d="M 108 128
+               C 108 248, 184 356, 256 404
+               C 246 360, 218 300, 198 246
+               C 182 202, 172 160, 172 128
+               Z"
+            fill="url(#v3-wing-left)"/>
+
+      <!-- Left Wing Outer Specular Bevel Line -->
+      <path d="M 108 128 C 108 248, 184 356, 256 404"
+            fill="none"
+            stroke="url(#v3-specular)"
+            stroke-width="2.5"
+            opacity="0.9"/>
+
+      <!-- Left Wing Centerline Trace (Dotted precision vector guide) -->
+      <path d="M 140 128 C 140 220, 201 328, 256 404"
+            fill="none"
+            stroke="#ffffff"
+            stroke-width="1.2"
+            stroke-dasharray="3 4"
+            opacity="0.45"/>
+
+      <!-- RIGHT WING: Soaring ribbon overlapping at bottom vertex -->
+      <path d="M 256 404
+               C 328 356, 404 248, 404 128
+               L 340 128
+               C 340 160, 330 202, 314 246
+               C 294 300, 266 360, 256 404
+               Z"
+            fill="url(#v3-wing-right)"/>
+
+      <!-- Right Wing Outer Specular Bevel Line -->
+      <path d="M 404 128 C 404 248, 328 356, 256 404"
+            fill="none"
+            stroke="url(#v3-specular)"
+            stroke-width="2.5"
+            opacity="0.9"/>
+
+      <!-- Right Wing Centerline Trace (Dotted precision vector guide) -->
+      <path d="M 372 128 C 372 220, 311 328, 256 404"
+            fill="none"
+            stroke="#ffffff"
+            stroke-width="1.2"
+            stroke-dasharray="3 4"
+            opacity="0.45"/>
+
+      <!-- Center Fold Depth Crease -->
+      <path d="M 256 404
+               C 260 380, 274 334, 290 286
+               L 256 324
+               Z"
+            fill="url(#v3-fold)"
+            opacity="0.55"/>
+
+      <!-- Central Illuminated Vector Spark / Diamond Facet -->
+      <polygon points="256,236 278,284 256,332 234,284"
+               fill="#ffffff"
+               opacity="0.18"/>
+      <polygon points="256,254 268,284 256,314 244,284"
+               fill="#ffffff"
+               opacity="0.4"/>
+    </g>
+
+    <!-- PRECISION BÉZIER NODES & HANDLES -->
+    <!-- Left Vertex Tangent Arm & Control Handle Endpoints -->
+    <line x1="72" y1="168" x2="144" y2="88" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="72" cy="168" r="5" fill="#22d3ee" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="144" cy="88" r="5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Left Main Anchor Node -->
+    <rect x="100" y="120" width="16" height="16" rx="2" transform="rotate(45 108 128)"
+          fill="#ffffff" stroke="#0284c7" stroke-width="3" filter="url(#v3-node-glow)"/>
+
+    <!-- Right Vertex Tangent Arm & Control Handle Endpoints -->
+    <line x1="368" y1="88" x2="440" y2="168" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="368" cy="88" r="5" fill="#d946ef" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="440" cy="168" r="5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Right Main Anchor Node -->
+    <rect x="396" y="120" width="16" height="16" rx="2" transform="rotate(45 404 128)"
+          fill="#ffffff" stroke="#c026d3" stroke-width="3" filter="url(#v3-node-glow)"/>
+
+    <!-- Bottom Apex Tangent Handle Arm & Endpoints -->
+    <line x1="186" y1="404" x2="326" y2="404" stroke="#c084fc" stroke-width="2" stroke-dasharray="3 3" opacity="0.9"/>
+    <circle cx="186" cy="404" r="5.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+    <circle cx="326" cy="404" r="5.5" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" filter="url(#v3-node-glow)"/>
+
+    <!-- Bottom Apex Main Anchor Node -->
+    <rect x="246" y="394" width="20" height="20" rx="2" transform="rotate(45 256 404)"
+          fill="#ffffff" stroke="#7c3aed" stroke-width="3.5" filter="url(#v3-node-glow)"/>
+  </svg>
+
+  <!-- Studio Wordmark & Branding -->
+  <!-- Top Category Pill -->
+  <g transform="translate(480, 160)">
+    <rect width="210" height="32" rx="16" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2" stroke-opacity="0.6"/>
+    <circle cx="20" cy="16" r="4" fill="#22d3ee"/>
+    <text x="34" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#a5b4fc" letter-spacing="0.5">NEXT-GEN STUDIO</text>
+  </g>
+
+  <!-- Brand Title -->
+  <text x="480" y="260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" fill="url(#textGrad)" letter-spacing="-2">vectorizerr</text>
+  
+  <!-- Subtitle -->
+  <text x="482" y="315" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="600" fill="url(#taglineGrad)">Raster to SVG Vector Graphics Studio</text>
+  
+  <!-- Description -->
+  <text x="482" y="365" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="400" fill="#94a3b8">Convert PNG, JPG, &amp; WebP into crisp, scalable SVG vectors</text>
+  <text x="482" y="395" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="400" fill="#64748b">Powered by WebAssembly VTracer — 100% private, runs entirely in browser</text>
+
+  <!-- Feature Badges -->
+  <g transform="translate(482, 435)">
+    <!-- Badge 1: Bézier Curves -->
+    <rect x="0" y="0" width="190" height="36" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">📐 True Bézier Curves</text>
+
+    <!-- Badge 2: 100% Client-Side -->
+    <rect x="202" y="0" width="176" height="36" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="218" y="23" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#34d399">🔒 100% Private</text>
+  </g>
+
+  <!-- Domain URL in Bottom Bar -->
+  <g transform="translate(482, 510)">
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="600" fill="#818cf8">vectorizerr.pages.dev</text>
+  </g>
 </svg>

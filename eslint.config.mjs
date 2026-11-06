@@ -9,11 +9,13 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".wrangler/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
     "src/lib/vtracer/wasm_vtracer_bg.js",
     "src/lib/vtracer/wasm_vtracer.d.ts",
+    "src/lib/vtracer/vtracer_wasm_v1.js",
   ]),
 ]);
 

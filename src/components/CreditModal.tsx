@@ -269,13 +269,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         CHAIN_ID_TO_VIEM_CHAIN[targetChain.chainId] || CHAIN_KEY_TO_VIEM_CHAIN[key];
       const addChainParams = targetViemChain
         ? {
-            chainName: targetViemChain.name,
-            rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
-            blockExplorerUrls: targetViemChain.blockExplorers?.default?.url
-              ? [targetViemChain.blockExplorers.default.url]
-              : undefined,
-            nativeCurrency: targetViemChain.nativeCurrency,
-          }
+          chainName: targetViemChain.name,
+          rpcUrls: targetViemChain.rpcUrls?.default?.http ?? [],
+          blockExplorerUrls: targetViemChain.blockExplorers?.default?.url
+            ? [targetViemChain.blockExplorers.default.url]
+            : undefined,
+          nativeCurrency: targetViemChain.nativeCurrency,
+        }
         : undefined;
 
       setIsSwitchingChain(true);
@@ -720,15 +720,32 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           </div>
         )}
 
-        {/* Unauthenticated notice */}
+        {/* Auth required notice */}
         {(!user || user.isAnonymous) && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-            <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
-            <span>
-              {t('modals.credits.unauthNotice')}
-            </span>
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-300 mb-1">{t('modals.credits.signInRequired')}</p>
+              <p className="text-amber-200/80 leading-snug">
+                {t('modals.credits.signInRequiredBody')}
+              </p>
+              {onOpenAuth && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAuth();
+                  }}
+                  className="mt-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition"
+                >
+                  {t('modals.credits.signInWithGoogle')}
+                </button>
+              )}
+            </div>
           </div>
         )}
+
+
 
         {/* Success Alert */}
         {successMsg && (
@@ -774,8 +791,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     refreshTokenPrices();
                   }}
                   className={`relative flex flex-col items-center justify-center p-3.5 rounded-2xl border transition text-center ${isSelected
-                      ? 'border-indigo-500 bg-indigo-600/15 shadow-md shadow-indigo-500/10'
-                      : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900'
+                    ? 'border-indigo-500 bg-indigo-600/15 shadow-md shadow-indigo-500/10'
+                    : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900'
                     }`}
                 >
                   {pack.popular && (
@@ -827,11 +844,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                       backgroundColor: isSelected ? chain.bgGlow : undefined,
                       borderColor: isSelected ? chain.color : undefined,
                     }}
-                    className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border text-left transition-all duration-150 ${
-                      isSelected
+                    className={`group relative flex items-center gap-2.5 p-2.5 rounded-2xl border text-left transition-all duration-150 ${isSelected
                         ? 'shadow-md shadow-black/40 ring-1 ring-white/10'
                         : 'border-neutral-800 bg-neutral-950/60 hover:border-neutral-700 hover:bg-neutral-900/80'
-                    }`}
+                      }`}
                   >
                     {/* Chain Icon with custom network brand style */}
                     <div
@@ -908,11 +924,10 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     setSelectedToken(token);
                     refreshTokenPrices();
                   }}
-                  className={`flex flex-col items-start gap-1 px-3 py-1.5 rounded-xl border text-xs font-medium transition min-w-[100px] ${
-                    isSelected
+                  className={`flex flex-col items-start gap-1 px-3 py-1.5 rounded-xl border text-xs font-medium transition min-w-[100px] ${isSelected
                       ? 'border-indigo-500 bg-indigo-600/20 text-white font-semibold'
                       : 'border-neutral-800 bg-neutral-950/60 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 w-full">
                     <TokenIcon token={token} className="w-4 h-4 shrink-0" />
@@ -942,8 +957,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 type="button"
                 onClick={() => setPayMethod('wallet')}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${payMethod === 'wallet'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-neutral-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
                   }`}
               >
                 <Wallet className="h-3.5 w-3.5" />
@@ -953,8 +968,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 type="button"
                 onClick={() => setPayMethod('qr')}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${payMethod === 'qr'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-neutral-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
                   }`}
               >
                 <QrCode className="h-3.5 w-3.5" />
@@ -975,30 +990,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
           {/* EVM WalletConnect Tab */}
           {isEvm && payMethod === 'wallet' ? (
             <div className="space-y-4">
-              {/* Auth required notice */}
-              {!user || user.isAnonymous ? (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-amber-300 mb-1">{t('modals.credits.signInRequired')}</p>
-                    <p className="text-amber-200/80 leading-snug">
-                      {t('modals.credits.signInRequiredBody')}
-                    </p>
-                    {onOpenAuth && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onClose();
-                          onOpenAuth();
-                        }}
-                        className="mt-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 transition"
-                      >
-                        {t('modals.credits.signInWithGoogle')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : !isConnected ? (
+              {!isConnected ? (
                 <div className="flex items-start gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-xs text-indigo-200">
                   <Wallet className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
                   <div>
