@@ -92,10 +92,13 @@ export function isEnhancementWorthwhile(imageData: ImageData): boolean {
  */
 export function detectPreset(imageData: ImageData): DetectedPreset {
   const s = analyzeImage(imageData);
+  // Line art is achromatic by definition — colorful content must never map to it,
+  // since the 'line-art' preset forces binary color mode and erases color.
+  const isMonochrome = s.colorfulFrac < 0.15;
 
   // Transparent-background graphics: logo vs line-art
   if (s.transparentFrac > 0.2) {
-    if (s.uniqueColors <= 12 || (s.darkFrac + s.lightFrac > 0.85 && s.edgeFrac > 0.2)) {
+    if (isMonochrome && (s.uniqueColors <= 12 || (s.darkFrac + s.lightFrac > 0.85 && s.edgeFrac > 0.2))) {
       return { preset: 'line-art', confidence: 'medium' };
     }
     if (s.uniqueColors <= 64) {
@@ -104,9 +107,12 @@ export function detectPreset(imageData: ImageData): DetectedPreset {
     return { preset: 'photo', confidence: 'low' };
   }
 
-  // Very few colors + hard edges → pixel art / flat illustration
+  // Very few colors + hard edges → flat illustration / pixel art
   if (s.uniqueColors <= 48 && s.edgeFrac > 0.12) {
-    return { preset: s.uniqueColors <= 8 ? 'line-art' : 'pixel-art', confidence: 'high' };
+    if (s.uniqueColors <= 8) {
+      return { preset: isMonochrome ? 'line-art' : 'logo', confidence: 'high' };
+    }
+    return { preset: 'pixel-art', confidence: 'high' };
   }
 
   // Near-monochrome content: line art, sketches, receipts, documents
