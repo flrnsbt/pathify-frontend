@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
+import es from './locales/es.json';
 
 /**
  * Lightweight i18n layer.
@@ -26,19 +27,21 @@ import fr from './locales/fr.json';
  */
 
 export const DEFAULT_LOCALE = 'en';
-export const SUPPORTED_LOCALES = ['en', 'fr'] as const;
+export const SUPPORTED_LOCALES = ['en', 'fr', 'es'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 /** Native display names for each supported locale. */
 export const LOCALE_NAMES: Record<string, string> = {
   en: 'English',
   fr: 'Français',
+  es: 'Español',
 };
 
 /** Flag emoji shown next to each locale in the language picker. */
 export const LOCALE_FLAGS: Record<string, string> = {
   en: '🇺🇸',
   fr: '🇫🇷',
+  es: '🇪🇸',
 };
 
 const LOCALE_STORAGE_KEY = 'vtracer_locale';
@@ -46,7 +49,7 @@ const LANG_QUERY_PARAM = 'lang';
 
 type Messages = Record<string, unknown>;
 
-const MESSAGES: Record<string, Messages> = { en, fr };
+const MESSAGES: Record<string, Messages> = { en, fr, es };
 
 function isSupportedLocale(value: string | null | undefined): value is string {
   if (!value) return false;
