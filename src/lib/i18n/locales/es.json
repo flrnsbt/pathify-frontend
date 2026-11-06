@@ -1,4 +1,20 @@
 {
+  "admin": {
+    "accessDenied": "Acceso denegado",
+    "accessDeniedBody": "Esta área está restringida a administradores.",
+    "exportBody": "Descarga una copia de seguridad JSON completa de la base de datos Firestore — todas las colecciones y subcolecciones, incluido el historial SVG comprimido. El archivo podrá restaurarse más tarde mediante la importación.",
+    "exportButton": "Descargar copia de seguridad",
+    "exportTitle": "Exportar copia de seguridad de la base de datos",
+    "exporting": "Exportando...",
+    "importBody": "Restaura una copia de seguridad JSON exportada anteriormente. Los documentos se insertan o actualizan — los registros existentes se sobrescriben con el contenido de la copia. Esta operación no se puede deshacer.",
+    "importButton": "Elegir archivo de copia de seguridad",
+    "importResult": "Importación completada: {imported} importados, {failed} fallidos.",
+    "importTitle": "Importar copia de seguridad de la base de datos",
+    "importing": "Importando...",
+    "invalidBackup": "Archivo de copia de seguridad no válido: falta el array de documentos.",
+    "subtitle": "Herramientas de copia de seguridad y restauración de la base de datos",
+    "title": "Admin"
+  },
   "common": {
     "back": "Atrás",
     "cancel": "Cancelar",

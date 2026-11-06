@@ -39,6 +39,8 @@ export const APP_CONFIG = {
     createTransactionUrl: `${API_URL}/create-transaction`,
     saveHistoryUrl: `${API_URL}/save-history`,
     claimWelcomeCreditsUrl: `${API_URL}/claim-welcome-credits`,
+    adminExportUrl: `${API_URL}/admin/export`,
+    adminImportUrl: `${API_URL}/admin/import`,
   },
 
   // Official social/community profiles. Empty strings hide the links —

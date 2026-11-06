@@ -1,4 +1,20 @@
 {
+  "admin": {
+    "accessDenied": "Access denied",
+    "accessDeniedBody": "This area is restricted to administrators.",
+    "exportBody": "Download a complete JSON backup of the Firestore database — all collections and subcollections, including compressed SVG history. The file can be restored later via import.",
+    "exportButton": "Download backup",
+    "exportTitle": "Export database backup",
+    "exporting": "Exporting...",
+    "importBody": "Restore a previously exported backup JSON. Documents are upserted — existing records are overwritten with the backup contents. This operation cannot be undone.",
+    "importButton": "Choose backup file",
+    "importResult": "Import complete: {imported} imported, {failed} failed.",
+    "importTitle": "Import database backup",
+    "importing": "Importing...",
+    "invalidBackup": "Invalid backup file: missing documents array.",
+    "subtitle": "Database backup & restore tools",
+    "title": "Admin"
+  },
   "common": {
     "back": "Back",
     "cancel": "Cancel",

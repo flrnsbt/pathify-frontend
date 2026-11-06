@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut, Database, ChevronDown, Languages } from 'lucide-react';
+import { Sparkles, History, User as UserIcon, Coins, Shield, ReceiptText, LifeBuoy, Wallet, LogOut, Database, ChevronDown, Languages, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../lib/firebase/auth-context';
 import { clearLocalAppData } from '../lib/local-source-images';
 import { useAppKitAccount } from '@reown/appkit/react';
@@ -236,6 +236,16 @@ export function Header({
                     <ReceiptText className="h-3.5 w-3.5 text-neutral-500" />
                     {t('header.transactions')}
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setAccountMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 transition"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
+                      {t('admin.title')}
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       if (

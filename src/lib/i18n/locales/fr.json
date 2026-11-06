@@ -1,4 +1,20 @@
 {
+    "admin": {
+        "accessDenied": "Accès refusé",
+        "accessDeniedBody": "Cette zone est réservée aux administrateurs.",
+        "exportBody": "Téléchargez une sauvegarde JSON complète de la base Firestore — toutes les collections et sous-collections, y compris l'historique SVG compressé. Le fichier pourra être restauré plus tard via l'import.",
+        "exportButton": "Télécharger la sauvegarde",
+        "exportTitle": "Exporter la sauvegarde de la base",
+        "exporting": "Exportation...",
+        "importBody": "Restaurez une sauvegarde JSON exportée précédemment. Les documents sont insérés ou mis à jour — les enregistrements existants sont écrasés par le contenu de la sauvegarde. Cette opération est irréversible.",
+        "importButton": "Choisir le fichier de sauvegarde",
+        "importResult": "Import terminé : {imported} importés, {failed} échoués.",
+        "importTitle": "Importer une sauvegarde de la base",
+        "importing": "Importation...",
+        "invalidBackup": "Fichier de sauvegarde invalide : tableau documents manquant.",
+        "subtitle": "Outils de sauvegarde et restauration de la base",
+        "title": "Admin"
+    },
     "common": {
         "back": "Retour",
         "cancel": "Annuler",
