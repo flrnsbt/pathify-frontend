@@ -133,6 +133,7 @@ export default function Home() {
   // Notice shown for source-image/history caveats (missing local source,
   // oversized SVG saved locally only, etc.)
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
 
   // Modals
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -494,6 +495,22 @@ export default function Home() {
     [currentImage, options, vectorize]
   );
 
+  // Reset the whole studio: cancels any in-flight trace/enhancement, drops the
+  // source image, clears the generated result and restores default options.
+  const handleClearStudio = useCallback(() => {
+    traceSeqRef.current += 1;
+    enhanceAbortRef.current?.abort();
+    enhanceAbortRef.current = null;
+    reset();
+    setCurrentImage(null);
+    setPreviewWebpUrl(null);
+    setOptions({ ...DEFAULT_VTRACER_OPTIONS });
+    setParamsLocked(false);
+    setSourceNotice(null);
+    setEnhanceProgress(null);
+    setIsRestoringHistory(false);
+  }, [reset]);
+
   // Handle image load
   const handleImageLoaded = useCallback(
     (info: LoadedImageInfo) => {
@@ -728,50 +745,57 @@ export default function Home() {
   // Load history item into viewer: restores parameters + SVG, and the source
   // image from browser-local storage when available.
   const handleSelectHistoryItem = async (item: HistoryGeneration) => {
-    setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
+    setIsRestoringHistory(true);
+    try {
+      setOptions({ ...DEFAULT_VTRACER_OPTIONS, ...item.parameters });
 
-    // Source image: browser-local store keyed by imageHash
-    const sourceDataUrl = getSourceImage(item.imageHash) || '';
+      // Source image: browser-local store keyed by imageHash
+      const sourceDataUrl = getSourceImage(item.imageHash) || '';
 
-    if (sourceDataUrl) {
-      setSourceNotice(null);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = item.originalDimensions.width || img.width;
-        canvas.height = item.originalDimensions.height || img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          setCurrentImage({
-            fileName: item.fileName,
-            fileSize: item.originalSize || 0,
-            width: canvas.width,
-            height: canvas.height,
-            imageData,
-            dataUrl: sourceDataUrl,
-            imageHash: item.imageHash || `hash-${item.id}`,
-          });
-        }
-      };
-      img.src = sourceDataUrl;
-    } else {
-      // No local source — SVG preview still loads, but re-tracing requires
-      // the user to upload the original file again.
-      setCurrentImage(null);
-      setParamsLocked(true);
-      setSourceNotice(t('page.sourceImageMissing', { fileName: item.fileName }));
+      if (sourceDataUrl) {
+        setSourceNotice(null);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = item.originalDimensions.width || img.width;
+          canvas.height = item.originalDimensions.height || img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            setCurrentImage({
+              fileName: item.fileName,
+              fileSize: item.originalSize || 0,
+              width: canvas.width,
+              height: canvas.height,
+              imageData,
+              dataUrl: sourceDataUrl,
+              imageHash: item.imageHash || `hash-${item.id}`,
+            });
+          }
+        };
+        img.src = sourceDataUrl;
+      } else {
+        // No local source — SVG preview still loads, but re-tracing requires
+        // the user to upload the original file again.
+        setCurrentImage(null);
+        setParamsLocked(true);
+        setSourceNotice(t('page.sourceImageMissing', { fileName: item.fileName }));
+      }
+
+      const webpUrl = await svgToWebpBitmap(
+        item.svg,
+        item.originalDimensions.width || 300,
+        item.originalDimensions.height || 300
+      );
+      setPreviewWebpUrl(webpUrl);
+      // Restore the SVG into viewer state so download/copy/code view use it
+      loadResult(item.svg, item.nodeCount, item.executionTimeMs);
+    } catch (err) {
+      console.error('Failed to restore history item:', err);
+    } finally {
+      setIsRestoringHistory(false);
     }
-
-    const webpUrl = await svgToWebpBitmap(
-      item.svg,
-      item.originalDimensions.width || 300,
-      item.originalDimensions.height || 300
-    );
-    setPreviewWebpUrl(webpUrl);
-    // Restore the SVG into viewer state so download/copy/code view use it
-    loadResult(item.svg, item.nodeCount, item.executionTimeMs);
   };
 
   const handleDeleteHistoryEntry = async (entry: HistoryEntry) => {
@@ -861,17 +885,20 @@ export default function Home() {
             <Uploader
               onImageLoaded={handleImageLoaded}
               currentImage={currentImage}
+              onClearImage={handleClearStudio}
             />
 
             <ControlsPanel
               options={options}
               onChange={handleOptionsChange}
               onTrace={() => handleTrace()}
-              isProcessing={isProcessing || enhanceProgress !== null}
+              isProcessing={isProcessing || enhanceProgress !== null || isRestoringHistory}
               statusText={
                 enhanceProgress !== null
                   ? t('page.aiEnhancing', { percent: Math.round(enhanceProgress * 100) })
-                  : statusText
+                  : isRestoringHistory
+                    ? t('status.loadingGeneration')
+                    : statusText
               }
               hasImage={Boolean(currentImage)}
               autoTrace={autoTrace}
@@ -911,11 +938,13 @@ export default function Home() {
                 unlockStatus.isUnlocked ? unlockStatus.generationsRemaining : undefined
               }
               generationsMax={unlockStatus.maxGenerations}
-              isProcessing={isProcessing || enhanceProgress !== null}
+              isProcessing={isProcessing || enhanceProgress !== null || isRestoringHistory}
               statusText={
                 enhanceProgress !== null
                   ? t('page.aiEnhancing', { percent: Math.round(enhanceProgress * 100) })
-                  : statusText
+                  : isRestoringHistory
+                    ? t('status.loadingGeneration')
+                    : statusText
               }
               onRequestDownload={handleRequestDownload}
               onRequestCopyCode={handleRequestCopyCode}

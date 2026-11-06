@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useCallback } from 'react';
-import { UploadCloud, Sparkles, AlertCircle, FileCheck } from 'lucide-react';
+import { UploadCloud, Sparkles, AlertCircle, FileCheck, Eraser } from 'lucide-react';
 import { computeImageHash } from '../lib/vtracer/compression';
 import { useI18n } from '../lib/i18n';
 
@@ -18,9 +18,10 @@ export interface LoadedImageInfo {
 interface UploaderProps {
   onImageLoaded: (info: LoadedImageInfo) => void;
   currentImage: LoadedImageInfo | null;
+  onClearImage?: () => void;
 }
 
-export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
+export function Uploader({ onImageLoaded, currentImage, onClearImage }: UploaderProps) {
   const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -255,16 +256,32 @@ export function Uploader({ onImageLoaded, currentImage }: UploaderProps) {
         </div>
 
         {currentImage ? (
-          <div>
-            <div className="flex items-center justify-center gap-2 font-medium text-white text-sm">
-              <span className="truncate max-w-[200px]">{currentImage.fileName}</span>
-              <span className="text-xs text-neutral-400">
-                ({t('uploader.dimensions', { width: currentImage.width, height: currentImage.height })})
-              </span>
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="flex items-center justify-center gap-2 font-medium text-white text-sm">
+                <span className="truncate max-w-[200px]">{currentImage.fileName}</span>
+                <span className="text-xs text-neutral-400">
+                  ({t('uploader.dimensions', { width: currentImage.width, height: currentImage.height })})
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-neutral-400">
+                {t('uploader.replace')}
+              </p>
             </div>
-            <p className="mt-1 text-xs text-neutral-400">
-              {t('uploader.replace')}
-            </p>
+            {onClearImage && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearImage();
+                }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-800/60 px-2.5 py-1.5 text-xs text-neutral-400 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 transition"
+                title={t('uploader.clearStudio')}
+              >
+                <Eraser className="h-3.5 w-3.5" />
+                <span>{t('uploader.clear')}</span>
+              </button>
+            )}
           </div>
         ) : (
           <div>

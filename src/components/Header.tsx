@@ -7,7 +7,7 @@ import { useAuth } from '../lib/firebase/auth-context';
 import { clearLocalAppData } from '../lib/local-source-images';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit/react';
-import { useI18n, SUPPORTED_LOCALES, LOCALE_NAMES } from '../lib/i18n';
+import { useI18n, SUPPORTED_LOCALES, LOCALE_NAMES, LOCALE_FLAGS } from '../lib/i18n';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -167,7 +167,10 @@ export function Header({
                           : 'text-neutral-300 hover:bg-neutral-900'
                       }`}
                     >
-                      <span>{LOCALE_NAMES[code] ?? code}</span>
+                      <span className="flex items-center gap-2">
+                        <span aria-hidden="true">{LOCALE_FLAGS[code] ?? ''}</span>
+                        {LOCALE_NAMES[code] ?? code}
+                      </span>
                       {locale === code && <span className="text-indigo-400">✓</span>}
                     </button>
                   ))}

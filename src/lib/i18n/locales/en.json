@@ -414,6 +414,7 @@
     "failed": "Vectorization failed",
     "initializingWasm": "Initializing WASM...",
     "loadedFromHistory": "Loaded from history",
+    "loadingGeneration": "Loading generation...",
     "ready": "Ready",
     "tracingPaths": "Tracing paths...",
     "vectorized": "Vectorized in {ms}ms ({count} paths)",
@@ -495,6 +496,8 @@
   "uploader": {
     "browse": "browse",
     "canvasError": "Failed to create canvas 2D rendering context",
+    "clear": "Clear",
+    "clearStudio": "Clear studio — remove image and reset results",
     "dimensions": "{width} × {height} px",
     "dropPrefix": "Drop your raster image here, or ",
     "invalidType": "Please upload a valid PNG, JPG, or WEBP image.",

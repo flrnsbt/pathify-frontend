@@ -294,8 +294,14 @@ export function HistoryDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-neutral-900 border-l border-neutral-800 p-6 flex flex-col shadow-2xl h-full animate-in slide-in-from-right duration-200">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      onClick={handleClose}
+    >
+      <div
+        className="w-full max-w-md bg-neutral-900 border-l border-neutral-800 p-6 flex flex-col shadow-2xl h-full animate-in slide-in-from-right duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
           <div className="flex items-center gap-2">

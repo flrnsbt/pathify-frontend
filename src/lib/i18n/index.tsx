@@ -35,6 +35,12 @@ export const LOCALE_NAMES: Record<string, string> = {
   fr: 'Français',
 };
 
+/** Flag emoji shown next to each locale in the language picker. */
+export const LOCALE_FLAGS: Record<string, string> = {
+  en: '🇺🇸',
+  fr: '🇫🇷',
+};
+
 const LOCALE_STORAGE_KEY = 'vtracer_locale';
 const LANG_QUERY_PARAM = 'lang';
 

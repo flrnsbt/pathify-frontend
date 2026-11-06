@@ -414,6 +414,7 @@
         "failed": "Échec de la vectorisation",
         "initializingWasm": "Initialisation du WASM...",
         "loadedFromHistory": "Chargé depuis l'historique",
+        "loadingGeneration": "Chargement de la génération...",
         "ready": "Prêt",
         "tracingPaths": "Tracé des chemins...",
         "vectorized": "Vectorisé en {ms} ms ({count} chemins)",
@@ -495,6 +496,8 @@
     "uploader": {
         "browse": "parcourir",
         "canvasError": "Impossible de créer le contexte de rendu canvas 2D",
+        "clear": "Effacer",
+        "clearStudio": "Effacer le studio — retirer l'image et réinitialiser les résultats",
         "dimensions": "{width} × {height} px",
         "dropPrefix": "Déposez votre image raster ici, ou ",
         "invalidType": "Veuillez téléverser une image PNG, JPG ou WEBP valide.",
