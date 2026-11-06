@@ -55,6 +55,7 @@
     "engineBadge": "v2.0.10 Default",
     "engineV1": "VTracer 0.2.0 (Classic Legacy Engine)",
     "engineV2": "VTracer 2.0.10 (Default: Next-Gen Vector Engine)",
+    "engineV3": "VTracer 1.0.0-alpha.4 (Framework Engine)",
     "engineVersion": "Tracer Engine Version",
     "filterSpeckle": "Filter Speckle (Denoise)",
     "generationsLeft": "Generations left",

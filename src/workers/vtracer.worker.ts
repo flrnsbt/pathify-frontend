@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { initVTracer, convertImage, countSvgNodes } from '@/lib/vtracer';
+import { initVTracer, convertImage, countSvgNodes, ENGINE_WASM_URLS } from '@/lib/vtracer';
 import { WorkerInputPayload, WorkerResponse, EngineVersionOption } from '@/lib/vtracer/types';
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -13,7 +13,7 @@ self.onmessage = async (e: MessageEvent<WorkerInputPayload>) => {
 
   try {
     if (!initializedEngines.has(engine)) {
-      const defaultUrl = engine === 'vtracer-2.0.10' ? '/wasm/vtracer2.wasm' : '/wasm/vtracer.wasm';
+      const defaultUrl = ENGINE_WASM_URLS[engine] || ENGINE_WASM_URLS['vtracer-2.0.10'];
       await initVTracer(wasmUrl || defaultUrl, engine);
       initializedEngines.add(engine);
     }

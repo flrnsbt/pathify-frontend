@@ -6,6 +6,14 @@ import {
 } from './types';
 import { optimizeSvg } from './optimizer';
 import { initVTracer2, isVTracer2Ready, convertImageV2 } from './vtracer2';
+import { initVTracer3, isVTracer3Ready, convertImageV3 } from './vtracer3';
+
+/** WASM binary URL for each selectable engine build. */
+export const ENGINE_WASM_URLS: Record<EngineVersionOption, string> = {
+  'vtracer-2.0.10': '/wasm/vtracer2.wasm',
+  'vtracer-1.0.0-alpha.4': '/wasm/vtracer-1.0.0-alpha.4.wasm',
+  'vtracer-0.2.0': '/wasm/vtracer.wasm',
+};
 
 let wasm1Initialized = false;
 let initPromise1: Promise<void> | null = null;
@@ -15,7 +23,11 @@ export async function initVTracer(
   engine: EngineVersionOption = 'vtracer-2.0.10'
 ): Promise<void> {
   if (engine === 'vtracer-2.0.10') {
-    return initVTracer2(wasmBinaryOrUrl || '/wasm/vtracer2.wasm');
+    return initVTracer2(wasmBinaryOrUrl || ENGINE_WASM_URLS['vtracer-2.0.10']);
+  }
+
+  if (engine === 'vtracer-1.0.0-alpha.4') {
+    return initVTracer3(wasmBinaryOrUrl || ENGINE_WASM_URLS['vtracer-1.0.0-alpha.4']);
   }
 
   // Classic engine (vtracer-0.2.0)
@@ -62,6 +74,9 @@ export async function initVTracer(
 export function isVTracerReady(engine: EngineVersionOption = 'vtracer-2.0.10'): boolean {
   if (engine === 'vtracer-2.0.10') {
     return isVTracer2Ready();
+  }
+  if (engine === 'vtracer-1.0.0-alpha.4') {
+    return isVTracer3Ready();
   }
   return wasm1Initialized && bg.isReady();
 }
@@ -170,6 +185,8 @@ export function convertImage(
   let resultSvg: string;
   if (engine === 'vtracer-0.2.0') {
     resultSvg = convertImageV1(pixels, width, height, opts);
+  } else if (engine === 'vtracer-1.0.0-alpha.4') {
+    resultSvg = convertImageV3(pixels, width, height, opts);
   } else {
     resultSvg = convertImageV2(pixels, width, height, opts);
   }
@@ -290,3 +307,4 @@ export * from './autocrop';
 export * from './optimizer';
 export * from './compression';
 export * from './vtracer2';
+export * from './vtracer3';

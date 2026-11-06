@@ -17,6 +17,7 @@ import {
 import {
   VTracerOptions,
   PresetOption,
+  EngineVersionOption,
   PRESET_OPTIONS,
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
@@ -117,13 +118,16 @@ export function ControlsPanel({
           onChange={(e) =>
             setOption(
               'engineVersion',
-              e.target.value as 'vtracer-2.0.10' | 'vtracer-0.2.0'
+              e.target.value as EngineVersionOption
             )
           }
           className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-indigo-500 focus:outline-none cursor-pointer"
         >
           <option value="vtracer-2.0.10">
             {t('controls.engineV2')}
+          </option>
+          <option value="vtracer-1.0.0-alpha.4">
+            {t('controls.engineV3')}
           </option>
           <option value="vtracer-0.2.0">
             {t('controls.engineV1')}

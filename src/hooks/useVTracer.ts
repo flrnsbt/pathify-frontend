@@ -7,7 +7,7 @@ import {
   WorkerResponse,
   DEFAULT_VTRACER_OPTIONS,
 } from '../lib/vtracer/types';
-import { initVTracer, convertImage, countSvgNodes } from '../lib/vtracer';
+import { initVTracer, convertImage, countSvgNodes, ENGINE_WASM_URLS } from '../lib/vtracer';
 import { useI18n } from '../lib/i18n';
 
 export type VTracerStatus = 'idle' | 'initializing' | 'vectorizing' | 'completed' | 'error';
@@ -133,7 +133,7 @@ export function useVTracer() {
           progress: 45,
         }));
         const engine = options.engineVersion || 'vtracer-2.0.10';
-        const wasmPath = engine === 'vtracer-2.0.10' ? '/wasm/vtracer2.wasm' : '/wasm/vtracer.wasm';
+        const wasmPath = ENGINE_WASM_URLS[engine] || ENGINE_WASM_URLS['vtracer-2.0.10'];
         await initVTracer(wasmPath, engine);
 
         setState((prev) => ({

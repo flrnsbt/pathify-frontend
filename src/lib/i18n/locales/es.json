@@ -55,6 +55,7 @@
     "engineBadge": "v2.0.10 predeterminado",
     "engineV1": "VTracer 0.2.0 (motor clásico heredado)",
     "engineV2": "VTracer 2.0.10 (predeterminado: motor vectorial de nueva generación)",
+    "engineV3": "VTracer 1.0.0-alpha.4 (motor framework)",
     "engineVersion": "Versión del motor de trazado",
     "filterSpeckle": "Filtrar motas (reducción de ruido)",
     "generationsLeft": "Generaciones restantes",

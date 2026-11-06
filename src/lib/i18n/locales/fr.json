@@ -55,6 +55,7 @@
         "engineBadge": "v2.0.10 Par défaut",
         "engineV1": "VTracer 0.2.0 (Moteur historique classique)",
         "engineV2": "VTracer 2.0.10 (Par défaut : moteur vectoriel nouvelle génération)",
+        "engineV3": "VTracer 1.0.0-alpha.4 (Moteur framework)",
         "engineVersion": "Version du moteur de tracé",
         "filterSpeckle": "Filtrer le bruit (débruitage)",
         "generationsLeft": "Générations restantes",
