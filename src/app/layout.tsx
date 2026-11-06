@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 const SITE_URL = "https://vectorizerr.pages.dev";
-const SITE_TITLE = "vectorizerr | Raster to SVG Vector Graphics";
+const SITE_TITLE = "Vectorizerr | Raster to SVG Vector Graphics";
 const SITE_DESCRIPTION =
   "High-performance raster to SVG vector graphics converter studio.";
 
