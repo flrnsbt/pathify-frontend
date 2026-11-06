@@ -145,6 +145,18 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <noscript>
+          <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-950 px-6 text-center text-neutral-100">
+            <h1 className="text-2xl font-semibold">
+              JavaScript is required
+            </h1>
+            <p className="max-w-md text-sm text-neutral-400">
+              Vectorizerr runs entirely in your browser using WebAssembly, so
+              it needs JavaScript enabled to work. Please enable JavaScript in
+              your browser settings and refresh the page.
+            </p>
+          </div>
+        </noscript>
         <Providers>{children}</Providers>
       </body>
     </html>
