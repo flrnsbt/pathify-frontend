@@ -12,6 +12,8 @@ interface ImageStats {
   darkFrac: number;
   lightFrac: number;
   colorfulFrac: number;
+  /** Edge pixels / foreground pixels — high for stroke-based art, low for filled shapes. */
+  strokeRatio: number;
 }
 
 function analyzeImage(imageData: ImageData): ImageStats {
@@ -22,6 +24,7 @@ function analyzeImage(imageData: ImageData): ImageStats {
   const stride = Math.max(1, Math.floor(Math.sqrt(total / 60000)));
 
   const colors = new Set<number>();
+  const colorCounts = new Map<number, number>();
   let transparent = 0;
   let sampled = 0;
   let dark = 0;
@@ -32,6 +35,8 @@ function analyzeImage(imageData: ImageData): ImageStats {
   const edgeStep = Math.max(1, Math.floor(Math.min(w, h) / 128));
   let edgeCount = 0;
   let edgeTotal = 0;
+  let fgCount = 0;
+  let fgEdgeCount = 0;
 
   for (let y = 0; y < h; y += stride) {
     for (let x = 0; x < w; x += stride) {
@@ -46,6 +51,7 @@ function analyzeImage(imageData: ImageData): ImageStats {
       const key =
         ((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4);
       colors.add(key);
+      colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
       const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       if (lum < 64) dark++;
       else if (lum > 220) light++;
@@ -55,6 +61,19 @@ function analyzeImage(imageData: ImageData): ImageStats {
     }
   }
 
+  // Dominant (background) color — everything else counts as foreground
+  let dominantKey = -1;
+  let dominantCount = 0;
+  for (const [key, count] of colorCounts) {
+    if (count > dominantCount) {
+      dominantCount = count;
+      dominantKey = key;
+    }
+  }
+
+  const quantize = (idx: number) =>
+    ((data[idx] >> 4) << 8) | ((data[idx + 1] >> 4) << 4) | (data[idx + 2] >> 4);
+
   for (let y = 0; y + edgeStep < h; y += edgeStep) {
     for (let x = 0; x + edgeStep < w; x += edgeStep) {
       const i1 = (y * w + x) * 4;
@@ -63,7 +82,13 @@ function analyzeImage(imageData: ImageData): ImageStats {
         0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
       const d = Math.abs(lum(i1) - lum(i2));
       edgeTotal++;
-      if (d > 40) edgeCount++;
+      const isEdge = d > 40;
+      if (isEdge) edgeCount++;
+      // Foreground = opaque and different from the dominant color
+      if (data[i1 + 3] >= 16 && quantize(i1) !== dominantKey) {
+        fgCount++;
+        if (isEdge) fgEdgeCount++;
+      }
     }
   }
 
@@ -75,6 +100,7 @@ function analyzeImage(imageData: ImageData): ImageStats {
     darkFrac: dark / opaque,
     lightFrac: light / opaque,
     colorfulFrac: colorful / opaque,
+    strokeRatio: fgCount > 0 ? fgEdgeCount / fgCount : 0,
   };
 }
 
@@ -92,9 +118,11 @@ export function isEnhancementWorthwhile(imageData: ImageData): boolean {
  */
 export function detectPreset(imageData: ImageData): DetectedPreset {
   const s = analyzeImage(imageData);
-  // Line art is achromatic by definition — colorful content must never map to it,
-  // since the 'line-art' preset forces binary color mode and erases color.
   const isMonochrome = s.colorfulFrac < 0.15;
+  // Line art is achromatic AND stroke-dominated: thin marks where most
+  // foreground pixels touch an edge. Filled shapes (badges, hearts, icons)
+  // have low strokeRatio — they must never reach the binary 'line-art' preset.
+  const isLineArt = isMonochrome && s.strokeRatio > 0.2;
 
   // Transparent-background graphics: logo vs line-art
   if (s.transparentFrac > 0.2) {
@@ -107,17 +135,19 @@ export function detectPreset(imageData: ImageData): DetectedPreset {
     return { preset: 'photo', confidence: 'low' };
   }
 
-  // Very few colors + hard edges → flat illustration / pixel art
-  if (s.uniqueColors <= 48 && s.edgeFrac > 0.12) {
-    if (s.uniqueColors <= 8) {
-      return { preset: isMonochrome ? 'line-art' : 'logo', confidence: 'high' };
-    }
-    return { preset: 'pixel-art', confidence: 'high' };
+  // Colorful, few colors, hard edges → pixel art
+  if (!isMonochrome && s.uniqueColors <= 48 && s.edgeFrac > 0.12) {
+    return { preset: 'pixel-art', confidence: 'medium' };
   }
 
-  // Near-monochrome content: line art, sketches, receipts, documents
-  if (s.colorfulFrac < 0.15 && s.uniqueColors <= 64) {
+  // Stroke-dominated monochrome → line art, sketches, receipts, documents
+  if (isLineArt && s.uniqueColors <= 128) {
     return { preset: 'line-art', confidence: 'medium' };
+  }
+
+  // Few colors → flat graphic (badges, icons, emojis, flat illustrations)
+  if (s.uniqueColors <= 48) {
+    return { preset: 'logo', confidence: 'medium' };
   }
 
   // Many colors but very smooth → gradient-heavy image

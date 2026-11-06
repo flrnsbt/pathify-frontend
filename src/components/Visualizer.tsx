@@ -1172,7 +1172,7 @@ export function Visualizer({
         {isProcessing && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[2px] animate-in fade-in duration-150">
             {/* Top scanning laser beam */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 via-pink-500 to-transparent animate-pulse" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#4174f7] via-[#9159fb] to-[#fccc4b] animate-pulse" />
 
             {/* Futuristic Glassmorphism Card */}
             <div className="relative flex flex-col items-center max-w-xs sm:max-w-sm mx-4 p-6 rounded-3xl border border-indigo-500/30 bg-neutral-950/90 shadow-2xl shadow-indigo-500/25 text-center backdrop-blur-md animate-in zoom-in-95 duration-150">
@@ -1180,7 +1180,7 @@ export function Visualizer({
               <div className="relative mb-3 flex items-center justify-center">
                 <div className="absolute h-20 w-20 rounded-full border-2 border-dashed border-indigo-500/40 animate-[spin_6s_linear_infinite]" />
                 <div className="absolute h-24 w-24 rounded-full border border-purple-500/30 animate-ping opacity-25" />
-                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 p-0.5 shadow-xl">
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#4174f7] via-[#9159fb] to-[#fccc4b] p-0.5 shadow-xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/icon.svg"
@@ -1206,7 +1206,7 @@ export function Visualizer({
 
               {/* Progress shimmer track */}
               <div className="mt-3.5 w-full h-1.5 rounded-full bg-neutral-800 overflow-hidden relative">
-                <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-pulse" />
+                <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#4174f7] via-[#9159fb] to-[#fccc4b] rounded-full animate-pulse" />
               </div>
             </div>
           </div>

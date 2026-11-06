@@ -84,7 +84,7 @@ export default function SignInPage() {
           {/* Logo & Header */}
           <div className="flex flex-col items-center text-center">
             <div className="relative mb-3 group">
-              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 blur transition group-hover:opacity-60" />
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#4174f7] via-[#9159fb] to-[#fccc4b] opacity-40 blur transition group-hover:opacity-60" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/icon.svg"

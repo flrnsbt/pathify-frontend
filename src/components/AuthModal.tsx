@@ -72,12 +72,12 @@ export function AuthModal({ isOpen, onClose, onOpenCredits }: AuthModalProps) {
         {/* App Branding & Logo */}
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-3 group">
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 blur transition group-hover:opacity-60" />
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#4174f7] via-[#9159fb] to-[#fccc4b] opacity-40 blur transition group-hover:opacity-60" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon.svg"
               alt="vectorizerr placeholder logo"
-              className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 p-1.5 shadow-xl object-contain"
+              className="relative h-16 w-16 rounded-2xl border border-white/10 bg-neutral-950 shadow-xl object-contain"
             />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight text-white">
