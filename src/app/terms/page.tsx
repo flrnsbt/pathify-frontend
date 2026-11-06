@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { ArrowLeft, Scale, FileText, CheckCircle2, AlertTriangle, Shield, Coins, LifeBuoy } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { fetchAppConfig, getGenerationsPerUnlock } from '@/lib/app-config';
+import { useI18n } from '@/lib/i18n';
 
 export default function TermsOfServicePage() {
+  const { t } = useI18n();
   const [generationsPerUnlock, setGenerationsPerUnlock] = React.useState(getGenerationsPerUnlock());
 
   React.useEffect(() => {
@@ -31,7 +33,7 @@ export default function TermsOfServicePage() {
             className="flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white transition"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Vectorizer</span>
+            <span>{t('legal.common.backToVectorizer')}</span>
           </Link>
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -43,7 +45,7 @@ export default function TermsOfServicePage() {
             className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white transition"
           >
             <LifeBuoy className="h-3.5 w-3.5 text-neutral-400" />
-            <span>Support</span>
+            <span>{t('legal.common.support')}</span>
           </Link>
         </div>
       </header>
@@ -52,14 +54,14 @@ export default function TermsOfServicePage() {
       <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-1 text-xs font-medium text-indigo-300 mb-6">
           <Scale className="h-4 w-4" />
-          <span>Legal Agreement & Terms of Service</span>
+          <span>{t('legal.terms.badge')}</span>
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
-          Conditions of Use & Terms of Service
+          {t('legal.terms.title')}
         </h1>
         <p className="text-sm text-neutral-400 mb-8">
-          Last revised: November 2026 &bull; Please review these terms carefully before accessing or utilizing Vectorizerr services.
+          {t('legal.terms.lastRevised')}
         </p>
 
         {/* Ownership Guarantee Card */}
@@ -70,10 +72,10 @@ export default function TermsOfServicePage() {
             </div>
             <div>
               <h2 className="text-base font-semibold text-white mb-1.5">
-                100% User Ownership of Generated Vectors
+                {t('legal.terms.ownershipTitle')}
               </h2>
               <p className="text-xs text-neutral-300 leading-relaxed">
-                You retain complete, unrestricted ownership, copyright, and commercial licensing rights over all images you convert and all vector SVG files you produce with Vectorizerr. We claim zero proprietary rights, royalties, or licensing over your creations.
+                {t('legal.terms.ownershipBody')}
               </p>
             </div>
           </div>
@@ -85,10 +87,10 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <FileText className="h-4 w-4 text-indigo-400" />
-              <h3>1. Acceptance of Terms</h3>
+              <h3>{t('legal.terms.s1Title')}</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              By accessing Vectorizerr at <code className="text-neutral-300 font-mono">vectorizerr.pages.dev</code> or associated endpoints, you agree to comply with and be bound by these Conditions of Use and our Privacy Policy. If you do not agree to these terms, please do not use the application.
+              {t('legal.terms.s1Body')}
             </p>
           </section>
 
@@ -96,18 +98,18 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <Coins className="h-4 w-4 text-indigo-400" />
-              <h3>2. Services, Free Features & Credits Quotas</h3>
+              <h3>{t('legal.terms.s2Title')}</h3>
             </div>
             <div className="space-y-2 text-xs text-neutral-400">
               <p>
-                Vectorizerr offers both free and credit-based capabilities:
+                {t('legal.terms.s2Intro')}
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong className="text-neutral-200">Free Previews & Raster Downloads:</strong> High-resolution vectorization preview, split-screen comparison, and exports to PNG or WebP formats are completely free and do not require user login or credit consumption.
+                  <strong className="text-neutral-200">{t('legal.terms.s2FreeLabel')}</strong>{t('legal.terms.s2FreeBody')}
                 </li>
                 <li>
-                  <strong className="text-neutral-200">SVG Unlocks & Quotas:</strong> Exporting raw, scalable, lossless SVG files requires credits or an active plan. Unlocking an image with 1 credit grants a quota of up to {generationsPerUnlock} validated vector generations on that image, allowing you to fine-tune presets and parameters without redundant charges.
+                  <strong className="text-neutral-200">{t('legal.terms.s2CreditsLabel')}</strong>{t('legal.terms.s2CreditsBody', { count: generationsPerUnlock })}
                 </li>
               </ul>
             </div>
@@ -117,31 +119,31 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <Shield className="h-4 w-4 text-indigo-400" />
-              <h3>3. Cryptocurrency Payments & Non-Custodial Transactions</h3>
+              <h3>{t('legal.terms.s3Title')}</h3>
             </div>
             <div className="space-y-2 text-xs text-neutral-400">
               <p>
-                When purchasing credits via Web3 wallet or direct cryptocurrency transfers:
+                {t('legal.terms.s3Intro')}
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li>
-                  <strong className="text-neutral-200">Non-Refundable Utility Credits:</strong> Cryptocurrency top-ups represent final, non-refundable purchases of platform execution credits used exclusively for vector processing. Credits are non-transferable, cannot be withdrawn back to external wallets, and carry no monetary store-of-value.
+                  <strong className="text-neutral-200">{t('legal.terms.s3NonRefundableLabel')}</strong>{t('legal.terms.s3NonRefundableBody')}
                 </li>
                 <li>
-                  <strong className="text-neutral-200">On-Chain Confirmations:</strong> Transactions are processed on public decentralized blockchains (BNB Smart Chain, Ethereum, Polygon, Base, Arbitrum, Bitcoin). Credits are credited to your account once the transaction attains the required on-chain block confirmations.
+                  <strong className="text-neutral-200">{t('legal.terms.s3OnchainLabel')}</strong>{t('legal.terms.s3OnchainBody')}
                 </li>
                 <li>
-                  <strong className="text-neutral-200">Transaction Tracking & Auto-Refresh:</strong> Our Cloudflare Edge Worker monitors pending transactions automatically. You can also trigger immediate verification at any time via the "Refresh Credits" button on the Transactions page.
+                  <strong className="text-neutral-200">{t('legal.terms.s3TrackingLabel')}</strong>{t('legal.terms.s3TrackingBody')}
                 </li>
                 <li>
-                  <strong className="text-neutral-200">Gas Fees & Irreversibility:</strong> Blockchain gas/network fees are paid directly to network validators and are non-refundable. Vectorizerr does not control network congestion or gas price fluctuations.
+                  <strong className="text-neutral-200">{t('legal.terms.s3GasLabel')}</strong>{t('legal.terms.s3GasBody')}
                 </li>
                 <li>
-                  <strong className="text-neutral-200">Missing or Delayed Transactions:</strong> If your transaction is confirmed on-chain but your credits do not appear automatically, you can submit your transaction hash through our{' '}
+                  <strong className="text-neutral-200">{t('legal.terms.s3MissingLabel')}</strong>{t('legal.terms.s3MissingPrefix')}
                   <Link href="/support?category=crypto_transaction" className="text-indigo-400 underline underline-offset-4">
-                    Support Assistance Portal
+                    {t('legal.terms.s3MissingLink')}
                   </Link>
-                  .
+                  {t('legal.terms.s3MissingSuffix')}
                 </li>
               </ul>
             </div>
@@ -151,15 +153,15 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <AlertTriangle className="h-4 w-4 text-indigo-400" />
-              <h3>4. Acceptable Use Policy</h3>
+              <h3>{t('legal.terms.s4Title')}</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              You agree not to abuse, disrupt, or exploit the service. Prohibited activities include:
+              {t('legal.terms.s4Intro')}
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-xs text-neutral-400">
-              <li>Attempting to forge, alter, or bypass cryptographic handshake tokens or API secrets.</li>
-              <li>Executing automated denial-of-service (DDoS) requests against our edge APIs.</li>
-              <li>Uploading content that contains malware, malicious payloads, or illegal material.</li>
+              <li>{t('legal.terms.s4Li1')}</li>
+              <li>{t('legal.terms.s4Li2')}</li>
+              <li>{t('legal.terms.s4Li3')}</li>
             </ul>
           </section>
 
@@ -167,10 +169,10 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <Scale className="h-4 w-4 text-indigo-400" />
-              <h3>5. Disclaimers & Limitation of Liability</h3>
+              <h3>{t('legal.terms.s5Title')}</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              Vectorizerr is provided &ldquo;as is&rdquo; without warranties of any kind, whether express or implied. In no event shall Vectorizerr or its operators be held liable for any indirect, incidental, or consequential damages resulting from blockchain delays, network forks, browser hardware limitations, or temporary service interruptions.
+              {t('legal.terms.s5Body')}
             </p>
           </section>
 
@@ -178,14 +180,14 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-white font-semibold text-base">
               <LifeBuoy className="h-4 w-4 text-indigo-400" />
-              <h3>6. Contact & Dispute Resolution</h3>
+              <h3>{t('legal.terms.s6Title')}</h3>
             </div>
             <p className="text-xs text-neutral-400">
-              For questions concerning these Conditions of Use or billing queries, please contact our support desk at{' '}
+              {t('legal.terms.s6Prefix')}
               <Link href="/support" className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4">
-                Vectorizerr Support Portal
+                {t('legal.terms.s6Link')}
               </Link>
-              .
+              {t('legal.terms.s6Suffix')}
             </p>
           </section>
         </div>
