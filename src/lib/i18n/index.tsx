@@ -13,6 +13,10 @@ import fr from './locales/fr.json';
 import es from './locales/es.json';
 import it from './locales/it.json';
 import de from './locales/de.json';
+import pt from './locales/pt.json';
+import zh from './locales/zh.json';
+import ja from './locales/ja.json';
+import ko from './locales/ko.json';
 
 /**
  * Lightweight i18n layer.
@@ -29,7 +33,17 @@ import de from './locales/de.json';
  */
 
 export const DEFAULT_LOCALE = 'en';
-export const SUPPORTED_LOCALES = ['en', 'fr', 'es', 'it', 'de'] as const;
+export const SUPPORTED_LOCALES = [
+  'en',
+  'fr',
+  'es',
+  'it',
+  'de',
+  'pt',
+  'zh',
+  'ja',
+  'ko',
+] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 /** Native display names for each supported locale. */
@@ -39,6 +53,10 @@ export const LOCALE_NAMES: Record<string, string> = {
   es: 'Español',
   it: 'Italiano',
   de: 'Deutsch',
+  pt: 'Português',
+  zh: '中文',
+  ja: '日本語',
+  ko: '한국어',
 };
 
 /** Flag emoji shown next to each locale in the language picker. */
@@ -48,6 +66,10 @@ export const LOCALE_FLAGS: Record<string, string> = {
   es: '🇪🇸',
   it: '🇮🇹',
   de: '🇩🇪',
+  pt: '🇧🇷',
+  zh: '🇨🇳',
+  ja: '🇯🇵',
+  ko: '🇰🇷',
 };
 
 const LOCALE_STORAGE_KEY = 'vtracer_locale';
@@ -55,7 +77,17 @@ const LANG_QUERY_PARAM = 'lang';
 
 type Messages = Record<string, unknown>;
 
-const MESSAGES: Record<string, Messages> = { en, fr, es, it, de };
+const MESSAGES: Record<string, Messages> = {
+  en,
+  fr,
+  es,
+  it,
+  de,
+  pt,
+  zh,
+  ja,
+  ko,
+};
 
 function isSupportedLocale(value: string | null | undefined): value is string {
   if (!value) return false;
