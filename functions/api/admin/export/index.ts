@@ -1,5 +1,5 @@
 import type { EventContext } from '@cloudflare/workers-types';
-import { validateOrigin, handleOptions, getCorsHeaders } from '../../utils';
+import { validateOrigin, handleOptions, getCorsHeaders } from '../../../utils';
 
 interface Env {
   BACKEND_URL: string;
