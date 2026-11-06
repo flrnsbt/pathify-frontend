@@ -2,7 +2,7 @@
 
 > High-performance raster-to-SVG vectorizer studio. Upload a PNG, JPG, WebP or other raster image and convert it into clean, editable SVG vector graphics in the browser — powered by a WebAssembly port of VTracer.
 
-Vectorizerr is a client-side vectorization tool: images are processed locally in the browser via WebAssembly, and results can be previewed, downloaded as SVG, or exported as PNG/WebP. Paid generations are tracked server-side and stored in a per-user history.
+Vectorizerr is a client-side vectorization tool: images are processed locally in the browser via WebAssembly, and results can be previewed, downloaded as SVG, or exported as PNG/WebP. Paid generations are tracked server-side and stored in a per-user history. The interface is available in 9 languages: English, Français, Español, Italiano, Deutsch, Português, 中文, 日本語, 한국어.
 
 ## Pages
 
@@ -10,8 +10,6 @@ Vectorizerr is a client-side vectorization tool: images are processed locally in
 - [Support](https://vectorizerr.pages.dev/support): Contact form for billing, transaction, and technical issues.
 - [Privacy Policy](https://vectorizerr.pages.dev/privacy): How user data, images, and transaction records are handled.
 - [Terms & Conditions](https://vectorizerr.pages.dev/terms): Terms of service.
-- [Conditions](https://vectorizerr.pages.dev/conditions): Usage conditions.
-- [Contact](https://vectorizerr.pages.dev/contact): Contact information.
 
 ## How it works
 
