@@ -433,6 +433,43 @@ export function Visualizer({
   const containerRef = useRef<HTMLDivElement>(null);
   const imageBoxRef = useRef<HTMLDivElement>(null);
 
+  // Intentionally degraded preview copy of the source raster (downscaled + low-quality
+  // resampling) so the vector result reads as visually cleaner by contrast.
+  // Display-only — tracing and exports still use the pristine originalImage.dataUrl.
+  const [rasterPreviewUrl, setRasterPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const src = originalImage?.dataUrl;
+    if (!src) {
+      setRasterPreviewUrl(null);
+      return;
+    }
+    let active = true;
+    const img = new Image();
+    img.onload = () => {
+      if (!active) return;
+      const scale = 0.85;
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setRasterPreviewUrl(src);
+        return;
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'low';
+      ctx.drawImage(img, 0, 0, w, h);
+      setRasterPreviewUrl(canvas.toDataURL('image/png'));
+    };
+    img.src = src;
+    return () => {
+      active = false;
+    };
+  }, [originalImage?.dataUrl]);
+  const rasterPreviewSrc = rasterPreviewUrl || originalImage?.dataUrl || '';
+
   // Smooth mousewheel / pinch-to-zoom on canvas container
   useEffect(() => {
     const container = containerRef.current;
@@ -1103,7 +1140,7 @@ export function Visualizer({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={originalImage.dataUrl}
+                      src={rasterPreviewSrc}
                       alt={t('visualizer.originalRaster')}
                       draggable={false}
                       className="w-full h-full object-contain select-none pointer-events-none rounded-xl"
@@ -1189,7 +1226,7 @@ export function Visualizer({
                 }}
               >
                 <SplitSliderCanvas
-                  rasterUrl={originalImage.dataUrl}
+                  rasterUrl={rasterPreviewSrc}
                   svg={svg}
                   fallbackUrl={renderedVectorImage}
                   width={originalImage.width}
@@ -1231,7 +1268,7 @@ export function Visualizer({
               <div className="flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={originalImage.dataUrl}
+                  src={rasterPreviewSrc}
                   alt={t('visualizer.originalRaster')}
                   draggable={false}
                   className="max-h-[75vh] max-w-[85vw] object-contain select-none pointer-events-none"
