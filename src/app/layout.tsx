@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 const SITE_URL = "https://pathify.art";
 const SITE_TITLE = "Pathify | Raster to SVG Vector Graphics";
 const SITE_DESCRIPTION =
-  "Convert raster images (PNG, JPG, WebP) into clean, scalable SVG vector graphics entirely in your browser. Powered by VTracer WebAssembly — free previews, no uploads, no AI training on your images.";
+  "Convert raster images (PNG, JPG, WebP) into clean, scalable SVG vector graphics entirely in your browser. Free previews, no uploads, no AI training on your images.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
