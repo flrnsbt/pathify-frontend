@@ -21,6 +21,7 @@ import { useAuth } from '../lib/firebase/auth-context';
 import {
   createCryptoTransaction,
   listenToTransaction,
+  refreshUserCredits,
 } from '../lib/firebase/firestore';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useDisconnect } from '@reown/appkit-controllers/react';
@@ -112,7 +113,18 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [txHashInput, setTxHashInput] = useState<string>('');
+
+  // Direct/QR payment invoice: the backend assigns a unique amount that
+  // identifies this specific transfer on-chain (no tx hash is used).
+  const [directInvoice, setDirectInvoice] = useState<{
+    txId: string;
+    amount: string;
+    toAddress: string;
+    expiresAt?: number;
+    expiresInMinutes?: number;
+    key: string;
+  } | null>(null);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
   // Keep track of active Firestore listener unsubscribers to prevent memory leaks
   const activeUnsubscribesRef = useRef<Array<() => void>>([]);
@@ -324,6 +336,34 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     return calculateCryptoAmount(selectedPack.usdPrice, activeToken, tokenPrices);
   }, [selectedPack.usdPrice, activeToken, tokenPrices]);
 
+  // Direct-payment invoice freshness: the server-assigned unique amount is
+  // only valid for the exact pack/chain/token it was generated for.
+  const invoiceKey = `${selectedPack.id}|${selectedChainKey}|${activeToken}`;
+  const invoiceFresh =
+    directInvoice != null && directInvoice.key === invoiceKey && !successMsg;
+
+  // QR payload: a payment URI including the unique amount when an invoice is
+  // active (EIP-681 for EVM chains), plain address otherwise.
+  const qrPayload = useMemo(() => {
+    if (!invoiceFresh || !directInvoice) return recipientWallet;
+    const addr = directInvoice.toAddress;
+    const amount = directInvoice.amount;
+    try {
+      if (chainMeta.isEvm && chainMeta.chainId) {
+        if (activeToken === chainMeta.nativeToken) {
+          return `ethereum:${addr}@${chainMeta.chainId}?value=${parseEther(amount).toString()}`;
+        }
+        const contract = getERC20Contracts()[chainMeta.chainId]?.[activeToken];
+        if (contract?.address) {
+          return `ethereum:${contract.address}/transfer?address=${addr}&uint256=${parseUnits(amount, contract.decimals).toString()}`;
+        }
+      }
+    } catch {
+      // fall through to the plain recipient address
+    }
+    return addr;
+  }, [invoiceFresh, directInvoice, recipientWallet, activeToken, chainMeta.isEvm, chainMeta.chainId, chainMeta.nativeToken]);
+
   // --- Balance hooks (must be after chainMeta is defined) ---
 
   // Native token balance for the currently connected wallet
@@ -392,7 +432,8 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         setErrorMsg(null);
         setSuccessMsg(null);
         setLoading(false);
-        setTxHashInput('');
+        setIsGeneratingInvoice(false);
+        setDirectInvoice(null);
         setCopiedField(null);
       });
 
@@ -420,15 +461,15 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     return num.toFixed(decimals).replace(/\.?0+$/, '');
   };
 
-  // Generate QR code for the recipient wallet
+  // Generate QR code for the payment payload (address or payment URI)
   useEffect(() => {
-    if (!isOpen || isLoadingWallets || isInvalidRecipient || !recipientWallet) {
+    if (!isOpen || isLoadingWallets || isInvalidRecipient || !qrPayload) {
       queueMicrotask(() => setQrCodeUrl(''));
       return;
     }
 
     let active = true;
-    QRCode.toDataURL(recipientWallet, {
+    QRCode.toDataURL(qrPayload, {
       width: 220,
       margin: 1,
       color: {
@@ -446,7 +487,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     return () => {
       active = false;
     };
-  }, [isOpen, isLoadingWallets, isInvalidRecipient, recipientWallet]);
+  }, [isOpen, isLoadingWallets, isInvalidRecipient, qrPayload]);
 
   if (!isOpen) return null;
 
@@ -588,7 +629,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
       }
 
       // 4. Record transaction in Firestore with status 'pending'
-      const txId = await createCryptoTransaction({
+      const created = await createCryptoTransaction({
         packId: selectedPack.id,
         credits: selectedPack.credits,
         usdPrice: selectedPack.usdPrice,
@@ -603,6 +644,7 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         status: 'pending',
         statusMessage: t('modals.credits.txSubmittedOn', { chain: chainMeta.name }),
       });
+      const txId = created.id;
 
       // Listen for transaction confirmation in real-time
       const unsubscribe = listenToTransaction(txId, (updatedTx) => {
@@ -632,22 +674,32 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
     }
   };
 
-  // Manual / Direct transfer confirmation
-  const handleConfirmManualPayment = async () => {
+  // Direct / QR transfer: create a pending invoice. The backend assigns a
+  // unique amount (and expiry) that identifies this exact transfer on-chain —
+  // the user must send precisely that amount; no tx hash is collected.
+  const handleGenerateInvoice = async () => {
     setErrorMsg(null);
-    setLoading(true);
+    setSuccessMsg(null);
+
+    if (!user || user.isAnonymous) {
+      if (onOpenAuth) {
+        onClose();
+        onOpenAuth();
+      } else {
+        setErrorMsg(t('modals.credits.signInFirst'));
+      }
+      return;
+    }
+
+    if (isInvalidRecipient) {
+      setErrorMsg(t('modals.credits.walletNotConfigured', { chain: chainMeta.name }));
+      return;
+    }
+
+    setIsGeneratingInvoice(true);
 
     try {
-      if (!user || user.isAnonymous) {
-        throw new Error(t('modals.credits.signInFirst'));
-      }
-
-      if (isInvalidRecipient) {
-        throw new Error(t('modals.credits.walletNotConfigured', { chain: chainMeta.name }));
-      }
-
-      // Record transaction in Firestore with status 'pending'
-      const txId = await createCryptoTransaction({
+      const created = await createCryptoTransaction({
         packId: selectedPack.id,
         credits: selectedPack.credits,
         usdPrice: selectedPack.usdPrice,
@@ -657,29 +709,50 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
         chainId: chainMeta.chainId,
         paymentMethod: 'direct',
         toAddress: recipientWallet,
-        txHash: txHashInput.trim() || undefined,
         status: 'pending',
         statusMessage: t('modals.credits.manualStatus'),
       });
 
-      // Listen for transaction confirmation
-      const unsubscribe = listenToTransaction(txId, (updatedTx) => {
+      setDirectInvoice({
+        txId: created.id,
+        amount: created.expectedAmount || amountToPay,
+        toAddress: created.toAddress || recipientWallet,
+        expiresAt: created.expiresAt,
+        expiresInMinutes: created.expiresAt
+          ? Math.max(1, Math.round((created.expiresAt - Date.now()) / 60000))
+          : undefined,
+        key: invoiceKey,
+      });
+
+      // Listen for automatic on-chain detection
+      const unsubscribe = listenToTransaction(created.id, (updatedTx) => {
         if (updatedTx?.status === 'confirmed') {
           refreshProfile();
           setSuccessMsg(
             t('modals.credits.paymentConfirmed', { credits: selectedPack.credits })
           );
           unsubscribe();
+        } else if (updatedTx?.status === 'failed') {
+          setErrorMsg(updatedTx.statusMessage || t('modals.credits.txVerifyFailed'));
+          unsubscribe();
         }
       });
       activeUnsubscribesRef.current.push(unsubscribe);
-
-      setSuccessMsg(t('modals.credits.paymentSubmitted'));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMsg(msg);
     } finally {
-      setLoading(false);
+      setIsGeneratingInvoice(false);
+    }
+  };
+
+  // Manual "check now" for the pending direct transfer
+  const handleCheckNow = async () => {
+    if (!user || user.isAnonymous) return;
+    try {
+      await refreshUserCredits(user.uid);
+    } catch {
+      // best-effort; the Firestore listener will update the UI anyway
     }
   };
 
@@ -1137,13 +1210,13 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                         ) : isInvalidRecipient ? (
                           <span className="text-amber-400">{t('modals.credits.walletNotConfiguredForNetwork')}</span>
                         ) : (
-                          recipientWallet
+                          invoiceFresh && directInvoice ? directInvoice.toAddress : recipientWallet
                         )}
                       </span>
                       <button
                         type="button"
                         disabled={isLoadingWallets || isInvalidRecipient}
-                        onClick={() => copyToClipboard(recipientWallet, 'address')}
+                        onClick={() => copyToClipboard(invoiceFresh && directInvoice ? directInvoice.toAddress : recipientWallet, 'address')}
                         className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition disabled:opacity-40"
                         title={t('modals.credits.copyAddress')}
                       >
@@ -1163,11 +1236,11 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                     <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
                       <span className="font-mono text-xs font-semibold text-amber-300 truncate flex-1 flex items-center gap-1.5">
                         <TokenIcon token={activeToken} className="w-4 h-4 shrink-0" />
-                        <span>{amountToPay} {activeToken}</span>
+                        <span>{invoiceFresh && directInvoice ? directInvoice.amount : amountToPay} {activeToken}</span>
                       </span>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(amountToPay, 'amount')}
+                        onClick={() => copyToClipboard(invoiceFresh && directInvoice ? directInvoice.amount : amountToPay, 'amount')}
                         className="rounded-lg bg-neutral-800 p-1.5 text-neutral-300 hover:text-white transition"
                         title={t('modals.credits.copyAmount')}
                       >
@@ -1189,35 +1262,62 @@ export function CreditModal({ isOpen, onClose, requiredReason, onOpenAuth }: Cre
                 <strong className="text-white">{chainMeta.badge}</strong>{t('modals.credits.safetyBody3')}
               </div>
 
-              {/* Optional TX Hash Input & Confirmation Button */}
+              {/* Invoice generation & automatic detection (no tx hash needed) */}
               <div className="pt-2 border-t border-neutral-800 space-y-2">
-                <input
-                  type="text"
-                  placeholder={t('modals.credits.txHashPlaceholder')}
-                  value={txHashInput}
-                  onChange={(e) => setTxHashInput(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 focus:border-indigo-500 focus:outline-none"
-                />
-
-                <button
-                  type="button"
-                  disabled={loading || isLoadingWallets || isInvalidRecipient}
-                  onClick={handleConfirmManualPayment}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-emerald-500 transition disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : isLoadingWallets ? (
-                    <span>{t('modals.credits.loadingConfig')}</span>
-                  ) : isInvalidRecipient ? (
-                    <span>{t('modals.credits.addressNotConfigured')}</span>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>{t('modals.credits.iHaveSent', { credits: selectedPack.credits })}</span>
-                    </>
-                  )}
-                </button>
+                {invoiceFresh && directInvoice ? (
+                  <>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 text-[11px] text-emerald-300/90 leading-relaxed">
+                      {t('modals.credits.uniqueAmountNotice')}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+                      <span>{t('modals.credits.autoDetectNote')}</span>
+                      {directInvoice.expiresInMinutes != null && (
+                        <span className="shrink-0 text-neutral-500">
+                          {t('modals.credits.expiresIn', {
+                            minutes: directInvoice.expiresInMinutes,
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCheckNow}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800/60 py-2 text-xs font-semibold text-neutral-200 hover:bg-neutral-800 transition"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>{t('modals.credits.checkNow')}</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {directInvoice && !invoiceFresh && (
+                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2 text-[11px] text-amber-300/90 leading-relaxed">
+                        {t('modals.credits.detailsOutdated')}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isGeneratingInvoice || isLoadingWallets || isInvalidRecipient || !user || user.isAnonymous}
+                      onClick={handleGenerateInvoice}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-emerald-500 transition disabled:opacity-50"
+                    >
+                      {isGeneratingInvoice ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      ) : isLoadingWallets ? (
+                        <span>{t('modals.credits.loadingConfig')}</span>
+                      ) : isInvalidRecipient ? (
+                        <span>{t('modals.credits.addressNotConfigured')}</span>
+                      ) : !user || user.isAnonymous ? (
+                        <span>{t('modals.credits.signInToGenerate')}</span>
+                      ) : (
+                        <>
+                          <QrCode className="h-4 w-4" />
+                          <span>{t('modals.credits.generatePaymentDetails')}</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

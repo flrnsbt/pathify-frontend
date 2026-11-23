@@ -804,11 +804,21 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
  * Client-side Firestore direct writes are removed for security.
  * Falls back to localStorage if offline/guest mode.
  */
+export interface CreatedTransaction {
+  id: string;
+  /** Server-assigned expected amount (unique for direct payments). */
+  expectedAmount?: string;
+  /** Server-resolved recipient address. */
+  toAddress?: string;
+  /** Direct-payment expiry timestamp (ms), when applicable. */
+  expiresAt?: number;
+}
+
 export async function createCryptoTransaction(
   data: Omit<CryptoTransaction, "id" | "createdAt" | "updatedAt" | "status" | "userId"> & {
     status?: TransactionStatus;
   },
-): Promise<string> {
+): Promise<CreatedTransaction> {
   const now = Date.now();
   const status: TransactionStatus = data.status || "pending";
 
@@ -822,6 +832,9 @@ export async function createCryptoTransaction(
 
   let createdId = `tx-${now}-${Math.random().toString(36).slice(2, 7)}`;
   let backendSuccess = false;
+  let serverAmount: string | undefined;
+  let serverToAddress: string | undefined;
+  let serverExpiresAt: number | undefined;
 
   // 1. Post to backend server endpoint (service account writes to transactions collection)
   const endpoint =
@@ -860,6 +873,15 @@ export async function createCryptoTransaction(
         createdId = resJson.transactionId;
         backendSuccess = true;
       }
+      if (typeof resJson.expectedAmount === "string") {
+        serverAmount = resJson.expectedAmount;
+      }
+      if (typeof resJson.toAddress === "string") {
+        serverToAddress = resJson.toAddress;
+      }
+      if (typeof resJson.expiresAt === "number") {
+        serverExpiresAt = resJson.expiresAt;
+      }
       console.info('[Transaction] Backend confirmed transaction:', createdId);
     } else {
       const errorBody = await res.text().catch(() => '');
@@ -884,7 +906,12 @@ export async function createCryptoTransaction(
     }
   }
 
-  return createdId;
+  return {
+    id: createdId,
+    expectedAmount: serverAmount,
+    toAddress: serverToAddress,
+    expiresAt: serverExpiresAt,
+  };
 }
 
 /**
