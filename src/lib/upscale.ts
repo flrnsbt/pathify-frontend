@@ -1,6 +1,24 @@
 'use client';
 
-import * as ort from 'onnxruntime-web';
+import type * as Ort from 'onnxruntime-web';
+
+// Loaded from CDN at runtime: the .wasm is ~28 MiB, over Cloudflare Pages'
+// 25 MiB per-file limit, so neither it nor the ort bundle ships in `out`.
+const ORT_VERSION = '1.31.1';
+const ORT_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
+
+type OrtModule = typeof import('onnxruntime-web');
+
+let ortPromise: Promise<OrtModule> | null = null;
+function loadOrt(): Promise<OrtModule> {
+  ortPromise ??= import(/* webpackIgnore: true */ `${ORT_BASE}ort.all.min.mjs`).then(
+    (m) => {
+      m.env.wasm.wasmPaths = ORT_BASE;
+      return m;
+    }
+  );
+  return ortPromise;
+}
 
 export type UpscaleModelId = 'anime' | 'general' | 'general-wdn';
 
@@ -38,7 +56,7 @@ const TILE = 256;
 const CONTEXT = 16;
 const UPSCALE = 4;
 
-const sessions = new Map<UpscaleModelId, Promise<ort.InferenceSession>>();
+const sessions = new Map<UpscaleModelId, Promise<Ort.InferenceSession>>();
 const wasmOnlyModels = new Set<UpscaleModelId>();
 let webgpuAvailable: boolean | null = null;
 
@@ -52,11 +70,12 @@ async function detectWebGpu(): Promise<boolean> {
   return webgpuAvailable;
 }
 
-async function getSession(model: UpscaleModelInfo): Promise<ort.InferenceSession> {
+async function getSession(model: UpscaleModelInfo): Promise<Ort.InferenceSession> {
   const cached = sessions.get(model.id);
   if (cached) return cached;
 
   const promise = (async () => {
+    const ort = await loadOrt();
     const useWebGpu = (await detectWebGpu()) && !wasmOnlyModels.has(model.id);
     const eps = useWebGpu ? ['webgpu', 'wasm'] : ['wasm'];
     try {
@@ -129,12 +148,13 @@ function chwToImageData(
 }
 
 async function runTile(
-  session: ort.InferenceSession,
+  session: Ort.InferenceSession,
   inputName: string,
   pixels: Float32Array,
   w: number,
   h: number
 ): Promise<Float32Array> {
+  const ort = await loadOrt();
   const tensor = new ort.Tensor('float32', pixels, [1, 3, h, w]);
   const results = await session.run({ [inputName]: tensor });
   const output = results[session.outputNames[0]];
