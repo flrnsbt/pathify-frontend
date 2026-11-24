@@ -27,7 +27,7 @@ High-performance raster to vector graphics (SVG) converter studio. Data is tempo
 ### 4. Legal & Customer Assistance Portal
 - **Privacy Policy (`/privacy` & `/policy`)**: Comprehensive privacy documentation detailing our zero-upload architecture, data retention, and user rights.
 - **Conditions of Use (`/terms` & `/conditions`)**: Transparent terms covering 100% user copyright ownership of generated SVG files, crypto payment irreversibility, and acceptable use policies.
-- **Contact Support (`/support` & `/contact`)**: Confidential customer assistance form with specialized fields for cryptocurrency transaction assistance (Tx Hash, Chain, Wallet Address). Inquiries trigger edge email delivery to `SUPPORT_EMAIL` (`contact@floriansabate.top`) without exposing the address to the browser, while logging an immutable ticket in Firestore.
+- **Contact Support (`/support` & `/contact`)**: Confidential customer assistance form with specialized fields for cryptocurrency transaction assistance (Tx Hash, Chain, Wallet Address). Inquiries trigger edge email delivery to `SUPPORT_EMAIL` without exposing the address to the browser, while logging an immutable ticket in Firestore.
 
 ---
 
