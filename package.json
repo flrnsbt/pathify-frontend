@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "wrangler pages deploy out --project-name=vectorizerr"
+    "deploy": "wrangler pages deploy out --project-name=vectorizerr",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
@@ -35,7 +37,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   },
   "allowScripts": {
     "@reown/appkit@1.8.24": true,
